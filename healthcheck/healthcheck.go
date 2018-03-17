@@ -9,11 +9,12 @@ import (
     "sync"
     "net"
     "net/http"
+    "fmt"
 
     "github.com/go-ini/ini"
     "github.com/hawell/redins/redis"
     "github.com/hawell/redins/handler"
-    "fmt"
+    "github.com/hawell/redins/eventlog"
 )
 
 type HealthcheckConfig struct {
@@ -25,6 +26,7 @@ type HealthcheckConfig struct {
     upThreshold    int
     downThreshold  int
     redisConfig    *redis.RedisConfig
+    loggerConfig   *eventlog.LoggerConfig
 }
 
 type HealthCheckItem struct {
@@ -38,14 +40,17 @@ type HealthCheckItem struct {
 }
 
 type Healthcheck struct {
-    config *HealthcheckConfig
+    config      *HealthcheckConfig
     redisServer *redis.Redis
+    logger      *eventlog.EventLogger
     items       map[string]*HealthCheckItem
     lastUpdate  time.Time
 }
 
 func LoadConfig(cfg *ini.File, section string) *HealthcheckConfig {
     healthcheckConfig := cfg.Section(section)
+    redisSection := healthcheckConfig.Key("redis").MustString("redis")
+    logSection := healthcheckConfig.Key("log").MustString("log")
     return &HealthcheckConfig {
         enable:         healthcheckConfig.Key("enable").MustBool(true),
         maxRequests:    healthcheckConfig.Key("max_requests").MustInt(20),
@@ -54,7 +59,8 @@ func LoadConfig(cfg *ini.File, section string) *HealthcheckConfig {
         requestTimeout: healthcheckConfig.Key("request_timeout").MustDuration(10000 * time.Millisecond),
         upThreshold:    healthcheckConfig.Key("up_threshold").MustInt(3),
         downThreshold:  healthcheckConfig.Key("down_threshold").MustInt(-3),
-        redisConfig:    redis.LoadConfig(cfg, section),
+        redisConfig:    redis.LoadConfig(cfg, redisSection),
+        loggerConfig:   eventlog.LoadConfig(cfg, logSection),
     }
 }
 
@@ -68,6 +74,8 @@ func NewHealthcheck(config *HealthcheckConfig) *Healthcheck {
         h.redisServer = redis.NewRedis(config.redisConfig)
         h.items = make(map[string]*HealthCheckItem)
         h.loadItems()
+
+        h.logger = eventlog.NewLogger(h.config.loggerConfig)
     }
 
     return h
@@ -189,7 +197,32 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
             }
         }
         item.LastCheck = time.Now()
+        h.logHealthcheck(item)
     }
+}
+
+func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
+    if h.config.loggerConfig.Enable == false {
+        return
+    }
+
+    type HealthcheckLogData struct {
+        Ip string
+        Port int
+        Host string
+        Uri string
+        Status int
+    }
+
+    data := HealthcheckLogData {
+        Ip: item.Ip,
+        Port: item.Port,
+        Host: item.Host,
+        Uri: item.Uri,
+        Status: item.Status,
+    }
+
+    h.logger.Log(data,"healthcheck")
 }
 
 func (h *Healthcheck) statusDown(item *HealthCheckItem) {

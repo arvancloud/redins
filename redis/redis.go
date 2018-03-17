@@ -206,7 +206,7 @@ func (redis *Redis) HSet(key string, hkey string, value string) error {
     }
     defer conn.Close()
 
-    // log.Printf("[INFO] HSET : %s %s %s", redis.keyPrefix + z.Name + redis.keySuffix, location, jsonValue)
+    log.Printf("[INFO] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
     _, err := conn.Do("HSET", redis.config.prefix + key + redis.config.suffix, hkey, value)
     if err != nil {
         log.Printf("[ERROR] redis error : %s", err)

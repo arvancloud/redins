@@ -10,6 +10,7 @@ import (
     "github.com/miekg/dns"
     "github.com/hawell/redins/redis"
     "github.com/go-ini/ini"
+    "github.com/patrickmn/go-cache"
 )
 
 type DnsRequestHandler struct {
@@ -17,6 +18,7 @@ type DnsRequestHandler struct {
     Zones          []string
     LastZoneUpdate time.Time
     Redis          *redis.Redis
+    cache          *cache.Cache
 }
 
 type Zone struct {
@@ -25,14 +27,15 @@ type Zone struct {
 }
 
 type Record struct {
-    A     []A_Record     `json:"a,omitempty"`
-    AAAA  []AAAA_Record  `json:"aaaa,omitempty"`
-    TXT   []TXT_Record   `json:"txt,omitempty"`
-    CNAME []CNAME_Record `json:"cname,omitempty"`
-    NS    []NS_Record    `json:"ns,omitempty"`
-    MX    []MX_Record    `json:"mx,omitempty"`
-    SRV   []SRV_Record   `json:"srv,omitempty"`
-    SOA   SOA_Record     `json:"soa,omitempty"`
+    A        []A_Record     `json:"a,omitempty"`
+    AAAA     []AAAA_Record  `json:"aaaa,omitempty"`
+    TXT      []TXT_Record   `json:"txt,omitempty"`
+    CNAME    []CNAME_Record `json:"cname,omitempty"`
+    NS       []NS_Record    `json:"ns,omitempty"`
+    MX       []MX_Record    `json:"mx,omitempty"`
+    SRV      []SRV_Record   `json:"srv,omitempty"`
+    SOA      SOA_Record     `json:"soa,omitempty"`
+    ZoneName string         `json:"-"`
 }
 
 type A_Record struct {
@@ -91,8 +94,9 @@ type HandlerConfig struct {
 
 func LoadConfig(cfg *ini.File, section string) *HandlerConfig {
     handlerConfig := cfg.Section(section)
+    redisSection := handlerConfig.Key("redis").MustString("redis")
     return &HandlerConfig{
-        redisConfig: redis.LoadConfig(cfg, section),
+        redisConfig: redis.LoadConfig(cfg, redisSection),
         ttl:         uint32(handlerConfig.Key("ttl").MustUint(360)),
     }
 }
@@ -106,12 +110,26 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
     h.LoadZones()
 
+    h.cache = cache.New(time.Second * time.Duration(config.ttl), time.Duration(config.ttl) * time.Second * 10)
+
     return h
 }
 
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
     h.Zones = h.Redis.GetKeys()
+}
+
+func (h *DnsRequestHandler) FetchRecord(qname string) (*Record, int) {
+    record, found := h.cache.Get(qname)
+    if found {
+        return record.(*Record), dns.RcodeSuccess
+    }
+    record, res := h.GetRecord(qname)
+    if res == dns.RcodeSuccess {
+        h.cache.Set(qname, record, time.Duration(h.config.ttl) * time.Second)
+    }
+    return record.(*Record), res
 }
 
 func (h *DnsRequestHandler) A(name string, record *Record) (answers []dns.RR) {
@@ -216,7 +234,7 @@ func (h *DnsRequestHandler) SRV(name string, record *Record) (answers []dns.RR) 
     return
 }
 
-func (h *DnsRequestHandler) SOA(name string, zone string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) SOA(name string, record *Record) (answers []dns.RR) {
     r := new(dns.SOA)
     if record.SOA.Ns == "" {
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeSOA,
@@ -228,7 +246,7 @@ func (h *DnsRequestHandler) SOA(name string, zone string, record *Record) (answe
         r.Expire = 3600
         r.Minttl = uint32(h.config.ttl)
     } else {
-        r.Hdr = dns.RR_Header{Name: zone, Rrtype: dns.TypeSOA,
+        r.Hdr = dns.RR_Header{Name: record.ZoneName, Rrtype: dns.TypeSOA,
             Class: dns.ClassINET, Ttl: h.minTtl(record.SOA.Ttl)}
         r.Ns = record.SOA.Ns
         r.Mbox = record.SOA.MBox
@@ -363,7 +381,7 @@ func (h *DnsRequestHandler) Matches(qname string) string {
     return zone
 }
 
-func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int, zone string) {
+func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
     log.Printf("[INFO] GetRecord")
 
     log.Println(h.Zones)
@@ -373,28 +391,29 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int, 
     }
     log.Println(h.Zones)
 
-    zone = h.Matches(qname)
+    zone := h.Matches(qname)
     log.Printf("[INFO] zone : %s", zone)
     if zone == "" {
         log.Printf("[ERROR] no matching zone found for %s", zone)
-        return nil, dns.RcodeNameError, ""
+        return nil, dns.RcodeNameError
     }
 
     z := h.LoadZone(zone)
     if z == nil {
         log.Printf("[ERROR] empty zone : %s", zone)
-        return nil, dns.RcodeServerFailure, ""
+        return nil, dns.RcodeServerFailure
     }
 
     location := h.findLocation(qname, z)
     if len(location) == 0 { // empty, no results
-        return nil, dns.RcodeNameError, ""
+        return nil, dns.RcodeNameError
     }
     log.Printf("[INFO] location : %s", location)
 
     record = h.GetLocation(location, z)
+    record.ZoneName = zone
 
-    return record, dns.RcodeSuccess, zone
+    return record, dns.RcodeSuccess
 }
 
 func (h *DnsRequestHandler) LoadZone(zone string) *Zone {

@@ -180,7 +180,7 @@ var lookupTestCases = [][]test.Case{
 }
 
 func TestHandler(t *testing.T) {
-    cfg, err := ini.LooseLoad("redins.ini")
+    cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
         fmt.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
@@ -206,7 +206,7 @@ func TestHandler(t *testing.T) {
             qname := state.Name()
             qtype := state.Type()
 
-            record, res, zone := h.GetRecord(qname)
+            record, res := h.GetRecord(qname)
             answers := make([]dns.RR, 0, 10)
 
             if res != dns.RcodeSuccess {
@@ -234,7 +234,7 @@ func TestHandler(t *testing.T) {
                 case "SRV":
                     answers = h.SRV(qname, record)
                 case "SOA":
-                    answers = h.SOA(qname, zone, record)
+                    answers = h.SOA(qname, record)
                 default:
                     t.Fail()
                     return

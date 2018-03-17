@@ -3,13 +3,11 @@ package main
 import (
     "log"
     "sync"
-    "net"
 
     "github.com/miekg/dns"
     "github.com/go-ini/ini"
     "github.com/coredns/coredns/request"
     "github.com/hawell/redins/handler"
-    "github.com/hawell/redins/cache"
     "github.com/hawell/redins/eventlog"
     "github.com/hawell/redins/geoip"
     "github.com/hawell/redins/server"
@@ -19,28 +17,37 @@ import (
 var (
     s *dns.Server
     h *handler.DnsRequestHandler
-    c *cache.DnsCache
     l *eventlog.EventLogger
     g *geoip.GeoIp
     k *healthcheck.Healthcheck
 
 )
 
-func GetRecord(qname string) (*handler.Record, int, string) {
-    var (
-        zone string
-        record *handler.Record
-        res int
-    )
-    zone, record = c.Get(qname)
-    if record != nil {
-        return record, dns.RcodeSuccess, zone
+func GetSourceIp(request *request.Request) string {
+    opt := request.Req.IsEdns0()
+    if len(opt.Option) != 0 {
+        return opt.Option[0].String()
     }
-    record, res, zone = h.GetRecord(qname)
-    if res == dns.RcodeSuccess {
-        c.Set(zone, qname, record)
+    return request.IP()
+}
+
+func LogRequest(request *request.Request) {
+    type RequestLogData struct {
+        SourceIP     string
+        Record       string
+        ClientSubnet string
     }
-    return record, res, zone
+
+    data := RequestLogData{
+        SourceIP: request.IP(),
+        Record:   request.Name(),
+    }
+
+    opt := request.Req.IsEdns0()
+    if len(opt.Option) != 0 {
+        data.ClientSubnet = opt.Option[0].String()
+    }
+    l.Log(data, "request")
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -53,16 +60,16 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     log.Printf("[INFO] name : %s", qname)
     log.Printf("[INFO] type : %s", qtype)
 
-    l.LogRequest(&state)
+    LogRequest(&state)
 
-    record, res, zone := GetRecord(qname)
+    record, res := h.FetchRecord(qname)
 
     if res != dns.RcodeSuccess {
         errorResponse(state, res)
         return
     }
 
-    g.FilterGeoIp(net.ParseIP(state.IP()), record)
+    g.FilterGeoIp(GetSourceIp(&state), record)
 
     k.FilterHealthcheck(qname, record)
 
@@ -84,7 +91,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     case "SRV":
         answers = h.SRV(qname, record)
     case "SOA":
-        answers = h.SOA(qname, zone, record)
+        answers = h.SOA(qname, record)
     default:
         errorResponse(state, dns.RcodeNotImplemented)
         return
@@ -121,9 +128,7 @@ func main() {
 
     s = server.NewServer(server.LoadConfig(cfg, "server"))
 
-    h = handler.NewHandler(handler.LoadConfig(cfg, "redis"))
-
-    c = cache.NewCache(cache.LoadConfig(cfg, "cache"))
+    h = handler.NewHandler(handler.LoadConfig(cfg, "handler"))
 
     l = eventlog.NewLogger(eventlog.LoadConfig(cfg, "log"))
 

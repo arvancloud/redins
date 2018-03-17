@@ -8,23 +8,28 @@ import (
     "github.com/oschwald/maxminddb-golang"
     "github.com/go-ini/ini"
     "github.com/hawell/redins/handler"
+    "github.com/hawell/redins/eventlog"
 )
 
 type GeoIp struct {
     config *GeoipConfig
     db     *maxminddb.Reader
+    logger *eventlog.EventLogger
 }
 
 type GeoipConfig struct {
-    enable bool
-    dbName string
+    enable    bool
+    dbName    string
+    logConfig *eventlog.LoggerConfig
 }
 
 func LoadConfig(cfg *ini.File, section string) *GeoipConfig {
     geoipConfig := cfg.Section(section)
+    logSection := geoipConfig.Key("log").MustString("log")
     return &GeoipConfig {
-        enable: geoipConfig.Key("enable").MustBool(true),
-        dbName: geoipConfig.Key("db").MustString("geoCity.mmdb"),
+        enable:    geoipConfig.Key("enable").MustBool(true),
+        dbName:    geoipConfig.Key("db").MustString("geoCity.mmdb"),
+        logConfig: eventlog.LoadConfig(cfg, logSection),
     }
 }
 
@@ -39,16 +44,17 @@ func NewGeoIp(config *GeoipConfig) *GeoIp {
             log.Printf("[ERROR] cannot open maxminddb file %s", err)
             g.config.enable = false
         }
+        g.logger = eventlog.NewLogger(g.config.logConfig)
     }
     // defer g.db.Close()
     return g
 }
 
-func (g *GeoIp) FilterGeoIp(sourceIp net.IP, record *handler.Record) {
+func (g *GeoIp) FilterGeoIp(sourceIp string, record *handler.Record) {
     if !g.config.enable {
         return
     }
-    g.GetMinimumDistance(sourceIp, record)
+    g.GetMinimumDistance(net.ParseIP(sourceIp), record)
 }
 
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
