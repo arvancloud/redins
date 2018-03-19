@@ -73,15 +73,17 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, record *handler.Record) {
         log.Printf("[ERROR] getSameCountry failed")
         return
     }
-    for i, _ := range record.A {
+    for i := range record.A {
         if record.A[i].Country == sourceCountry {
             record.A = []handler.A_Record {record.A[i]}
+            g.logGeoIp(sourceIp, sourceCountry, record.A[i].Ip, record.A[i].Country)
             break
         }
     }
-    for i, _ := range record.AAAA {
+    for i := range record.AAAA {
         if record.AAAA[i].Country == sourceCountry {
             record.AAAA = []handler.AAAA_Record {record.AAAA[i]}
+            g.logGeoIp(sourceIp, sourceCountry, record.AAAA[i].Ip, record.AAAA[i].Country)
             break
         }
     }
@@ -98,7 +100,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
         log.Printf("[ERROR] getMinimumDistance failed")
         return
     }
-    for i, _ := range record.A {
+    for i := range record.A {
         destinationIp := record.A[i].Ip
         dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
         d, err := g.getDistance(slat, slong, dlat, dlong)
@@ -114,7 +116,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
         record.A = []handler.A_Record {record.A[index] }
     }
     index = -1
-    for i, _ := range record.AAAA {
+    for i := range record.AAAA {
         destinationIp := record.AAAA[i].Ip
         dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
         d, err := g.getDistance(slat, slong, dlat, dlong)
@@ -167,4 +169,26 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
     g.db.Decode(record.Location.LongitudeOffset, &longitude)
     // fmt.Println("lat = ", record.Location.Latitude, " lang = ", longitude)
     return record.Location.Latitude, longitude, record.Country.ISOCode, nil
+}
+
+func (g *GeoIp) logGeoIp(sIp net.IP, sCountry string, dIp net.IP, dCountry string) {
+    if g.config.logConfig.Enable == false {
+        return
+    }
+
+    type geoIpLogData struct {
+        sIp      net.IP
+        sCountry string
+        dIp      net.IP
+        dCountry string
+    }
+
+    data := geoIpLogData {
+        sIp: sIp,
+        sCountry: sCountry,
+        dIp: dIp,
+        dCountry: dCountry,
+    }
+
+    g.logger.Log(data,"geoip")
 }
