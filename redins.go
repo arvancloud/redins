@@ -13,6 +13,7 @@ import (
     "github.com/hawell/redins/server"
     "github.com/hawell/redins/healthcheck"
     "strings"
+    "os"
 )
 
 var (
@@ -121,7 +122,11 @@ func errorResponse(state request.Request, rcode int) {
 }
 
 func main() {
-    cfg, err := ini.LooseLoad("redins.ini")
+    configFile := "redins.ini"
+    if len(os.Args) > 1 {
+        configFile = os.Args[1]
+    }
+    cfg, err := ini.LooseLoad(configFile)
     if err != nil {
         log.Printf("[ERROR] loading config failed : %s", err)
         return
