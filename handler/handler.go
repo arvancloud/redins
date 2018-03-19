@@ -41,11 +41,13 @@ type Record struct {
 type A_Record struct {
     Ttl         uint32        `json:"ttl,omitempty"`
     Ip          net.IP        `json:"ip"`
+    Country     string        `json:"country,omitempty"`
 }
 
 type AAAA_Record struct {
     Ttl         uint32        `json:"ttl,omitempty"`
     Ip          net.IP        `json:"ip"`
+    Country     string        `json:"country,omitempty"`
 }
 
 type TXT_Record struct {
@@ -120,16 +122,31 @@ func (h *DnsRequestHandler) LoadZones() {
     h.Zones = h.Redis.GetKeys()
 }
 
+func cloneRecord(record *Record) *Record {
+    clone := &Record {
+        A: append(make([]A_Record, 0, len(record.A)), record.A...),
+        AAAA: append(make([]AAAA_Record, 0, len(record.AAAA)), record.AAAA...),
+        TXT: append(make([]TXT_Record, 0, len(record.TXT)), record.TXT...),
+        CNAME: append(make([]CNAME_Record, 0, len(record.CNAME)), record.CNAME...),
+        NS: append(make([]NS_Record, 0, len(record.NS)), record.NS...),
+        MX: append(make([]MX_Record, 0, len(record.MX)), record.MX...),
+        SRV: append(make([]SRV_Record, 0, len(record.SRV)), record.SRV...),
+        SOA: record.SOA,
+        ZoneName: record.ZoneName,
+    }
+    return clone
+}
+
 func (h *DnsRequestHandler) FetchRecord(qname string) (*Record, int) {
     record, found := h.cache.Get(qname)
     if found {
-        return record.(*Record), dns.RcodeSuccess
+        return cloneRecord(record.(*Record)), dns.RcodeSuccess
     }
     record, res := h.GetRecord(qname)
     if res == dns.RcodeSuccess {
         h.cache.Set(qname, record, time.Duration(h.config.ttl) * time.Second)
     }
-    return record.(*Record), res
+    return cloneRecord(record.(*Record)), res
 }
 
 func (h *DnsRequestHandler) A(name string, record *Record) (answers []dns.RR) {

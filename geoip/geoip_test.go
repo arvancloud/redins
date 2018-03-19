@@ -5,6 +5,7 @@ import (
     "net"
     "github.com/hawell/redins/handler"
     "fmt"
+    "github.com/go-ini/ini"
 )
 
 func TestGeoIp(t *testing.T) {
@@ -49,12 +50,12 @@ func TestGeoIp(t *testing.T) {
         {"37.148.176.54", "BE"},
     }
 
-    config := GeoipConfig {
-        enable: true,
-        dbName: "../geoCity.mmdb",
+    cfg, err := ini.LooseLoad("test.ini")
+    if err != nil {
+        fmt.Printf("[ERROR] loading config failed : %s", err)
+        t.Fail()
     }
-
-    g := NewGeoIp(&config)
+    g := NewGeoIp(LoadConfig(cfg, "geoip"))
 
     for i,_ := range sip {
         dest := new(handler.Record)

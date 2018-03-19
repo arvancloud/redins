@@ -12,6 +12,7 @@ import (
     "github.com/hawell/redins/geoip"
     "github.com/hawell/redins/server"
     "github.com/hawell/redins/healthcheck"
+    "strings"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 func GetSourceIp(request *request.Request) string {
     opt := request.Req.IsEdns0()
     if len(opt.Option) != 0 {
-        return opt.Option[0].String()
+        return strings.Split(opt.Option[0].String(), "/")[0]
     }
     return request.IP()
 }

@@ -20,6 +20,7 @@ type GeoIp struct {
 type GeoipConfig struct {
     enable    bool
     dbName    string
+    mode      string
     logConfig *eventlog.LoggerConfig
 }
 
@@ -29,6 +30,7 @@ func LoadConfig(cfg *ini.File, section string) *GeoipConfig {
     return &GeoipConfig {
         enable:    geoipConfig.Key("enable").MustBool(true),
         dbName:    geoipConfig.Key("db").MustString("geoCity.mmdb"),
+        mode:      geoipConfig.Key("mode").In("automatic", []string{"manual", "automatic"}),
         logConfig: eventlog.LoadConfig(cfg, logSection),
     }
 }
@@ -54,10 +56,41 @@ func (g *GeoIp) FilterGeoIp(sourceIp string, record *handler.Record) {
     if !g.config.enable {
         return
     }
-    g.GetMinimumDistance(net.ParseIP(sourceIp), record)
+
+    if g.config.mode == "automatic" {
+        g.GetMinimumDistance(net.ParseIP(sourceIp), record)
+    } else {
+        g.GetSameCountry(net.ParseIP(sourceIp), record)
+    }
+}
+
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, record *handler.Record) {
+    if g.config.enable == false {
+        return
+    }
+    _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
+    if err != nil {
+        log.Printf("[ERROR] getSameCountry failed")
+        return
+    }
+    for i, _ := range record.A {
+        if record.A[i].Country == sourceCountry {
+            record.A = []handler.A_Record {record.A[i]}
+            break
+        }
+    }
+    for i, _ := range record.AAAA {
+        if record.AAAA[i].Country == sourceCountry {
+            record.AAAA = []handler.AAAA_Record {record.AAAA[i]}
+            break
+        }
+    }
 }
 
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
+    if g.config.enable == false {
+        return
+    }
     minDistance := 1000.0
     index := -1
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
@@ -114,6 +147,9 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
 }
 
 func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, country string, err error) {
+    if g.config.enable == false {
+        return
+    }
     var record struct {
         Location struct {
             Latitude        float64 `maxminddb:"latitude"`
