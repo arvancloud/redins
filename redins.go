@@ -53,14 +53,14 @@ func LogRequest(request *request.Request) {
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
-    log.Printf("[INFO] handle request")
+    // log.Printf("[DEBUG] handle request")
     state := request.Request{W: w, Req: r}
 
     qname := state.Name()
     qtype := state.Type()
 
-    log.Printf("[INFO] name : %s", qname)
-    log.Printf("[INFO] type : %s", qtype)
+    // log.Printf("[DEBUG] name : %s", qname)
+    // log.Printf("[DEBUG] type : %s", qtype)
 
     LogRequest(&state)
 

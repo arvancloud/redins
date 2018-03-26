@@ -2,13 +2,14 @@ package healthcheck
 
 import (
     "testing"
-    "github.com/go-ini/ini"
-    "fmt"
+    "log"
     "net"
     "strings"
-    "github.com/hawell/redins/handler"
     "strconv"
     "time"
+
+    "github.com/hawell/redins/handler"
+    "github.com/go-ini/ini"
 )
 
 var healthcheckGetEntries = [][]string {
@@ -45,7 +46,7 @@ var healthCheckSetEntries = [][]string {
 func TestGet(t *testing.T) {
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
-        fmt.Printf("[ERROR] loading config failed : %s", err)
+        log.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
     }
     h := NewHealthcheck(LoadConfig(cfg, "test"))
@@ -58,7 +59,7 @@ func TestGet(t *testing.T) {
     for i,_ := range healthcheckGetEntries {
         hostIp := strings.Split(healthcheckGetEntries[i][0], ":")
         stat := h.getStatus(hostIp[0], net.ParseIP(hostIp[1]))
-        fmt.Println(stat, " ", stats[i])
+        log.Println("[DEBUG]", stat, " ", stats[i])
         if stat != stats[i] {
             t.Fail()
         }
@@ -70,7 +71,7 @@ func TestGet(t *testing.T) {
 func TestFilter(t *testing.T) {
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
-        fmt.Printf("[ERROR] loading config failed : %s", err)
+        log.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
     }
     h := NewHealthcheck(LoadConfig(cfg, "test"))
@@ -118,9 +119,9 @@ func TestFilter(t *testing.T) {
         },
     }
     for i, _ := range w {
-        fmt.Println(w[i])
+        log.Println("[DEBUG]", w[i])
         h.FilterHealthcheck("w" + strconv.Itoa(i) + ".healthcheck.com", &w[i])
-        fmt.Println(w[i])
+        log.Println("[DEBUG]", w[i])
         if len(w[i].A) != filterResult[i] {
             t.Fail()
         }
@@ -132,7 +133,7 @@ func TestFilter(t *testing.T) {
 func TestSet(t *testing.T) {
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
-        fmt.Printf("[ERROR] loading config failed : %s", err)
+        log.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
     }
     h := NewHealthcheck(LoadConfig(cfg, "test"))
@@ -144,6 +145,6 @@ func TestSet(t *testing.T) {
     go h.Start()
     time.Sleep(time.Second * 10)
 
-    fmt.Println(h.getStatus("arvancloud.com", net.ParseIP("185.143.233.2")))
-    fmt.Println(h.getStatus("www.arvancloud.com", net.ParseIP("185.143.234.50")))
+    log.Println("[DEBUG", h.getStatus("arvancloud.com", net.ParseIP("185.143.233.2")))
+    log.Println("[DEBUG", h.getStatus("www.arvancloud.com", net.ParseIP("185.143.234.50")))
 }

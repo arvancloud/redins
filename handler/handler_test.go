@@ -2,11 +2,12 @@ package handler
 
 import (
     "testing"
+    "log"
+
     "github.com/miekg/dns"
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/plugin/test"
     "github.com/go-ini/ini"
-    "fmt"
     "github.com/coredns/coredns/request"
 )
 
@@ -20,7 +21,7 @@ var lookupEntries = [][][]string {
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
         {"x",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"NA\"}]," +
+            "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
                 "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
                 "\"txt\":[{\"ttl\":300, \"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]," +
                 "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.com.\"},{\"ttl\":300, \"host\":\"ns2.example.com.\"}]," +
@@ -182,7 +183,7 @@ var lookupTestCases = [][]test.Case{
 func TestHandler(t *testing.T) {
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
-        fmt.Printf("[ERROR] loading config failed : %s", err)
+        log.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
     }
     h := NewHandler(LoadConfig(cfg, "test"))
@@ -191,7 +192,7 @@ func TestHandler(t *testing.T) {
         for _, cmd := range lookupEntries[i] {
             err := h.Redis.HSet(zone, cmd[0], cmd[1])
             if err != nil {
-                fmt.Printf("[ERROR] cannot connect to redis: %s", err)
+                log.Printf("[ERROR] cannot connect to redis: %s", err)
                 t.Fail()
             }
         }

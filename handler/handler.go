@@ -399,17 +399,17 @@ func (h *DnsRequestHandler) Matches(qname string) string {
 }
 
 func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
-    log.Printf("[INFO] GetRecord")
+    // log.Printf("[DEBUG] GetRecord")
 
-    log.Println(h.Zones)
+    // log.Println("[DEBUG]", h.Zones)
     if time.Since(h.LastZoneUpdate) > zoneUpdateTime {
-        log.Printf("[INFO] loading zones")
+        // log.Printf("[DEBUG] loading zones")
         h.LoadZones()
     }
-    log.Println(h.Zones)
+    // log.Println("[DEBUG]", h.Zones)
 
     zone := h.Matches(qname)
-    log.Printf("[INFO] zone : %s", zone)
+    // log.Printf("[DEBUG] zone : %s", zone)
     if zone == "" {
         log.Printf("[ERROR] no matching zone found for %s", zone)
         return nil, dns.RcodeNameError
@@ -425,7 +425,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
     if len(location) == 0 { // empty, no results
         return nil, dns.RcodeNameError
     }
-    log.Printf("[INFO] location : %s", location)
+    // log.Printf("[DEBUG] location : %s", location)
 
     record = h.GetLocation(location, z)
     record.ZoneName = zone

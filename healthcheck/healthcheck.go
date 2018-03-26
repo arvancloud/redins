@@ -9,7 +9,6 @@ import (
     "sync"
     "net"
     "net/http"
-    "fmt"
 
     "github.com/go-ini/ini"
     "github.com/hawell/redins/redis"
@@ -175,7 +174,7 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
             },
         }
         url := item.Protocol + "://" + item.Ip + item.Uri
-        fmt.Println(item)
+        // log.Println("[DEBUG]", item)
         req, err := http.NewRequest("HEAD", url, nil)
         req.Host = item.Host
         if err != nil {
@@ -258,21 +257,21 @@ func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record) {
             min = status
         }
     }
-    fmt.Println("min = ", min)
+    // log.Println("[DEBUG] min = ", min)
     if min < h.config.upThreshold - 1 && min > h.config.downThreshold {
         min = h.config.downThreshold + 1
     }
-    fmt.Println("min = ", min)
+    // log.Println("[DEBUG] min = ", min)
     newA := []handler.A_Record {}
     for _, a := range record.A {
-        fmt.Println(qname, ":", a.Ip.String(), "status: ", h.getStatus(qname, a.Ip))
+        // log.Println("[DEBUG]", qname, ":", a.Ip.String(), "status: ", h.getStatus(qname, a.Ip))
         if h.getStatus(qname, a.Ip) < min {
             continue
         }
         newA = append(newA, a)
     }
     record.A = newA
-    fmt.Println(newA)
+    // log.Println("[DEBUG]", newA)
     min = h.config.downThreshold
     for _, aaaa := range record.AAAA {
         status := h.getStatus(qname, aaaa.Ip)

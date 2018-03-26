@@ -1,15 +1,14 @@
 package redis
 
 import (
-    "fmt"
     "strings"
     "time"
     "log"
+    "strconv"
+    "errors"
 
     redisCon "github.com/garyburd/redigo/redis"
     "github.com/go-ini/ini"
-    "strconv"
-    "errors"
 )
 
 type Redis struct {
@@ -157,7 +156,7 @@ func (redis *Redis) GetHKeys(key string) []string {
 
     conn := redis.Pool.Get()
     if conn == nil {
-        fmt.Println("[ERROR] cannot connect to redis")
+        log.Printf("[ERROR] cannot connect to redis")
         return nil
     }
     defer conn.Close()
@@ -206,7 +205,7 @@ func (redis *Redis) HSet(key string, hkey string, value string) error {
     }
     defer conn.Close()
 
-    log.Printf("[INFO] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
+    // log.Printf("[DEBUG] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
     _, err := conn.Do("HSET", redis.config.prefix + key + redis.config.suffix, hkey, value)
     if err != nil {
         log.Printf("[ERROR] redis error : %s", err)
