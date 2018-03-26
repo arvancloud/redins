@@ -3,12 +3,13 @@ package geoip
 import (
     "testing"
     "net"
+    "log"
+
     "github.com/hawell/redins/handler"
-    "fmt"
     "github.com/go-ini/ini"
 )
 
-func TestGeoIp(t *testing.T) {
+func TestGeoIpAutomatic(t *testing.T) {
     sip := [][]string {
         {"212.83.32.45", "DE", "213.95.10.76"},
         {"80.67.163.250", "FR", "62.240.228.4"},
@@ -52,10 +53,11 @@ func TestGeoIp(t *testing.T) {
 
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
-        fmt.Printf("[ERROR] loading config failed : %s", err)
+        log.Printf("[ERROR] loading config failed : %s", err)
         t.Fail()
     }
     g := NewGeoIp(LoadConfig(cfg, "geoip"))
+    g.config.mode = "automatic"
 
     for i,_ := range sip {
         dest := new(handler.Record)
@@ -70,10 +72,45 @@ func TestGeoIp(t *testing.T) {
             }
             dest.A = append(dest.A, r)
         }
-        g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest)
-        fmt.Println(sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
+        g.FilterGeoIp(sip[i][0], dest)
+        log.Println("[DEBUG]", sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
         if sip[i][2] != dest.A[0].Ip.String() {
             t.Fail()
         }
     }
+}
+
+func TestGeoIpManual(t *testing.T) {
+    sip := [][]string{
+        {"212.83.32.45", "DE", "1.2.3.4"},
+        {"80.67.163.250", "FR", "2.3.4.5"},
+        {"154.11.253.242", "", "3.4.5.6"},
+        {"127.0.0.1", "", "3.4.5.6"},
+    }
+
+    cfg, err := ini.LooseLoad("test.ini")
+    if err != nil {
+        log.Printf("[ERROR] loading config failed : %s", err)
+        t.Fail()
+    }
+    g := NewGeoIp(LoadConfig(cfg, "geoip"))
+    g.config.mode = "manual"
+
+    for i, _ := range sip {
+        var dest handler.Record
+        dest.A = []handler.A_Record {
+            { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
+            { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
+            { Ip: net.ParseIP("3.4.5.6"), Country: ""},
+        }
+        g.FilterGeoIp(sip[i][0], &dest)
+        if len(dest.A) != 1 {
+            t.Fail()
+        }
+        log.Println("[DEBUG]", sip[i][1], sip[i][2], dest.A[0].Country, dest.A[0].Ip.String())
+        if dest.A[0].Country != sip[i][1] || dest.A[0].Ip.String() != sip[i][2] {
+            t.Fail()
+        }
+    }
+
 }
