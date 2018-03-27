@@ -207,7 +207,7 @@ func TestHandler(t *testing.T) {
             qname := state.Name()
             qtype := state.Type()
 
-            record, res := h.GetRecord(qname)
+            record, res := h.FetchRecord(qname)
             answers := make([]dns.RR, 0, 10)
 
             if res != dns.RcodeSuccess {

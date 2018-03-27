@@ -145,8 +145,9 @@ func (h *DnsRequestHandler) FetchRecord(qname string) (*Record, int) {
     record, res := h.GetRecord(qname)
     if res == dns.RcodeSuccess {
         h.cache.Set(qname, record, time.Duration(h.config.ttl) * time.Second)
+        return cloneRecord(record.(*Record)), res
     }
-    return cloneRecord(record.(*Record)), res
+    return nil, res
 }
 
 func (h *DnsRequestHandler) A(name string, record *Record) (answers []dns.RR) {
