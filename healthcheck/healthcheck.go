@@ -21,21 +21,22 @@ type HealthcheckConfig struct {
     maxRequests    int
     updateInterval time.Duration
     checkInterval  time.Duration
-    requestTimeout time.Duration
-    upThreshold    int
-    downThreshold  int
     redisConfig    *redis.RedisConfig
     loggerConfig   *eventlog.LoggerConfig
 }
 
 type HealthCheckItem struct {
-    Protocol  string    `json:"protocol,omitempty"`
-    Uri       string    `json:"uri,omitempty"`
-    Port      int       `json:"port,omitempty"`
-    Status    int       `json:"status,omitempty"`
-    LastCheck time.Time `json:"lastcheck,omitempty"`
-    Host      string    `json:"-"`
-    Ip        string    `json:"-"`
+    Protocol  string        `json:"protocol,omitempty"`
+    Uri       string        `json:"uri,omitempty"`
+    Port      int           `json:"port,omitempty"`
+    Status    int           `json:"status,omitempty"`
+    LastCheck time.Time     `json:"lastcheck,omitempty"`
+    Timeout   time.Duration `json:"timeout,omitempty"`
+    UpCount   int           `json:"up_count,omitempty"`
+    DownCount int           `json:"down_count,omitempty"`
+    Enable    bool          `json:"enable,omitempty"`
+    Host      string        `json:"-"`
+    Ip        string        `json:"-"`
 }
 
 type Healthcheck struct {
@@ -55,9 +56,6 @@ func LoadConfig(cfg *ini.File, section string) *HealthcheckConfig {
         maxRequests:    healthcheckConfig.Key("max_requests").MustInt(20),
         updateInterval: healthcheckConfig.Key("update_interval").MustDuration(10 * time.Minute),
         checkInterval:  healthcheckConfig.Key("check_interval").MustDuration(10 * time.Second),
-        requestTimeout: healthcheckConfig.Key("request_timeout").MustDuration(10000 * time.Millisecond),
-        upThreshold:    healthcheckConfig.Key("up_threshold").MustInt(3),
-        downThreshold:  healthcheckConfig.Key("down_threshold").MustInt(-3),
         redisConfig:    redis.LoadConfig(cfg, redisSection),
         loggerConfig:   eventlog.LoadConfig(cfg, logSection),
     }
@@ -117,7 +115,7 @@ func (h *Healthcheck) loadItems() {
     keys := h.redisServer.GetKeys()
     for _, key := range keys {
         newItem := h.newItem(key)
-        if newItem == nil {
+        if newItem == nil || newItem.Enable == false {
             continue
         }
         i, ok := h.items[key]
@@ -165,7 +163,7 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
     defer wg.Done()
     for item := range inputChan {
         client := &http.Client{
-            Timeout: time.Duration(h.config.requestTimeout),
+            Timeout: time.Duration(item.Timeout),
             Transport: &http.Transport{
                 TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
             },
@@ -227,8 +225,8 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
 func (h *Healthcheck) statusDown(item *HealthCheckItem) {
     if item.Status <= 0 {
         item.Status--
-        if item.Status < h.config.downThreshold {
-            item.Status = h.config.upThreshold
+        if item.Status < item.DownCount {
+            item.Status = item.DownCount
         }
     } else {
         item.Status = -1
@@ -238,56 +236,38 @@ func (h *Healthcheck) statusDown(item *HealthCheckItem) {
 func (h *Healthcheck) statusUp(item *HealthCheckItem) {
     if item.Status >= 0 {
         item.Status++
-        if item.Status > h.config.upThreshold {
-            item.Status = h.config.upThreshold
+        if item.Status > item.UpCount {
+            item.Status = item.UpCount
         }
     } else {
         item.Status = 1
     }
 }
 
-func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record) {
+func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record, ips []handler.IP_Record) []handler.IP_Record {
+    newIps := []handler.IP_Record {}
     if h.config.enable == false {
-        return
+        newIps = append(newIps, ips...)
+        return newIps
     }
-    min := h.config.downThreshold
-    for _, a := range record.A {
-        status := h.getStatus(qname, a.Ip)
+    min := record.ZoneCfg.HealthCheckConfig.DownCount
+    for _, ip := range ips {
+        status := h.getStatus(qname, ip.Ip)
         if  status > min {
             min = status
         }
     }
     // log.Println("[DEBUG] min = ", min)
-    if min < h.config.upThreshold - 1 && min > h.config.downThreshold {
-        min = h.config.downThreshold + 1
+    if min < record.ZoneCfg.HealthCheckConfig.UpCount - 1 && min > record.ZoneCfg.HealthCheckConfig.DownCount {
+        min = record.ZoneCfg.HealthCheckConfig.DownCount + 1
     }
     // log.Println("[DEBUG] min = ", min)
-    newA := []handler.A_Record {}
-    for _, a := range record.A {
-        // log.Println("[DEBUG]", qname, ":", a.Ip.String(), "status: ", h.getStatus(qname, a.Ip))
-        if h.getStatus(qname, a.Ip) < min {
+    for _, ip := range ips {
+        // log.Println("[DEBUG]", qname, ":", ip.Ip.String(), "status: ", h.getStatus(qname, ip.Ip))
+        if h.getStatus(qname, ip.Ip) < min {
             continue
         }
-        newA = append(newA, a)
+        newIps = append(newIps, ip)
     }
-    record.A = newA
-    // log.Println("[DEBUG]", newA)
-    min = h.config.downThreshold
-    for _, aaaa := range record.AAAA {
-        status := h.getStatus(qname, aaaa.Ip)
-        if  status > min {
-            min = status
-        }
-    }
-    if min < h.config.upThreshold && min > h.config.downThreshold {
-        min = h.config.downThreshold + 1
-    }
-    newAAAA := []handler.AAAA_Record {}
-    for _, aaaa := range record.AAAA {
-        if h.getStatus(qname, aaaa.Ip) < min {
-            continue
-        }
-        newAAAA = append(newAAAA, aaaa)
-    }
-    record.AAAA = newAAAA
+    return newIps
 }

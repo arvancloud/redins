@@ -20,7 +20,6 @@ type GeoIp struct {
 type GeoipConfig struct {
     enable    bool
     dbName    string
-    mode      string
     logConfig *eventlog.LoggerConfig
 }
 
@@ -30,7 +29,6 @@ func LoadConfig(cfg *ini.File, section string) *GeoipConfig {
     return &GeoipConfig {
         enable:    geoipConfig.Key("enable").MustBool(true),
         dbName:    geoipConfig.Key("db").MustString("geoCity.mmdb"),
-        mode:      geoipConfig.Key("mode").In("automatic", []string{"manual", "automatic"}),
         logConfig: eventlog.LoadConfig(cfg, logSection),
     }
 }
@@ -52,86 +50,54 @@ func NewGeoIp(config *GeoipConfig) *GeoIp {
     return g
 }
 
-func (g *GeoIp) FilterGeoIp(sourceIp string, record *handler.Record) {
-    if !g.config.enable {
-        return
-    }
-
-    if g.config.mode == "automatic" {
-        g.GetMinimumDistance(net.ParseIP(sourceIp), record)
-    } else {
-        g.GetSameCountry(net.ParseIP(sourceIp), record)
-    }
-}
-
-func (g *GeoIp) GetSameCountry(sourceIp net.IP, record *handler.Record) {
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
     if g.config.enable == false {
-        return
+        return ips
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
     if err != nil {
         log.Printf("[ERROR] getSameCountry failed")
-        return
+        return ips
     }
 
-    if len(record.A) > 0 {
+    if len(ips) > 0 {
         matched := false
         matchedIndex := 0
         defaultIndex := 0
-        for i := range record.A {
-            if record.A[i].Country == sourceCountry {
+        for i, ip := range ips {
+            if ip.Country == sourceCountry {
                 matched = true
                 matchedIndex = i
                 break
             }
-            if record.A[i].Country == "" {
+            if ip.Country == "" {
                 defaultIndex = i
             }
         }
         if matched {
-            record.A = []handler.A_Record{record.A[matchedIndex]}
+            g.logGeoIp(sourceIp, sourceCountry, ips[matchedIndex].Ip, ips[matchedIndex].Country)
+            return []handler.IP_Record{ips[matchedIndex]}
         } else {
-            record.A = []handler.A_Record{record.A[defaultIndex]}
+            g.logGeoIp(sourceIp, sourceCountry, ips[defaultIndex].Ip, ips[defaultIndex].Country)
+            return []handler.IP_Record{ips[defaultIndex]}
         }
-        g.logGeoIp(sourceIp, sourceCountry, record.A[0].Ip, record.A[0].Country)
     }
-
-    if len(record.AAAA) > 0 {
-        matched := false
-        matchedIndex := 0
-        defaultIndex := 0
-        for i := range record.AAAA {
-            if record.AAAA[i].Country == sourceCountry {
-                matched = true
-                matchedIndex = i
-                break
-            }
-            if record.AAAA[i].Country == "" {
-                defaultIndex = i
-            }
-        }
-        if matched {
-            record.AAAA = []handler.AAAA_Record{record.AAAA[matchedIndex]}
-        } else {
-            record.AAAA = []handler.AAAA_Record{record.AAAA[defaultIndex]}
-        }
-        g.logGeoIp(sourceIp, sourceCountry, record.AAAA[0].Ip, record.AAAA[0].Country)
-    }
+    return []handler.IP_Record{}
 }
 
-func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
+func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
     if g.config.enable == false {
-        return
+        return ips
     }
     minDistance := 1000.0
     index := -1
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
         log.Printf("[ERROR] getMinimumDistance failed")
-        return
+        return ips
     }
-    for i := range record.A {
-        destinationIp := record.A[i].Ip
+    for i, ip := range ips {
+        destinationIp := ip.Ip
         dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
         d, err := g.getDistance(slat, slong, dlat, dlong)
         if err != nil {
@@ -143,23 +109,11 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, record *handler.Record) {
         }
     }
     if index > -1 {
-        record.A = []handler.A_Record {record.A[index] }
-    }
-    index = -1
-    for i := range record.AAAA {
-        destinationIp := record.AAAA[i].Ip
-        dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
-        d, err := g.getDistance(slat, slong, dlat, dlong)
-        if err != nil {
-            continue
-        }
-        if d < minDistance {
-            minDistance = d
-            index = i
-        }
-    }
-    if index > -1 {
-        record.AAAA = []handler.AAAA_Record {record.AAAA[index] }
+        g.logGeoIp(sourceIp, "", ips[index].Ip, ips[index].Country)
+        return []handler.IP_Record { ips[index] }
+    } else {
+        log.Printf("[ERROR] getMinimumDistance failed")
+        return ips
     }
 }
 

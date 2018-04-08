@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "net"
     "testing"
     "log"
 
@@ -17,6 +18,9 @@ var lookupZones = []string {
 
 var lookupEntries = [][][]string {
     {
+        {"!",
+            "{\"ip_filter_mode\":\"geo\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
+        },
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
@@ -45,6 +49,9 @@ var lookupEntries = [][][]string {
         },
     },
     {
+        {"!",
+            "{\"ip_filter_mode\":\"multi\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
+        },
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
                 "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}",
@@ -221,9 +228,9 @@ func TestHandler(t *testing.T) {
 
                 switch qtype {
                 case "A":
-                    answers = h.A(qname, record)
+                    answers = h.A(qname, record.A)
                 case "AAAA":
-                    answers = h.AAAA(qname, record)
+                    answers = h.AAAA(qname, record.AAAA)
                 case "CNAME":
                     answers = h.CNAME(qname, record)
                 case "TXT":
@@ -257,4 +264,26 @@ func TestHandler(t *testing.T) {
         }
     }
 
+}
+
+func TestWeight(t *testing.T) {
+    ips := []IP_Record {
+        { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
+        { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
+        { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
+        { Ip:net.ParseIP("4.5.6.7"), Weight: 10},
+    }
+    x4, x1, x5, x10 := 0, 0, 0, 0
+    for i:= 0; i < 100000; i++ {
+        x := GetWeightedIp(ips)
+        switch x[0].Weight {
+        case 4: x4++
+        case 1: x1++
+        case 5: x5++
+        case 10: x10++
+        }
+    }
+    if !(x10 > x5 && x5 > x4 && x4 > x1) {
+        t.Fail()
+    }
 }

@@ -13,25 +13,25 @@ import (
 )
 
 var healthcheckGetEntries = [][]string {
-    {"w0.healthcheck.com:1.2.3.4", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":3}"},
-    {"w0.healthcheck.com:2.3.4.5", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
-    {"w0.healthcheck.com:3.4.5.6", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w0.healthcheck.com:4.5.6.7", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w0.healthcheck.com:5.6.7.8", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w0.healthcheck.com:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":3}"},
+    {"w0.healthcheck.com:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
+    {"w0.healthcheck.com:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
+    {"w0.healthcheck.com:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
+    {"w0.healthcheck.com:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
 
-    {"w1.healthcheck.com:2.3.4.5", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
-    {"w1.healthcheck.com:3.4.5.6", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w1.healthcheck.com:4.5.6.7", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w1.healthcheck.com:5.6.7.8", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w1.healthcheck.com:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
+    {"w1.healthcheck.com:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
+    {"w1.healthcheck.com:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
+    {"w1.healthcheck.com:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
 
-    {"w2.healthcheck.com:3.4.5.6", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w2.healthcheck.com:4.5.6.7", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w2.healthcheck.com:5.6.7.8", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w2.healthcheck.com:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
+    {"w2.healthcheck.com:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
+    {"w2.healthcheck.com:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
 
-    {"w3.healthcheck.com:4.5.6.7", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w3.healthcheck.com:5.6.7.8", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w3.healthcheck.com:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
+    {"w3.healthcheck.com:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
 
-    {"w4.healthcheck.com:5.6.7.8", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w4.healthcheck.com:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
 }
 
 var stats = []int { 3, 1, 0, -1, -3, 1, 0, -1, -3, 0, -1, -3, -1, -3, -3}
@@ -39,8 +39,8 @@ var filterResult = []int { 1, 3, 2, 1, 1}
 
 
 var healthCheckSetEntries = [][]string {
-    {"arvancloud.com:185.143.233.2", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80}"},
-    {"www.arvancloud.com:185.143.234.50", "{\"protocol\":\"http\",\"uri\":\"\",\"port\":80}"},
+    {"arvancloud.com:185.143.233.2", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80}"},
+    {"www.arvancloud.com:185.143.234.50", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80}"},
 }
 
 func TestGet(t *testing.T) {
@@ -83,7 +83,16 @@ func TestFilter(t *testing.T) {
 
     w := []handler.Record {
         {
-            A: []handler.A_Record{
+            ZoneCfg: handler.ZoneConfig {
+              IpFilterMode: "multi",
+              HealthCheckConfig: handler.HealthCheckConfig {
+                Enable: true,
+                DownCount: -3,
+                UpCount: 3,
+                RequestTimeout: 1000,
+              },
+            },
+            A: []handler.IP_Record{
                 {Ip: net.ParseIP("1.2.3.4")},
                 {Ip: net.ParseIP("2.3.4.5")},
                 {Ip: net.ParseIP("3.4.5.6")},
@@ -92,7 +101,16 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            A: []handler.A_Record {
+            ZoneCfg: handler.ZoneConfig {
+                IpFilterMode: "multi",
+                HealthCheckConfig: handler.HealthCheckConfig {
+                    Enable: true,
+                    DownCount: -3,
+                    UpCount: 3,
+                    RequestTimeout: 1000,
+                },
+            },
+            A: []handler.IP_Record {
                 {Ip:net.ParseIP("2.3.4.5")},
                 {Ip:net.ParseIP("3.4.5.6")},
                 {Ip:net.ParseIP("4.5.6.7")},
@@ -100,27 +118,54 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            A: []handler.A_Record{
+            ZoneCfg: handler.ZoneConfig {
+                IpFilterMode: "multi",
+                HealthCheckConfig: handler.HealthCheckConfig {
+                    Enable: true,
+                    DownCount: -3,
+                    UpCount: 3,
+                    RequestTimeout: 1000,
+                },
+            },
+            A: []handler.IP_Record{
                 {Ip: net.ParseIP("3.4.5.6")},
                 {Ip: net.ParseIP("4.5.6.7")},
                 {Ip: net.ParseIP("5.6.7.8")},
             },
         },
         {
-            A: []handler.A_Record{
+            ZoneCfg: handler.ZoneConfig {
+                IpFilterMode: "multi",
+                HealthCheckConfig: handler.HealthCheckConfig {
+                    Enable: true,
+                    DownCount: -3,
+                    UpCount: 3,
+                    RequestTimeout: 1000,
+                },
+            },
+            A: []handler.IP_Record{
                 {Ip: net.ParseIP("4.5.6.7")},
                 {Ip: net.ParseIP("5.6.7.8")},
             },
         },
         {
-            A: []handler.A_Record{
+            ZoneCfg: handler.ZoneConfig {
+                IpFilterMode: "multi",
+                HealthCheckConfig: handler.HealthCheckConfig {
+                    Enable: true,
+                    DownCount: -3,
+                    UpCount: 3,
+                    RequestTimeout: 1000,
+                },
+            },
+            A: []handler.IP_Record{
                 {Ip: net.ParseIP("5.6.7.8")},
             },
         },
     }
     for i, _ := range w {
         log.Println("[DEBUG]", w[i])
-        h.FilterHealthcheck("w" + strconv.Itoa(i) + ".healthcheck.com", &w[i])
+        w[i].A = h.FilterHealthcheck("w" + strconv.Itoa(i) + ".healthcheck.com", &w[i], w[i].A)
         log.Println("[DEBUG]", w[i])
         if len(w[i].A) != filterResult[i] {
             t.Fail()

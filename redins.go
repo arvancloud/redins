@@ -3,6 +3,9 @@ package main
 import (
     "log"
     "sync"
+    "strings"
+    "os"
+    "net"
 
     "github.com/miekg/dns"
     "github.com/go-ini/ini"
@@ -12,8 +15,6 @@ import (
     "github.com/hawell/redins/geoip"
     "github.com/hawell/redins/server"
     "github.com/hawell/redins/healthcheck"
-    "strings"
-    "os"
 )
 
 var (
@@ -25,12 +26,12 @@ var (
 
 )
 
-func GetSourceIp(request *request.Request) string {
+func GetSourceIp(request *request.Request) net.IP {
     opt := request.Req.IsEdns0()
     if len(opt.Option) != 0 {
-        return strings.Split(opt.Option[0].String(), "/")[0]
+        return net.ParseIP(strings.Split(opt.Option[0].String(), "/")[0])
     }
-    return request.IP()
+    return net.ParseIP(request.IP())
 }
 
 func LogRequest(request *request.Request) {
@@ -57,10 +58,10 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     state := request.Request{W: w, Req: r}
 
     qname := state.Name()
-    qtype := state.Type()
+    qtype := state.QType()
 
-    // log.Printf("[DEBUG] name : %s", qname)
-    // log.Printf("[DEBUG] type : %s", qtype)
+    // log.Printf("[DEBUG] name : %s", state.Name())
+    // log.Printf("[DEBUG] type : %s", state.Type())
 
     LogRequest(&state)
 
@@ -71,34 +72,39 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
         return
     }
 
-    g.FilterGeoIp(GetSourceIp(&state), record)
+    var answers []dns.RR
 
-    k.FilterHealthcheck(qname, record)
-
-    answers := make([]dns.RR, 0, 10)
-
-    switch qtype {
-    case "A":
-        answers = h.A(qname, record)
-    case "AAAA":
-        answers = h.AAAA(qname, record)
-    case "CNAME":
-        answers = h.CNAME(qname, record)
-    case "TXT":
-        answers = h.TXT(qname, record)
-    case "NS":
-        answers = h.NS(qname, record)
-    case "MX":
-        answers = h.MX(qname, record)
-    case "SRV":
-        answers = h.SRV(qname, record)
-    case "SOA":
-        answers = h.SOA(qname, record)
-    default:
-        errorResponse(state, dns.RcodeNotImplemented)
-        return
+    if qtype == dns.TypeA {
+        ips := []handler.IP_Record{}
+        ips = append(ips, record.A...)
+        ips = k.FilterHealthcheck(qname, record, ips)
+        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
+        answers = h.A(qname, ips)
+    } else if qtype == dns.TypeAAAA {
+        ips := []handler.IP_Record{}
+        ips = append(ips, record.A...)
+        ips = k.FilterHealthcheck(qname, record, ips)
+        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
+        answers = h.AAAA(qname, ips)
+    } else {
+        switch qtype {
+        case dns.TypeCNAME:
+            answers = h.CNAME(qname, record)
+        case dns.TypeTXT:
+            answers = h.TXT(qname, record)
+        case dns.TypeNS:
+            answers = h.NS(qname, record)
+        case dns.TypeMX:
+            answers = h.MX(qname, record)
+        case dns.TypeSRV:
+            answers = h.SRV(qname, record)
+        case dns.TypeSOA:
+            answers = h.SOA(qname, record)
+        default:
+            errorResponse(state, dns.RcodeNotImplemented)
+            return
+        }
     }
-
     m := new(dns.Msg)
     m.SetReply(r)
     m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
@@ -108,6 +114,23 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     state.SizeAndDo(m)
     m, _ = state.Scrub(m)
     w.WriteMsg(m)
+}
+
+func Filter(request *request.Request, filterMode string, ips []handler.IP_Record) []handler.IP_Record {
+    switch  filterMode {
+    case "multi":
+        return ips
+    case "rr":
+        return handler.GetWeightedIp(ips)
+    case "geo_country":
+        return g.GetSameCountry(GetSourceIp(request), ips)
+    case "geo_location":
+        return g.GetMinimumDistance(GetSourceIp(request), ips)
+    default:
+        log.Printf("[ERROR] invalid filter mode : %s", filterMode)
+        return ips
+    }
+    return ips
 }
 
 func errorResponse(state request.Request, rcode int) {

@@ -57,7 +57,6 @@ func TestGeoIpAutomatic(t *testing.T) {
         t.Fail()
     }
     g := NewGeoIp(LoadConfig(cfg, "geoip"))
-    g.config.mode = "automatic"
 
     for i,_ := range sip {
         dest := new(handler.Record)
@@ -66,13 +65,13 @@ func TestGeoIpAutomatic(t *testing.T) {
             if cc != dip[i][1] {
                 t.Fail()
             }
-            r := handler.A_Record {
+            r := handler.IP_Record {
                 Ip:  net.ParseIP(dip[i][0]),
                 Ttl: 100,
             }
             dest.A = append(dest.A, r)
         }
-        g.FilterGeoIp(sip[i][0], dest)
+        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A)
         log.Println("[DEBUG]", sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
         if sip[i][2] != dest.A[0].Ip.String() {
             t.Fail()
@@ -94,16 +93,15 @@ func TestGeoIpManual(t *testing.T) {
         t.Fail()
     }
     g := NewGeoIp(LoadConfig(cfg, "geoip"))
-    g.config.mode = "manual"
 
     for i, _ := range sip {
         var dest handler.Record
-        dest.A = []handler.A_Record {
+        dest.A = []handler.IP_Record {
             { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},
         }
-        g.FilterGeoIp(sip[i][0], &dest)
+        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A)
         if len(dest.A) != 1 {
             t.Fail()
         }
