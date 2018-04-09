@@ -23,8 +23,8 @@ type RedisConfig struct {
     password       string
     prefix         string
     suffix         string
-    connectTimeout int
-    readTimeout    int
+    connectTimeout time.Duration
+    readTimeout    time.Duration
 }
 
 func LoadConfig(cfg *ini.File, section string) *RedisConfig {
@@ -35,8 +35,8 @@ func LoadConfig(cfg *ini.File, section string) *RedisConfig {
         password:       redisConfig.Key("password").MustString(""),
         prefix:         redisConfig.Key("prefix").MustString(""),
         suffix:         redisConfig.Key("suffix").MustString(""),
-        connectTimeout: redisConfig.Key("connect_timeout").MustInt(0),
-        readTimeout:    redisConfig.Key("read_timeout").MustInt(0),
+        connectTimeout: redisConfig.Key("connect_timeout").MustDuration(0),
+        readTimeout:    redisConfig.Key("read_timeout").MustDuration(0),
     }
 
 }
@@ -59,10 +59,10 @@ func (redis *Redis) Connect() {
                 opts = append(opts, redisCon.DialPassword(redis.config.password))
             }
             if redis.config.connectTimeout != 0 {
-                opts = append(opts, redisCon.DialConnectTimeout(time.Duration(redis.config.connectTimeout)*time.Millisecond))
+                opts = append(opts, redisCon.DialConnectTimeout(redis.config.connectTimeout))
             }
             if redis.config.readTimeout != 0 {
-                opts = append(opts, redisCon.DialReadTimeout(time.Duration(redis.config.readTimeout)*time.Millisecond))
+                opts = append(opts, redisCon.DialReadTimeout(redis.config.readTimeout))
             }
 
             return redisCon.Dial("tcp", redis.RedisAddress, opts...)
