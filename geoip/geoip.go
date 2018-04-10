@@ -7,8 +7,8 @@ import (
 
     "github.com/oschwald/maxminddb-golang"
     "github.com/go-ini/ini"
-    "github.com/hawell/redins/handler"
-    "github.com/hawell/redins/eventlog"
+    "arvancloud/redins/handler"
+    "arvancloud/redins/eventlog"
 )
 
 type GeoIp struct {

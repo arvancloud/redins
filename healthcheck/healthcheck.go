@@ -11,9 +11,9 @@ import (
     "net/http"
 
     "github.com/go-ini/ini"
-    "github.com/hawell/redins/redis"
-    "github.com/hawell/redins/handler"
-    "github.com/hawell/redins/eventlog"
+    "arvancloud/redins/redis"
+    "arvancloud/redins/handler"
+    "arvancloud/redins/eventlog"
 )
 
 type HealthcheckConfig struct {

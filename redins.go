@@ -10,11 +10,11 @@ import (
     "github.com/miekg/dns"
     "github.com/go-ini/ini"
     "github.com/coredns/coredns/request"
-    "github.com/hawell/redins/handler"
-    "github.com/hawell/redins/eventlog"
-    "github.com/hawell/redins/geoip"
-    "github.com/hawell/redins/server"
-    "github.com/hawell/redins/healthcheck"
+    "arvancloud/redins/handler"
+    "arvancloud/redins/eventlog"
+    "arvancloud/redins/geoip"
+    "arvancloud/redins/server"
+    "arvancloud/redins/healthcheck"
 )
 
 var (

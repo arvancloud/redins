@@ -9,7 +9,7 @@ import (
     "math/rand"
 
     "github.com/miekg/dns"
-    "github.com/hawell/redins/redis"
+    "arvancloud/redins/redis"
     "github.com/go-ini/ini"
     "github.com/patrickmn/go-cache"
 )
