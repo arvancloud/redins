@@ -8,6 +8,7 @@ before_script:
     - redis-server &
 stages:
     - test
+    - deploy
 
 test:
     stage: test
@@ -17,5 +18,17 @@ test:
         - go get
         - go build
         - go test ./...
+    artifacts:
+        paths:
+        - redins
+    only:
+        - dev
+
+deploy:
+    stage: deploy
+    script:
+        - echo deploy
+        - docker build . -t labreg.arvancloud.com:5000/arvan_redins:0.1.3
+        - docker push labreg.arvancloud.com:5000/arvan_redins:0.1.3
     only:
         - dev
