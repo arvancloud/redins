@@ -1,0 +1,28 @@
+before_script:
+    - export GOPATH=/root/go
+    - export PATH=$PATH:/opt/go/bin
+    - mkdir $GOPATH/arvancloud/redins
+    - cp -r . $GOPATH/arvancloud/redins
+
+stages:
+    - build
+    - test
+
+build:
+    stage: build
+    script:
+        - echo build
+        - cd $GOPATH/src/arvancloud/redins
+        - go build
+    only:
+        - dev
+
+test:
+    stage: test
+    script:
+        - echo test
+        - cd $GOPATH/src/arvancloud/redins
+        - go build
+        - go test ./...
+    only:
+        - dev
