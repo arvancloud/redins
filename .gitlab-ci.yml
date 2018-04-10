@@ -1,3 +1,6 @@
+services:
+    - docker:dind
+
 before_script:
     - ls
     - pwd
@@ -6,6 +9,7 @@ before_script:
     - mkdir -p $GOPATH/src/arvancloud/
     - ln -sf `pwd` $GOPATH/src/arvancloud/redins
     - redis-server &
+
 stages:
     - test
     - deploy
@@ -20,12 +24,14 @@ test:
         - go test ./...
     artifacts:
         paths:
-        - redins
+        - ./redins
     only:
         - dev
 
 deploy:
     stage: deploy
+    dependencies:
+    - test
     script:
         - echo deploy
         - docker build . -t labreg.arvancloud.com:5000/arvan_redins:0.1.3
