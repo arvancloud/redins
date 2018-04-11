@@ -38,6 +38,7 @@ deploy:
     script:
         - echo deploy
         - BUILD_VERSION=`cat VERSION`-$CI_JOB_ID
+        - docker login labreg.arvancloud.com:5000 -u labreg -p 123123
         - docker build . -t labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
         - docker push labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
     only:
