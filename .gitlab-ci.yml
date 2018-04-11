@@ -33,7 +33,6 @@ deploy:
     stage: deploy
     dependencies:
     - test
-    image: labreg.arvancloud.com:5000/docker:latest
     script:
         - echo deploy
         - BUILD_VERSION=`cat VERSION`-$CI_JOB_ID
