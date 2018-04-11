@@ -1,7 +1,7 @@
 variables:
   DOCKER_DRIVER: overlay
 services:
-  - labreg.arvancloud.com:5000/docker:dind
+    - labreg.arvancloud.com:5000/docker:dind
 before_script:
     - ls
     - pwd
