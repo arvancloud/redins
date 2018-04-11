@@ -446,7 +446,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         HealthCheckConfig: HealthCheckConfig {
             Enable: true,
             UpCount: 3,
-            DownCount: 3,
+            DownCount: -3,
             RequestTimeout: 1000,
         },
     }
@@ -454,7 +454,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     val := h.Redis.HGet(zone, "!")
     err := json.Unmarshal([]byte(val), &z.Config)
     if err != nil {
-        log.Printf("[ERROR] cannot parse json : %s -> %s", val, err)
+        log.Printf("[ERROR] config: cannot parse json : %s -> %s", val, err)
     }
     return z
 }
