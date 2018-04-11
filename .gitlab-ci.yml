@@ -31,6 +31,7 @@ test:
 
 deploy:
     stage: deploy
+    image: labreg.arvancloud.com:5000/docker:latest
     dependencies:
     - test
     script:
