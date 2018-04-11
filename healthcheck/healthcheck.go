@@ -101,6 +101,9 @@ func (h *Healthcheck) newItem(key string) *HealthCheckItem {
     item.Ip = HostIp[1]
     itemStr := h.redisServer.Get(key)
     json.Unmarshal([]byte(itemStr), item)
+    if item.DownCount > 0 {
+        item.DownCount = -item.DownCount
+    }
     return item
 }
 
