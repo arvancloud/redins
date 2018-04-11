@@ -198,7 +198,6 @@ redis-cli>
 
 ~~~json
 {
-  "ip_filter_mode":"multi",
   "healthcheck":{
     "enable":true,
     "up_count":3,
@@ -207,12 +206,6 @@ redis-cli>
   }
 }
 ~~~
-
-`ip-filter_mode` : filtering mode:
-* multi : return all A or AAAA records
-* rr : weighted round robin selection
-* geo_location : nearest geographical location
-* geo_country : match with same country as source ip
 
 `up_count` number of successful healthcheck requests to consider an ip valid
 `down_count` number of unsuccessful healthcheck requests to consider an ip invalid
@@ -322,6 +315,22 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
     }
 }
 ~~~
+
+#### config
+
+~~~json
+{
+    "config":{
+        "ip_filter_mode": "multi"
+    }
+}
+~~~
+
+`ip-filter_mode` : filtering mode:
+* multi : return all A or AAAA records
+* rr : weighted round robin selection
+* geo_location : nearest geographical location
+* geo_country : match with same country as source ip
 
 ### zone example
 
