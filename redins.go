@@ -47,7 +47,7 @@ func LogRequest(request *request.Request) {
     }
 
     opt := request.Req.IsEdns0()
-    if len(opt.Option) != 0 {
+    if opt != nil && len(opt.Option) != 0 {
         data.ClientSubnet = opt.Option[0].String()
     }
     l.Log(data, "request")
