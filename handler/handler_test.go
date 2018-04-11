@@ -19,7 +19,7 @@ var lookupZones = []string {
 var lookupEntries = [][][]string {
     {
         {"!",
-            "{\"ip_filter_mode\":\"geo\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
+            "{\"ip_filter_mode\":\"multi\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
         },
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
