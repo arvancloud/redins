@@ -19,7 +19,6 @@ test:
     image: labreg.arvancloud.com:5000/shared_runner:latest
     script:
         - echo test
-        - redis-server &
         - cd $GOPATH/src/arvancloud/redins
         - go get
         - go build
