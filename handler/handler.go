@@ -31,7 +31,6 @@ type HealthCheckConfig struct {
 }
 
 type ZoneConfig struct {
-    IpFilterMode string  `json:"ip_filter_mode"`// "multi", "rr", "geo_country", "geo_location"
     HealthCheckConfig `json:"healthcheck"`
 }
 
@@ -50,6 +49,7 @@ type Record struct {
     MX           []MX_Record    `json:"mx,omitempty"`
     SRV          []SRV_Record   `json:"srv,omitempty"`
     SOA          SOA_Record     `json:"soa,omitempty"`
+    Config       RecordConfig   `json:"config,omitempty"`
     ZoneName     string         `json:"-"`
     ZoneCfg      ZoneConfig     `json:"-"`
 }
@@ -98,6 +98,10 @@ type SOA_Record struct {
     Retry   uint32 `json:"retry"`
     Expire  uint32 `json:"expire"`
     MinTtl  uint32 `json:"minttl"`
+}
+
+type RecordConfig struct {
+    IpFilterMode string `json:"ip_filter_mode"` // "multi", "rr", "geo_country", "geo_location"
 }
 
 type HandlerConfig struct {
@@ -409,7 +413,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
     zone := h.Matches(qname)
     // log.Printf("[DEBUG] zone : %s", zone)
     if zone == "" {
-        log.Printf("[ERROR] no matching zone found for %s", zone)
+        log.Printf("[ERROR] no matching zone found for %s", qname)
         return nil, dns.RcodeNameError
     }
 
@@ -442,7 +446,6 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     }
 
     z.Config = ZoneConfig {
-        IpFilterMode: "multi",
         HealthCheckConfig: HealthCheckConfig {
             Enable: true,
             UpCount: 3,
@@ -468,6 +471,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *Record {
     }
     val := h.Redis.HGet(z.Name, label)
     r := new(Record)
+    r.Config.IpFilterMode = "multi"
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
         log.Printf("[ERROR] cannot parse json : %s -> %s", val, err)

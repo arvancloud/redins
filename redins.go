@@ -78,13 +78,13 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
         ips := []handler.IP_Record{}
         ips = append(ips, record.A...)
         ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
+        ips = Filter(&state, record.Config.IpFilterMode, ips)
         answers = h.A(qname, ips)
     } else if qtype == dns.TypeAAAA {
         ips := []handler.IP_Record{}
         ips = append(ips, record.A...)
         ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
+        ips = Filter(&state, record.Config.IpFilterMode, ips)
         answers = h.AAAA(qname, ips)
     } else {
         switch qtype {

@@ -84,7 +84,6 @@ func TestFilter(t *testing.T) {
     w := []handler.Record {
         {
             ZoneCfg: handler.ZoneConfig {
-              IpFilterMode: "multi",
               HealthCheckConfig: handler.HealthCheckConfig {
                 Enable: true,
                 DownCount: -3,
@@ -92,6 +91,7 @@ func TestFilter(t *testing.T) {
                 RequestTimeout: 1000,
               },
             },
+            Config: handler.RecordConfig { IpFilterMode: "multi" },
             A: []handler.IP_Record{
                 {Ip: net.ParseIP("1.2.3.4")},
                 {Ip: net.ParseIP("2.3.4.5")},
@@ -102,7 +102,6 @@ func TestFilter(t *testing.T) {
         },
         {
             ZoneCfg: handler.ZoneConfig {
-                IpFilterMode: "multi",
                 HealthCheckConfig: handler.HealthCheckConfig {
                     Enable: true,
                     DownCount: -3,
@@ -110,6 +109,7 @@ func TestFilter(t *testing.T) {
                     RequestTimeout: 1000,
                 },
             },
+            Config: handler.RecordConfig { IpFilterMode: "multi" },
             A: []handler.IP_Record {
                 {Ip:net.ParseIP("2.3.4.5")},
                 {Ip:net.ParseIP("3.4.5.6")},
@@ -119,7 +119,6 @@ func TestFilter(t *testing.T) {
         },
         {
             ZoneCfg: handler.ZoneConfig {
-                IpFilterMode: "multi",
                 HealthCheckConfig: handler.HealthCheckConfig {
                     Enable: true,
                     DownCount: -3,
@@ -127,6 +126,7 @@ func TestFilter(t *testing.T) {
                     RequestTimeout: 1000,
                 },
             },
+            Config: handler.RecordConfig { IpFilterMode: "multi" },
             A: []handler.IP_Record{
                 {Ip: net.ParseIP("3.4.5.6")},
                 {Ip: net.ParseIP("4.5.6.7")},
@@ -135,7 +135,6 @@ func TestFilter(t *testing.T) {
         },
         {
             ZoneCfg: handler.ZoneConfig {
-                IpFilterMode: "multi",
                 HealthCheckConfig: handler.HealthCheckConfig {
                     Enable: true,
                     DownCount: -3,
@@ -143,6 +142,7 @@ func TestFilter(t *testing.T) {
                     RequestTimeout: 1000,
                 },
             },
+            Config: handler.RecordConfig { IpFilterMode: "multi" },
             A: []handler.IP_Record{
                 {Ip: net.ParseIP("4.5.6.7")},
                 {Ip: net.ParseIP("5.6.7.8")},
@@ -150,7 +150,6 @@ func TestFilter(t *testing.T) {
         },
         {
             ZoneCfg: handler.ZoneConfig {
-                IpFilterMode: "multi",
                 HealthCheckConfig: handler.HealthCheckConfig {
                     Enable: true,
                     DownCount: -3,
@@ -158,6 +157,7 @@ func TestFilter(t *testing.T) {
                     RequestTimeout: 1000,
                 },
             },
+            Config: handler.RecordConfig { IpFilterMode: "multi" },
             A: []handler.IP_Record{
                 {Ip: net.ParseIP("5.6.7.8")},
             },
