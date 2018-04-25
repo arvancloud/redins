@@ -15,6 +15,7 @@ import (
     "arvancloud/redins/geoip"
     "arvancloud/redins/server"
     "arvancloud/redins/healthcheck"
+    "arvancloud/redins/upstream"
 )
 
 var (
@@ -23,7 +24,7 @@ var (
     l *eventlog.EventLogger
     g *geoip.GeoIp
     k *healthcheck.Healthcheck
-
+    u *upstream.Upstream
 )
 
 func GetSourceIp(request *request.Request) net.IP {
@@ -67,44 +68,47 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
     record, res := h.FetchRecord(qname)
 
-    if res != dns.RcodeSuccess {
+    var answers []dns.RR
+
+    if res == dns.RcodeSuccess {
+        if qtype == dns.TypeA {
+            ips := []handler.IP_Record{}
+            ips = append(ips, record.A...)
+            ips = k.FilterHealthcheck(qname, record, ips)
+            ips = Filter(&state, record.Config.IpFilterMode, ips)
+            answers = h.A(qname, ips)
+        } else if qtype == dns.TypeAAAA {
+            ips := []handler.IP_Record{}
+            ips = append(ips, record.AAAA...)
+            ips = k.FilterHealthcheck(qname, record, ips)
+            ips = Filter(&state, record.Config.IpFilterMode, ips)
+            answers = h.AAAA(qname, ips)
+        } else {
+            switch qtype {
+            case dns.TypeCNAME:
+                answers = h.CNAME(qname, record)
+            case dns.TypeTXT:
+                answers = h.TXT(qname, record)
+            case dns.TypeNS:
+                answers = h.NS(qname, record)
+            case dns.TypeMX:
+                answers = h.MX(qname, record)
+            case dns.TypeSRV:
+                answers = h.SRV(qname, record)
+            case dns.TypeSOA:
+                answers = h.SOA(qname, record)
+            default:
+                errorResponse(state, dns.RcodeNotImplemented)
+                return
+            }
+        }
+    } else if res == dns.RcodeNotAuth && u.Enabled {
+        answers = u.Query(qname, qtype)
+    } else {
         errorResponse(state, res)
         return
     }
 
-    var answers []dns.RR
-
-    if qtype == dns.TypeA {
-        ips := []handler.IP_Record{}
-        ips = append(ips, record.A...)
-        ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.Config.IpFilterMode, ips)
-        answers = h.A(qname, ips)
-    } else if qtype == dns.TypeAAAA {
-        ips := []handler.IP_Record{}
-        ips = append(ips, record.A...)
-        ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.Config.IpFilterMode, ips)
-        answers = h.AAAA(qname, ips)
-    } else {
-        switch qtype {
-        case dns.TypeCNAME:
-            answers = h.CNAME(qname, record)
-        case dns.TypeTXT:
-            answers = h.TXT(qname, record)
-        case dns.TypeNS:
-            answers = h.NS(qname, record)
-        case dns.TypeMX:
-            answers = h.MX(qname, record)
-        case dns.TypeSRV:
-            answers = h.SRV(qname, record)
-        case dns.TypeSOA:
-            answers = h.SOA(qname, record)
-        default:
-            errorResponse(state, dns.RcodeNotImplemented)
-            return
-        }
-    }
     m := new(dns.Msg)
     m.SetReply(r)
     m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
@@ -164,6 +168,8 @@ func main() {
     g = geoip.NewGeoIp(geoip.LoadConfig(cfg, "geoip"))
 
     k = healthcheck.NewHealthcheck(healthcheck.LoadConfig(cfg, "healthcheck"))
+
+    u = upstream.NewUpstream(upstream.LoadConfig(cfg, "upstream"))
 
     dns.HandleFunc(".", handleRequest)
 

@@ -40,7 +40,7 @@ type Zone struct {
     Config    ZoneConfig
 }
 
-type Record struct {
+type RRSet struct {
     A            []IP_Record    `json:"a,omitempty"`
     AAAA         []IP_Record    `json:"aaaa,omitempty"`
     TXT          []TXT_Record   `json:"txt,omitempty"`
@@ -49,6 +49,10 @@ type Record struct {
     MX           []MX_Record    `json:"mx,omitempty"`
     SRV          []SRV_Record   `json:"srv,omitempty"`
     SOA          SOA_Record     `json:"soa,omitempty"`
+}
+
+type Record struct {
+    RRSet
     Config       RecordConfig   `json:"config,omitempty"`
     ZoneName     string         `json:"-"`
     ZoneCfg      ZoneConfig     `json:"-"`
@@ -414,7 +418,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
     // log.Printf("[DEBUG] zone : %s", zone)
     if zone == "" {
         log.Printf("[ERROR] no matching zone found for %s", qname)
-        return nil, dns.RcodeNameError
+        return nil, dns.RcodeNotAuth
     }
 
     z := h.LoadZone(zone)

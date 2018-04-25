@@ -6,8 +6,8 @@ import (
     "strconv"
 )
 type ServerConfig struct {
-    ip string
-    port int
+    ip       string
+    port     int
     protocol string
 }
 
