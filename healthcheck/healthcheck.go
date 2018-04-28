@@ -14,6 +14,7 @@ import (
     "arvancloud/redins/redis"
     "arvancloud/redins/handler"
     "arvancloud/redins/eventlog"
+    "github.com/patrickmn/go-cache"
 )
 
 type HealthcheckConfig struct {
@@ -22,6 +23,7 @@ type HealthcheckConfig struct {
     updateInterval time.Duration
     checkInterval  time.Duration
     redisConfig    *redis.RedisConfig
+    redisStatus    *redis.RedisConfig
     loggerConfig   *eventlog.LoggerConfig
 }
 
@@ -40,23 +42,26 @@ type HealthCheckItem struct {
 }
 
 type Healthcheck struct {
-    config      *HealthcheckConfig
-    redisServer *redis.Redis
-    logger      *eventlog.EventLogger
-    items       map[string]*HealthCheckItem
-    lastUpdate  time.Time
+    config            *HealthcheckConfig
+    redisConfigServer *redis.Redis
+    redisStatusServer *redis.Redis
+    logger            *eventlog.EventLogger
+    cachedItems       *cache.Cache
+    lastUpdate        time.Time
 }
 
 func LoadConfig(cfg *ini.File, section string) *HealthcheckConfig {
     healthcheckConfig := cfg.Section(section)
-    redisSection := healthcheckConfig.Key("redis").MustString("redis")
+    redisConfigSection := healthcheckConfig.Key("redis_config").MustString("redis")
+    redisStatusSection := healthcheckConfig.Key("redis_status").MustString("redis")
     logSection := healthcheckConfig.Key("log").MustString("log")
     return &HealthcheckConfig {
         enable:         healthcheckConfig.Key("enable").MustBool(true),
         maxRequests:    healthcheckConfig.Key("max_requests").MustInt(20),
         updateInterval: healthcheckConfig.Key("update_interval").MustDuration(10 * time.Minute),
         checkInterval:  healthcheckConfig.Key("check_interval").MustDuration(10 * time.Second),
-        redisConfig:    redis.LoadConfig(cfg, redisSection),
+        redisConfig:    redis.LoadConfig(cfg, redisConfigSection),
+        redisStatus:    redis.LoadConfig(cfg, redisStatusSection),
         loggerConfig:   eventlog.LoadConfig(cfg, logSection),
     }
 }
@@ -68,9 +73,10 @@ func NewHealthcheck(config *HealthcheckConfig) *Healthcheck {
 
     if h.config.enable {
 
-        h.redisServer = redis.NewRedis(config.redisConfig)
-        h.items = make(map[string]*HealthCheckItem)
-        h.loadItems()
+        h.redisConfigServer = redis.NewRedis(config.redisConfig)
+        h.redisStatusServer = redis.NewRedis(config.redisStatus)
+        h.cachedItems = cache.New(time.Second * time.Duration(h.config.checkInterval), time.Duration(h.config.checkInterval) * time.Second * 10)
+        h.transferItems()
 
         h.logger = eventlog.NewLogger(h.config.loggerConfig)
     }
@@ -83,14 +89,21 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
         return 0
     }
     key := host + ":" + ip.String()
-    i, ok := h.items[key]
-    if ok {
-        return i.Status
+    var item *HealthCheckItem
+    val, found := h.cachedItems.Get(key)
+    if !found {
+        item = h.loadItem(key)
+        if item == nil {
+            item = new(HealthCheckItem)
+        }
+        h.cachedItems.Set(key, item, h.config.checkInterval)
+    } else {
+        item = val.(*HealthCheckItem)
     }
-    return 0
+    return item.Status
 }
 
-func (h *Healthcheck) newItem(key string) *HealthCheckItem {
+func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     HostIp := strings.Split(key, ":")
     if len(HostIp) != 2 {
         log.Printf("[ERROR] invalid key: %s", key)
@@ -99,7 +112,10 @@ func (h *Healthcheck) newItem(key string) *HealthCheckItem {
     item := new(HealthCheckItem)
     item.Host = HostIp[0]
     item.Ip = HostIp[1]
-    itemStr := h.redisServer.Get(key)
+    itemStr := h.redisStatusServer.Get(key)
+    if itemStr == "" {
+        return nil
+    }
     json.Unmarshal([]byte(itemStr), item)
     if item.DownCount > 0 {
         item.DownCount = -item.DownCount
@@ -107,31 +123,71 @@ func (h *Healthcheck) newItem(key string) *HealthCheckItem {
     return item
 }
 
-func (h *Healthcheck) loadItems() {
+func (h *Healthcheck) storeItem(item *HealthCheckItem) {
+    key := item.Host + ":" + item.Ip
+    itemStr, err := json.Marshal(item)
+    if err != nil {
+        log.Printf("[ERROR] cannot marshal item to json : %s", err)
+        return
+    }
+    h.redisStatusServer.Set(key, string(itemStr))
+}
+
+func (h *Healthcheck) transferItems() {
     itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
-        if item1.Ip != item2.Ip || item1.Host != item2.Host || item1.Uri != item2.Uri || item1.Port != item2.Port || item1.Protocol != item2.Protocol {
+        if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
+            item1.Protocol != item2.Protocol || item1.Enable != item2.Enable ||
+            item1.UpCount != item2.UpCount || item1.DownCount != item2.DownCount || item1.Timeout != item2.Timeout {
             return false
         }
         return true
     }
-    newItems := make(map[string]*HealthCheckItem)
-    keys := h.redisServer.GetKeys()
-    for _, key := range keys {
-        newItem := h.newItem(key)
-        if newItem == nil || newItem.Enable == false {
-            continue
-        }
-        i, ok := h.items[key]
-        if ok && itemsEqual(newItem, i) {
-            newItems[key] = i
-        } else {
-            newItems[key] = newItem
+    newItems := []*HealthCheckItem{}
+    zones := h.redisConfigServer.GetKeys()
+    for _, zone := range zones {
+        subDomains := h.redisConfigServer.GetHKeys(zone)
+        for _, subDomain := range subDomains {
+            recordStr := h.redisConfigServer.HGet(zone, subDomain)
+            record := new(handler.Record)
+            record.Config.HealthCheckConfig.Enable = false
+            err := json.Unmarshal([]byte(recordStr), record)
+            if err != nil {
+                log.Printf("[ERROR] cannot parse json : %s -> %s", recordStr, err)
+                continue
+            }
+            var host string
+            if subDomain == "@" {
+                host = zone
+            } else {
+                host = subDomain + "." + zone
+            }
+            for _,ipRecord := range record.A {
+                key := host + ":" + ipRecord.Ip.String()
+                newItem := &HealthCheckItem {
+                    Ip: ipRecord.Ip.String(),
+                    Port: record.Config.HealthCheckConfig.Port,
+                    Host: host,
+                    Enable: record.Config.HealthCheckConfig.Enable,
+                    DownCount: record.Config.HealthCheckConfig.DownCount,
+                    UpCount: record.Config.HealthCheckConfig.UpCount,
+                    Timeout: record.Config.HealthCheckConfig.Timeout,
+                    Uri: record.Config.HealthCheckConfig.Uri,
+                    Protocol: record.Config.HealthCheckConfig.Protocol,
+                }
+                oldItem := h.loadItem(key)
+                if oldItem != nil && itemsEqual(oldItem, newItem) {
+                    newItem.Status = oldItem.Status
+                    newItem.LastCheck = oldItem.LastCheck
+                }
+                newItems = append(newItems, newItem)
+            }
         }
     }
-    h.items = newItems
-    h.lastUpdate = time.Now()
+    h.redisStatusServer.Del("*")
+    for _, item := range newItems {
+        h.storeItem(item)
+    }
 }
-
 
 func (h *Healthcheck) Start() {
     if h.config.enable == false {
@@ -148,13 +204,19 @@ func (h *Healthcheck) Start() {
 
     for {
         startTime := time.Now()
-        for _, item := range h.items {
+        keys := h.redisStatusServer.GetKeys()
+        for _, key := range keys {
+            item := h.loadItem(key)
+            if item == nil || item.Enable == false {
+                continue
+            }
             if time.Since(item.LastCheck) > h.config.checkInterval {
                 inputChan <- item
             }
         }
         if time.Since(h.lastUpdate) > h.config.updateInterval {
-            h.loadItems()
+            wg.Wait()
+            h.transferItems()
         }
         if time.Since(startTime) < h.config.checkInterval {
             time.Sleep(h.config.checkInterval - time.Since(startTime))
@@ -177,11 +239,11 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
         url := item.Protocol + "://" + item.Ip + item.Uri
         // log.Println("[DEBUG]", item)
         req, err := http.NewRequest("HEAD", url, nil)
-        req.Host = item.Host
         if err != nil {
             log.Printf("[ERROR] invalid request : %s", err)
             h.statusDown(item)
         } else {
+            req.Host = strings.TrimRight(item.Host, ".")
             resp, err := client.Do(req)
             if err != nil {
                 log.Printf("[ERROR] request failed : %s", err)
@@ -197,6 +259,7 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
             }
         }
         item.LastCheck = time.Now()
+        h.storeItem(item)
         h.logHealthcheck(item)
     }
 }
@@ -253,7 +316,7 @@ func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record, ip
         newIps = append(newIps, ips...)
         return newIps
     }
-    min := record.ZoneCfg.HealthCheckConfig.DownCount
+    min := record.Config.HealthCheckConfig.DownCount
     for _, ip := range ips {
         status := h.getStatus(qname, ip.Ip)
         if  status > min {
@@ -261,8 +324,8 @@ func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record, ip
         }
     }
     // log.Println("[DEBUG] min = ", min)
-    if min < record.ZoneCfg.HealthCheckConfig.UpCount - 1 && min > record.ZoneCfg.HealthCheckConfig.DownCount {
-        min = record.ZoneCfg.HealthCheckConfig.DownCount + 1
+    if min < record.Config.HealthCheckConfig.UpCount - 1 && min > record.Config.HealthCheckConfig.DownCount {
+        min = record.Config.HealthCheckConfig.DownCount + 1
     }
     // log.Println("[DEBUG] min = ", min)
     for _, ip := range ips {

@@ -23,21 +23,16 @@ type DnsRequestHandler struct {
 }
 
 
-type HealthCheckConfig struct {
+type HealthCheckZoneConfig struct {
     Enable         bool `json:"enable"`
     UpCount        int  `json:"up_count"`
     DownCount      int  `json:"down_count"`
     RequestTimeout int  `json:"request_timeout"`
 }
 
-type ZoneConfig struct {
-    HealthCheckConfig `json:"healthcheck"`
-}
-
 type Zone struct {
     Name      string
     Locations map[string]struct{}
-    Config    ZoneConfig
 }
 
 type RRSet struct {
@@ -55,7 +50,6 @@ type Record struct {
     RRSet
     Config       RecordConfig   `json:"config,omitempty"`
     ZoneName     string         `json:"-"`
-    ZoneCfg      ZoneConfig     `json:"-"`
 }
 
 type IP_Record struct {
@@ -104,8 +98,19 @@ type SOA_Record struct {
     MinTtl  uint32 `json:"minttl"`
 }
 
+type HealthCheckRecordConfig struct {
+    Enable    bool          `json:"enable,omitempty"`
+    Protocol  string        `json:"protocol,omitempty"`
+    Uri       string        `json:"uri,omitempty"`
+    Port      int           `json:"port,omitempty"`
+    Timeout   time.Duration `json:"timeout,omitempty"`
+    UpCount   int           `json:"up_count,omitempty"`
+    DownCount int           `json:"down_count,omitempty"`
+}
+
 type RecordConfig struct {
     IpFilterMode string `json:"ip_filter_mode"` // "multi", "rr", "geo_country", "geo_location"
+    HealthCheckConfig HealthCheckRecordConfig `json:"health_check"`
 }
 
 type HandlerConfig struct {
@@ -435,7 +440,6 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 
     record = h.GetLocation(location, z)
     record.ZoneName = zone
-    record.ZoneCfg = z.Config
 
     return record, dns.RcodeSuccess
 }
@@ -449,20 +453,6 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         z.Locations[val] = struct{}{}
     }
 
-    z.Config = ZoneConfig {
-        HealthCheckConfig: HealthCheckConfig {
-            Enable: true,
-            UpCount: 3,
-            DownCount: -3,
-            RequestTimeout: 1000,
-        },
-    }
-
-    val := h.Redis.HGet(zone, "!")
-    err := json.Unmarshal([]byte(val), &z.Config)
-    if err != nil {
-        log.Printf("[ERROR] config: cannot parse json : %s -> %s", val, err)
-    }
     return z
 }
 
@@ -476,6 +466,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *Record {
     val := h.Redis.HGet(z.Name, label)
     r := new(Record)
     r.Config.IpFilterMode = "multi"
+    r.Config.HealthCheckConfig.Enable = false
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
         log.Printf("[ERROR] cannot parse json : %s -> %s", val, err)

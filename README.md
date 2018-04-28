@@ -10,7 +10,6 @@
     - [example](#example)
 - [Zone format in redis](#zone-format-in-redis-db)
     - [zones](#zones)
-    - [zone config](#zone-config)
     - [dns RRs](#dns-rrs)
         - [A](#A)
         - [AAAA](#AAAA)
@@ -20,8 +19,8 @@
         - [MX](#mx)
         - [SRV](#srv)
         - [SOA](#soa)
+        - [Config](#config)
     - [example](#zone-example)
--[Health check](#health-check)
     
 
 *redins* enables reading zone data from redis database.
@@ -63,7 +62,8 @@ enable = true
 max_requests = 10
 update_interval = 10m
 check_interval = 10m
-redis = healthcheck_redis_config
+redis_config = healthcheck_redis_config
+redis_status = healthcheck_redis_status
 log = healthcheck_log_config
 ~~~
 
@@ -71,7 +71,8 @@ log = healthcheck_log_config
 * max_requests : maximum number of simultanous healthcheck requests
 * update_interval : time between checking for updated data from redis
 * check_interval : time between two healthcheck requests
-* redis : name of config file section containing redis configuration to use for healthcheck
+* redis_config : name of config file section containing redis configuration to use for healthcheck
+* redis_status : name of config file section to use for healthcheck status
 * log : name of config file section containing log configuration to use for healthcheck logs
 
 ### geoip
@@ -192,25 +193,6 @@ redis-cli>KEYS *
 redis-cli>
 ~~~
 
-### zone config
-
-`!` is used for zone related configuration:
-
-~~~json
-{
-  "healthcheck":{
-    "enable":true,
-    "up_count":3,
-    "down_count":-3,
-    "request_timeout":1000
-  }
-}
-~~~
-
-`up_count` number of successful healthcheck requests to consider an ip valid
-`down_count` number of unsuccessful healthcheck requests to consider an ip invalid
-`request_timeout` time to wait for a healthcheck response
-
 ### dns RRs 
 
 dns RRs are stored in redis as json strings inside a hash map using address as field key.
@@ -322,6 +304,15 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 {
     "config":{
         "ip_filter_mode": "multi"
+        "health_check":{
+            "enable":true,
+            "uri": "/hc/test.html",
+            "port": 8080,
+            "protocol": "https",
+            "up_count":3,
+            "down_count":-3,
+            "timeout":1000
+        }
     }
 }
 ~~~
@@ -331,6 +322,20 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 * rr : weighted round robin selection
 * geo_location : nearest geographical location
 * geo_country : match with same country as source ip
+
+`enable` enable/disable healthcheck for this host:ip
+
+`uri` uri to use in healthcheck request
+
+`port` port to use in healthcheck request
+
+`protocol` protocol to use in healthcheck request, can be http or https
+
+`up_count` number of successful healthcheck requests to consider an ip valid
+
+`down_count` number of unsuccessful healthcheck requests to consider an ip invalid
+
+`timeout` time to wait for a healthcheck response
 
 ### zone example
 
@@ -369,18 +374,4 @@ redis-cli> hgetall example.net.
 14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
 redis-cli> 
 ~~~
-
-## health check
-
-add a key for each host:ip you want to have health check :
-
-~~~
-redis-cli> get www.arvancloud.com:185.143.234.50_healthcheck
-"{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/test/default.html\",\"port\":80}"
-redis-cli> 
-~~~
-* `enable` enable/disable healthcheck for this host:ip
-* `protocol` protocol to use in healthcheck request, can be http or https
-* `uri` uri to use in healthcheck request
-* `port` port to use in healthcheck request
 

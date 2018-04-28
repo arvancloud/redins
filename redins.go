@@ -111,7 +111,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
     m := new(dns.Msg)
     m.SetReply(r)
-    m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
+    m.Authoritative, m.RecursionAvailable, m.Compress = true, u.Enabled, true
 
     m.Answer = append(m.Answer, answers...)
 

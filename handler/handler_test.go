@@ -18,62 +18,70 @@ var lookupZones = []string {
 
 var lookupEntries = [][][]string {
     {
-        {"!",
-            "{\"ip_filter_mode\":\"multi\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
-        },
         {"@",
-            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"x",
             "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
                 "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
                 "\"txt\":[{\"ttl\":300, \"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]," +
                 "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.com.\"},{\"ttl\":300, \"host\":\"ns2.example.com.\"}]," +
-                "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.com.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.com.\", \"preference\":10}]}",
+                "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.com.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.com.\", \"preference\":10}]," +
+                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"y",
-            "{\"cname\":[{\"ttl\":300, \"host\":\"x.example.com.\"}]}",
+            "{\"cname\":[{\"ttl\":300, \"host\":\"x.example.com.\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"ns1",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"2.2.2.2\"}]}",
+            "{\"a\":[{\"ttl\":300, \"ip\":\"2.2.2.2\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"ns2",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"3.3.3.3\"}]}",
+            "{\"a\":[{\"ttl\":300, \"ip\":\"3.3.3.3\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"_sip._tcp",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]}",
+            "{\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"sip",
             "{\"a\":[{\"ttl\":300, \"ip\":\"7.7.7.7\"}]," +
-                "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]}",
+            "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
     },
     {
-        {"!",
-            "{\"ip_filter_mode\":\"multi\", \"healthcheck\":{\"enable\":true,\"up_count\":3, \"down_count\":-3, \"request_timeout\":1000}}",
-        },
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-                "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}",
+            "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"sub.*",
-            "{\"txt\":[{\"ttl\":300, \"text\":\"this is not a wildcard\"}]}",
+            "{\"txt\":[{\"ttl\":300, \"text\":\"this is not a wildcard\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"host1",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"5.5.5.5\"}]}",
+            "{\"a\":[{\"ttl\":300, \"ip\":\"5.5.5.5\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"subdel",
-            "{\"ns\":[{\"ttl\":300, \"host\":\"ns1.subdel.example.net.\"},{\"ttl\":300, \"host\":\"ns2.subdel.example.net.\"}]}",
+            "{\"ns\":[{\"ttl\":300, \"host\":\"ns1.subdel.example.net.\"},{\"ttl\":300, \"host\":\"ns2.subdel.example.net.\"}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"*",
             "{\"txt\":[{\"ttl\":300, \"text\":\"this is a wildcard\"}]," +
-                "\"mx\":[{\"ttl\":300, \"host\":\"host1.example.net.\",\"preference\": 10}]}",
+            "\"mx\":[{\"ttl\":300, \"host\":\"host1.example.net.\",\"preference\": 10}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"_ssh._tcp.host1",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}",
+            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"_ssh._tcp.host2",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}",
+            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
     },
 }
