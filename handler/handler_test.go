@@ -195,6 +195,19 @@ var lookupTestCases = [][]test.Case{
     },
 }
 
+var anameEntries = [][]string{
+    {"@",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"aname\":{\"location\":\"arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+    },
+    {"www",
+        "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
+            "\"aname\":{\"location\":\"www.arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+    },
+}
+
 func TestHandler(t *testing.T) {
     cfg, err := ini.LooseLoad("test.ini")
     if err != nil {
@@ -293,5 +306,34 @@ func TestWeight(t *testing.T) {
     }
     if !(x10 > x5 && x5 > x4 && x4 > x1) {
         t.Fail()
+    }
+}
+
+func TestANAME(t *testing.T) {
+    zone := "arvancloud.com."
+    cfg, err := ini.LooseLoad("test.ini")
+    if err != nil {
+        log.Printf("[ERROR] loading config failed : %s", err)
+        t.Fail()
+    }
+    h := NewHandler(LoadConfig(cfg, "test"))
+    h.Redis.Del(zone)
+    for _, cmd := range anameEntries {
+        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            t.Fail()
+        }
+    }
+    h.LoadZones()
+    z := h.LoadZone(zone)
+    record := h.GetLocation(zone, z)
+    answers := GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
+    for _, a := range answers {
+        log.Printf("%s\n", a.String())
+    }
+    answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
+    for _, a := range answers {
+        log.Printf("%s\n", a.String())
     }
 }

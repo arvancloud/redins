@@ -11,8 +11,9 @@
 - [Zone format in redis](#zone-format-in-redis-db)
     - [zones](#zones)
     - [dns RRs](#dns-rrs)
-        - [A](#A)
-        - [AAAA](#AAAA)
+        - [A](#a)
+        - [AAAA](#aaaa)
+        - [ANAME](#aname)
         - [CNAME](#cname)
         - [TXT](#txt)
         - [NS](#ns)
@@ -224,6 +225,17 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 }
 ~~~
 
+#### ANAME
+
+~~~json
+{
+    "aname":{
+        "location": "x.example.com.",
+        "proxy": "1.1.1.1:53"
+    }
+}
+~~~
+
 #### CNAME
 
 ~~~json
@@ -262,7 +274,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~json
 {
     "mx":{
-        "host" : "mx1.example.com",
+        "host" : "mx1.example.com.",
         "priority" : 10,
         "ttl" : 360
     }
@@ -303,7 +315,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~json
 {
     "config":{
-        "ip_filter_mode": "multi"
+        "ip_filter_mode": "multi",
         "health_check":{
             "enable":true,
             "uri": "/hc/test.html",

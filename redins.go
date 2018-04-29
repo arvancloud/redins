@@ -73,16 +73,24 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     if res == dns.RcodeSuccess {
         if qtype == dns.TypeA {
             ips := []handler.IP_Record{}
-            ips = append(ips, record.A...)
-            ips = k.FilterHealthcheck(qname, record, ips)
-            ips = Filter(&state, record.Config.IpFilterMode, ips)
-            answers = h.A(qname, ips)
+            if len(record.A) == 0 && record.ANAME != nil {
+                answers = handler.GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
+            } else {
+                ips = append(ips, record.A...)
+                ips = k.FilterHealthcheck(qname, record, ips)
+                ips = Filter(&state, record.Config.IpFilterMode, ips)
+                answers = h.A(qname, ips)
+            }
         } else if qtype == dns.TypeAAAA {
             ips := []handler.IP_Record{}
-            ips = append(ips, record.AAAA...)
-            ips = k.FilterHealthcheck(qname, record, ips)
-            ips = Filter(&state, record.Config.IpFilterMode, ips)
-            answers = h.AAAA(qname, ips)
+            if len(record.AAAA) == 0 && record.ANAME != nil {
+                answers = handler.GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
+            } else {
+                ips = append(ips, record.AAAA...)
+                ips = k.FilterHealthcheck(qname, record, ips)
+                ips = Filter(&state, record.Config.IpFilterMode, ips)
+                answers = h.AAAA(qname, ips)
+            }
         } else {
             switch qtype {
             case dns.TypeCNAME:

@@ -44,6 +44,7 @@ type RRSet struct {
     MX           []MX_Record    `json:"mx,omitempty"`
     SRV          []SRV_Record   `json:"srv,omitempty"`
     SOA          SOA_Record     `json:"soa,omitempty"`
+    ANAME        *ANAME_Record  `json:"aname,omitempty"`
 }
 
 type Record struct {
@@ -57,6 +58,11 @@ type IP_Record struct {
     Ip          net.IP `json:"ip"`
     Country     string `json:"country,omitempty"`
     Weight      int    `json:"weight"`
+}
+
+type ANAME_Record struct {
+    Location string `json:"location,omitempty"`
+    Proxy    string `json:"proxy,omitempty"`
 }
 
 type TXT_Record struct {
@@ -504,6 +510,20 @@ func GetWeightedIp(ips []IP_Record) []IP_Record {
         }
     }
     return []IP_Record { ips[index] }
+}
+
+func GetANAME(location string, proxy string, qtype uint16) []dns.RR {
+    m := new(dns.Msg)
+    m.SetQuestion(location, qtype)
+    r, err := dns.Exchange(m, proxy)
+    if err != nil {
+        log.Printf("[ERROR] failed to retreive record from proxy %s : %s", proxy, err)
+        return []dns.RR{}
+    }
+    if len(r.Answer) == 0 {
+        return []dns.RR{}
+    }
+    return r.Answer
 }
 
 const (
