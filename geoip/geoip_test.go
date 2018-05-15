@@ -6,7 +6,7 @@ import (
     "log"
 
     "arvancloud/redins/handler"
-    "github.com/go-ini/ini"
+    "arvancloud/redins/config"
 )
 
 func TestGeoIpAutomatic(t *testing.T) {
@@ -51,12 +51,8 @@ func TestGeoIpAutomatic(t *testing.T) {
         {"37.148.176.54", "BE"},
     }
 
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    g := NewGeoIp(LoadConfig(cfg, "geoip"))
+    cfg := config.LoadConfig("config.json")
+    g := NewGeoIp(cfg)
 
     for i,_ := range sip {
         dest := new(handler.Record)
@@ -87,12 +83,9 @@ func TestGeoIpManual(t *testing.T) {
         {"127.0.0.1", "", "3.4.5.6"},
     }
 
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    g := NewGeoIp(LoadConfig(cfg, "geoip"))
+    cfg := config.LoadConfig("config.json")
+    g := NewGeoIp(cfg)
+
 
     for i, _ := range sip {
         var dest handler.Record

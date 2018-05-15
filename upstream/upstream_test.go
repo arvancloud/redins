@@ -3,17 +3,13 @@ package upstream
 import (
     "testing"
     "log"
-    "github.com/go-ini/ini"
     "github.com/miekg/dns"
+    "arvancloud/redins/config"
 )
 
 func TestUpstream(t *testing.T) {
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    u := NewUpstream(LoadConfig(cfg,"upstream"))
+    cfg := config.LoadConfig("config.json")
+    u := NewUpstream(cfg)
     rs := u.Query("google.com.", dns.TypeAAAA)
     if len(rs) == 0 {
         log.Printf("[ERROR] AAAA failed")

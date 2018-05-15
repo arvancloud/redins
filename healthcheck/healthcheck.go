@@ -10,22 +10,12 @@ import (
     "net"
     "net/http"
 
-    "github.com/go-ini/ini"
     "arvancloud/redins/redis"
     "arvancloud/redins/handler"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
+    "arvancloud/redins/config"
 )
-
-type HealthcheckConfig struct {
-    enable         bool
-    maxRequests    int
-    updateInterval time.Duration
-    checkInterval  time.Duration
-    redisConfig    *redis.RedisConfig
-    redisStatus    *redis.RedisConfig
-    loggerConfig   *eventlog.LoggerConfig
-}
 
 type HealthCheckItem struct {
     Protocol  string        `json:"protocol,omitempty"`
@@ -42,7 +32,10 @@ type HealthCheckItem struct {
 }
 
 type Healthcheck struct {
-    config            *HealthcheckConfig
+    Enable         bool
+    maxRequests    int
+    updateInterval time.Duration
+    checkInterval  time.Duration
     redisConfigServer *redis.Redis
     redisStatusServer *redis.Redis
     logger            *eventlog.EventLogger
@@ -50,42 +43,29 @@ type Healthcheck struct {
     lastUpdate        time.Time
 }
 
-func LoadConfig(cfg *ini.File, section string) *HealthcheckConfig {
-    healthcheckConfig := cfg.Section(section)
-    redisConfigSection := healthcheckConfig.Key("redis_config").MustString("redis")
-    redisStatusSection := healthcheckConfig.Key("redis_status").MustString("redis")
-    logSection := healthcheckConfig.Key("log").MustString("log")
-    return &HealthcheckConfig {
-        enable:         healthcheckConfig.Key("enable").MustBool(true),
-        maxRequests:    healthcheckConfig.Key("max_requests").MustInt(20),
-        updateInterval: healthcheckConfig.Key("update_interval").MustDuration(10 * time.Minute),
-        checkInterval:  healthcheckConfig.Key("check_interval").MustDuration(10 * time.Second),
-        redisConfig:    redis.LoadConfig(cfg, redisConfigSection),
-        redisStatus:    redis.LoadConfig(cfg, redisStatusSection),
-        loggerConfig:   eventlog.LoadConfig(cfg, logSection),
-    }
-}
-
-func NewHealthcheck(config *HealthcheckConfig) *Healthcheck {
+func NewHealthcheck(config *config.RedinsConfig) *Healthcheck {
     h := &Healthcheck {
-        config: config,
+        Enable: config.HealthCheck.Enable,
+        maxRequests: config.HealthCheck.MaxRequests,
+        updateInterval: time.Duration(config.HealthCheck.UpdateInterval) * time.Second,
+        checkInterval: time.Duration(config.HealthCheck.CheckInterval) * time.Second,
     }
 
-    if h.config.enable {
+    if h.Enable {
 
-        h.redisConfigServer = redis.NewRedis(config.redisConfig)
-        h.redisStatusServer = redis.NewRedis(config.redisStatus)
-        h.cachedItems = cache.New(time.Second * time.Duration(h.config.checkInterval), time.Duration(h.config.checkInterval) * time.Second * 10)
+        h.redisConfigServer = redis.NewRedis(&config.Handler.Redis)
+        h.redisStatusServer = redis.NewRedis(&config.HealthCheck.Redis)
+        h.cachedItems = cache.New(time.Second * time.Duration(config.HealthCheck.CheckInterval), time.Duration(config.HealthCheck.CheckInterval) * time.Second * 10)
         h.transferItems()
 
-        h.logger = eventlog.NewLogger(h.config.loggerConfig)
+        h.logger = eventlog.NewLogger(&config.HealthCheck.Log)
     }
 
     return h
 }
 
 func (h *Healthcheck) getStatus(host string, ip net.IP) int {
-    if !h.config.enable {
+    if !h.Enable {
         return 0
     }
     key := host + ":" + ip.String()
@@ -96,7 +76,7 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
         if item == nil {
             item = new(HealthCheckItem)
         }
-        h.cachedItems.Set(key, item, h.config.checkInterval)
+        h.cachedItems.Set(key, item, h.checkInterval)
     } else {
         item = val.(*HealthCheckItem)
     }
@@ -190,14 +170,14 @@ func (h *Healthcheck) transferItems() {
 }
 
 func (h *Healthcheck) Start() {
-    if h.config.enable == false {
+    if h.Enable == false {
         return
     }
     wg := new(sync.WaitGroup)
 
     inputChan := make(chan *HealthCheckItem)
 
-    for i := 0; i<h.config.maxRequests; i++ {
+    for i := 0; i<h.maxRequests; i++ {
         wg.Add(1)
         go h.worker(inputChan, wg)
     }
@@ -210,16 +190,16 @@ func (h *Healthcheck) Start() {
             if item == nil || item.Enable == false {
                 continue
             }
-            if time.Since(item.LastCheck) > h.config.checkInterval {
+            if time.Since(item.LastCheck) > h.checkInterval {
                 inputChan <- item
             }
         }
-        if time.Since(h.lastUpdate) > h.config.updateInterval {
+        if time.Since(h.lastUpdate) > h.updateInterval {
             wg.Wait()
             h.transferItems()
         }
-        if time.Since(startTime) < h.config.checkInterval {
-            time.Sleep(h.config.checkInterval - time.Since(startTime))
+        if time.Since(startTime) < h.checkInterval {
+            time.Sleep(h.checkInterval - time.Since(startTime))
         }
     }
 }
@@ -265,10 +245,6 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
 }
 
 func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
-    if h.config.loggerConfig.Enable == false {
-        return
-    }
-
     type HealthcheckLogData struct {
         Ip string
         Port int
@@ -312,7 +288,7 @@ func (h *Healthcheck) statusUp(item *HealthCheckItem) {
 
 func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record, ips []handler.IP_Record) []handler.IP_Record {
     newIps := []handler.IP_Record {}
-    if h.config.enable == false {
+    if h.Enable == false {
         newIps = append(newIps, ips...)
         return newIps
     }

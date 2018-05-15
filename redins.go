@@ -8,20 +8,18 @@ import (
     "net"
 
     "github.com/miekg/dns"
-    "github.com/go-ini/ini"
     "github.com/coredns/coredns/request"
     "arvancloud/redins/handler"
-    "arvancloud/redins/eventlog"
     "arvancloud/redins/geoip"
     "arvancloud/redins/server"
     "arvancloud/redins/healthcheck"
     "arvancloud/redins/upstream"
+    "arvancloud/redins/config"
 )
 
 var (
     s *dns.Server
     h *handler.DnsRequestHandler
-    l *eventlog.EventLogger
     g *geoip.GeoIp
     k *healthcheck.Healthcheck
     u *upstream.Upstream
@@ -42,7 +40,7 @@ func LogRequest(request *request.Request) {
         ClientSubnet string
     }
 
-    data := RequestLogData{
+    data := RequestLogData {
         SourceIP: request.IP(),
         Record:   request.Name(),
     }
@@ -51,18 +49,18 @@ func LogRequest(request *request.Request) {
     if opt != nil && len(opt.Option) != 0 {
         data.ClientSubnet = opt.Option[0].String()
     }
-    l.Log(data, "request")
+    h.Logger.Log(data, "request")
 }
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
-    // log.Printf("[DEBUG] handle request")
+    log.Printf("[DEBUG] handle request")
     state := request.Request{W: w, Req: r}
 
     qname := state.Name()
     qtype := state.QType()
 
-    // log.Printf("[DEBUG] name : %s", state.Name())
-    // log.Printf("[DEBUG] type : %s", state.Type())
+    log.Printf("[DEBUG] name : %s", state.Name())
+    log.Printf("[DEBUG] type : %s", state.Type())
 
     LogRequest(&state)
 
@@ -110,7 +108,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
                 return
             }
         }
-    } else if res == dns.RcodeNotAuth && u.Enabled {
+    } else if res == dns.RcodeNotAuth && u.Enable {
         answers = u.Query(qname, qtype)
     } else {
         errorResponse(state, res)
@@ -119,7 +117,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
     m := new(dns.Msg)
     m.SetReply(r)
-    m.Authoritative, m.RecursionAvailable, m.Compress = true, u.Enabled, true
+    m.Authoritative, m.RecursionAvailable, m.Compress = true, u.Enable, true
 
     m.Answer = append(m.Answer, answers...)
 
@@ -157,33 +155,27 @@ func errorResponse(state request.Request, rcode int) {
 }
 
 func main() {
-    configFile := "redins.ini"
+    configFile := "config.json"
     if len(os.Args) > 1 {
         configFile = os.Args[1]
     }
-    cfg, err := ini.LooseLoad(configFile)
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        return
-    }
+    cfg := config.LoadConfig(configFile)
 
-    s = server.NewServer(server.LoadConfig(cfg, "server"))
+    s = server.NewServer(cfg)
 
-    h = handler.NewHandler(handler.LoadConfig(cfg, "handler"))
+    h = handler.NewHandler(cfg)
 
-    l = eventlog.NewLogger(eventlog.LoadConfig(cfg, "log"))
+    g = geoip.NewGeoIp(cfg)
 
-    g = geoip.NewGeoIp(geoip.LoadConfig(cfg, "geoip"))
+    k = healthcheck.NewHealthcheck(cfg)
 
-    k = healthcheck.NewHealthcheck(healthcheck.LoadConfig(cfg, "healthcheck"))
-
-    u = upstream.NewUpstream(upstream.LoadConfig(cfg, "upstream"))
+    u = upstream.NewUpstream(cfg)
 
     dns.HandleFunc(".", handleRequest)
 
     var wg sync.WaitGroup
-    wg.Add(2)
     go s.ListenAndServe()
     go k.Start()
+    wg.Add(2)
     wg.Wait()
 }

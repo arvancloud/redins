@@ -8,43 +8,19 @@ import (
     "errors"
 
     redisCon "github.com/garyburd/redigo/redis"
-    "github.com/go-ini/ini"
+    "arvancloud/redins/config"
 )
 
 type Redis struct {
-    config       *RedisConfig
+    Config       *config.RedisConfig
     Pool         *redisCon.Pool
     RedisAddress string
 }
 
-type RedisConfig struct {
-    ip             string
-    port           int
-    password       string
-    prefix         string
-    suffix         string
-    connectTimeout time.Duration
-    readTimeout    time.Duration
-}
-
-func LoadConfig(cfg *ini.File, section string) *RedisConfig {
-    redisConfig := cfg.Section(section)
-    return &RedisConfig{
-        ip:             redisConfig.Key("ip").MustString("127.0.0.1"),
-        port:           redisConfig.Key("port").MustInt(6379),
-        password:       redisConfig.Key("password").MustString(""),
-        prefix:         redisConfig.Key("prefix").MustString(""),
-        suffix:         redisConfig.Key("suffix").MustString(""),
-        connectTimeout: redisConfig.Key("connect_timeout").MustDuration(0),
-        readTimeout:    redisConfig.Key("read_timeout").MustDuration(0),
-    }
-
-}
-
-func NewRedis(config *RedisConfig) *Redis {
+func NewRedis(config *config.RedisConfig) *Redis {
     r := &Redis {
-        config: config,
-        RedisAddress:   config.ip + ":" + strconv.Itoa(config.port),
+        Config:         config,
+        RedisAddress:   config.Ip + ":" + strconv.Itoa(config.Port),
     }
 
     r.Connect()
@@ -55,14 +31,14 @@ func (redis *Redis) Connect() {
     redis.Pool = &redisCon.Pool{
         Dial: func() (redisCon.Conn, error) {
             opts := []redisCon.DialOption{}
-            if redis.config.password != "" {
-                opts = append(opts, redisCon.DialPassword(redis.config.password))
+            if redis.Config.Password != "" {
+                opts = append(opts, redisCon.DialPassword(redis.Config.Password))
             }
-            if redis.config.connectTimeout != 0 {
-                opts = append(opts, redisCon.DialConnectTimeout(redis.config.connectTimeout))
+            if redis.Config.ConnectTimeout != 0 {
+                opts = append(opts, redisCon.DialConnectTimeout(time.Duration(redis.Config.ConnectTimeout)* time.Second))
             }
-            if redis.config.readTimeout != 0 {
-                opts = append(opts, redisCon.DialReadTimeout(redis.config.readTimeout))
+            if redis.Config.ReadTimeout != 0 {
+                opts = append(opts, redisCon.DialReadTimeout(time.Duration(redis.Config.ReadTimeout)*time.Second))
             }
 
             return redisCon.Dial("tcp", redis.RedisAddress, opts...)
@@ -83,7 +59,7 @@ func (redis *Redis) Get(key string) string {
     }
     defer conn.Close()
 
-    reply, err = conn.Do("GET", redis.config.prefix + key + redis.config.suffix)
+    reply, err = conn.Do("GET", redis.Config.Prefix + key + redis.Config.Suffix)
     if err != nil {
         return ""
     }
@@ -102,7 +78,7 @@ func (redis *Redis) Set(key string, value string) error {
     }
     defer conn.Close()
 
-    _, err := conn.Do("SET", redis.config.prefix + key + redis.config.suffix, value)
+    _, err := conn.Do("SET", redis.Config.Prefix + key + redis.Config.Suffix, value)
     if err != nil {
         log.Printf("[ERROR] redis error : %s", err)
         return err
@@ -118,7 +94,7 @@ func (redis *Redis) Del(pattern string) {
     }
     defer conn.Close()
 
-    conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.config.prefix + pattern + redis.config.suffix)
+    conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.Config.Prefix + pattern + redis.Config.Suffix)
 }
 
 func (redis *Redis) GetKeys() []string {
@@ -135,14 +111,15 @@ func (redis *Redis) GetKeys() []string {
     }
     defer conn.Close()
 
-    reply, err = conn.Do("KEYS", redis.config.prefix + "*" + redis.config.suffix)
+    // TODO: use SCAN
+    reply, err = conn.Do("KEYS", redis.Config.Prefix + "*" + redis.Config.Suffix)
     if err != nil {
         return nil
     }
     keys, err = redisCon.Strings(reply, nil)
     for i, _ := range keys {
-        keys[i] = strings.TrimPrefix(keys[i], redis.config.prefix)
-        keys[i] = strings.TrimSuffix(keys[i], redis.config.suffix)
+        keys[i] = strings.TrimPrefix(keys[i], redis.Config.Prefix)
+        keys[i] = strings.TrimSuffix(keys[i], redis.Config.Suffix)
     }
     return keys
 }
@@ -161,7 +138,7 @@ func (redis *Redis) GetHKeys(key string) []string {
     }
     defer conn.Close()
 
-    reply, err = conn.Do("HKEYS", redis.config.prefix + key + redis.config.suffix)
+    reply, err = conn.Do("HKEYS", redis.Config.Prefix + key + redis.Config.Suffix)
     if err != nil {
         log.Printf("[ERROR] error in redis command : %s", err)
         return nil
@@ -186,7 +163,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
     }
     defer conn.Close()
 
-    reply, err = conn.Do("HGET", redis.config.prefix + key + redis.config.suffix, hkey)
+    reply, err = conn.Do("HGET", redis.Config.Prefix + key + redis.Config.Suffix, hkey)
     if err != nil {
         return ""
     }
@@ -206,7 +183,7 @@ func (redis *Redis) HSet(key string, hkey string, value string) error {
     defer conn.Close()
 
     // log.Printf("[DEBUG] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
-    _, err := conn.Do("HSET", redis.config.prefix + key + redis.config.suffix, hkey, value)
+    _, err := conn.Do("HSET", redis.Config.Prefix + key + redis.Config.Suffix, hkey, value)
     if err != nil {
         log.Printf("[ERROR] redis error : %s", err)
         return err

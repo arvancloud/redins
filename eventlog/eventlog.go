@@ -3,36 +3,23 @@ package eventlog
 import (
     "os"
     "github.com/sirupsen/logrus"
-    "github.com/go-ini/ini"
+    "arvancloud/redins/config"
 )
 
 type EventLogger struct {
-    config *LoggerConfig
+    Enable bool
     file   *os.File
     log    *logrus.Logger
 }
 
-type LoggerConfig struct {
-    Enable bool
-    path   string
-}
-
-func LoadConfig(cfg *ini.File, section string) *LoggerConfig {
-    logConfig := cfg.Section(section)
-    return &LoggerConfig {
-        Enable: logConfig.Key("enable").MustBool(true),
-        path: logConfig.Key("path").MustString("/tmp/dns.log"),
-    }
-}
-
-func NewLogger(config *LoggerConfig) *EventLogger {
+func NewLogger(config *config.LogConfig) *EventLogger {
     logger := &EventLogger {
-        config: config,
+        Enable: config.Enable,
         log:    logrus.New(),
     }
     if config.Enable {
         var err error
-        logger.file, err = os.OpenFile(logger.config.path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+        logger.file, err = os.OpenFile(config.Path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
         if err == nil {
             logger.log.Out = logger.file
         } else {
@@ -45,7 +32,7 @@ func NewLogger(config *LoggerConfig) *EventLogger {
 }
 
 func (l *EventLogger) Log(data interface{}, message string) {
-    if l.config.Enable {
+    if l.Enable {
         l.log.WithFields(logrus.Fields{message: data,}).Info(message)
     }
 }

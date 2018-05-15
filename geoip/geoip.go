@@ -6,52 +6,37 @@ import (
     "log"
 
     "github.com/oschwald/maxminddb-golang"
-    "github.com/go-ini/ini"
     "arvancloud/redins/handler"
     "arvancloud/redins/eventlog"
+    "arvancloud/redins/config"
 )
 
 type GeoIp struct {
-    config *GeoipConfig
+    Enable bool
     db     *maxminddb.Reader
     logger *eventlog.EventLogger
 }
 
-type GeoipConfig struct {
-    enable    bool
-    dbName    string
-    logConfig *eventlog.LoggerConfig
-}
-
-func LoadConfig(cfg *ini.File, section string) *GeoipConfig {
-    geoipConfig := cfg.Section(section)
-    logSection := geoipConfig.Key("log").MustString("log")
-    return &GeoipConfig {
-        enable:    geoipConfig.Key("enable").MustBool(true),
-        dbName:    geoipConfig.Key("db").MustString("geoCity.mmdb"),
-        logConfig: eventlog.LoadConfig(cfg, logSection),
-    }
-}
-
-func NewGeoIp(config *GeoipConfig) *GeoIp {
+func NewGeoIp(config *config.RedinsConfig) *GeoIp {
     g := &GeoIp {
-        config: config,
+        Enable: config.GeoIp.Enable,
     }
     var err error
-    if config.enable {
-        g.db, err = maxminddb.Open(config.dbName)
+    if g.Enable {
+        g.db, err = maxminddb.Open(config.GeoIp.Db)
         if err != nil {
             log.Printf("[ERROR] cannot open maxminddb file %s", err)
-            g.config.enable = false
+            g.Enable = false
+            return g
         }
-        g.logger = eventlog.NewLogger(g.config.logConfig)
+        g.logger = eventlog.NewLogger(&config.GeoIp.Log)
     }
     // defer g.db.Close()
     return g
 }
 
 func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
-    if g.config.enable == false {
+    if g.Enable == false {
         return ips
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
@@ -86,7 +71,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []handler.IP_Record) []handl
 }
 
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
-    if g.config.enable == false {
+    if g.Enable == false {
         return ips
     }
     minDistance := 1000.0
@@ -133,7 +118,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
 }
 
 func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, country string, err error) {
-    if g.config.enable == false {
+    if g.Enable == false {
         return
     }
     var record struct {
@@ -157,7 +142,7 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
 }
 
 func (g *GeoIp) logGeoIp(sIp net.IP, sCountry string, dIp net.IP, dCountry string) {
-    if g.config.logConfig.Enable == false {
+    if g.Enable == false {
         return
     }
 

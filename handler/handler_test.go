@@ -8,8 +8,8 @@ import (
     "github.com/miekg/dns"
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/plugin/test"
-    "github.com/go-ini/ini"
     "github.com/coredns/coredns/request"
+    "arvancloud/redins/config"
 )
 
 var lookupZones = []string {
@@ -209,12 +209,8 @@ var anameEntries = [][]string{
 }
 
 func TestHandler(t *testing.T) {
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    h := NewHandler(LoadConfig(cfg, "test"))
+    cfg := config.LoadConfig("config.json")
+    h := NewHandler(cfg)
     for i, zone := range lookupZones {
         h.Redis.Del(zone)
         for _, cmd := range lookupEntries[i] {
@@ -311,12 +307,8 @@ func TestWeight(t *testing.T) {
 
 func TestANAME(t *testing.T) {
     zone := "arvancloud.com."
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    h := NewHandler(LoadConfig(cfg, "test"))
+    cfg := config.LoadConfig("config.json")
+    h := NewHandler(cfg)
     h.Redis.Del(zone)
     for _, cmd := range anameEntries {
         err := h.Redis.HSet(zone, cmd[0], cmd[1])

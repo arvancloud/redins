@@ -10,15 +10,19 @@ import (
 
     "github.com/miekg/dns"
     "arvancloud/redins/redis"
-    "github.com/go-ini/ini"
     "github.com/patrickmn/go-cache"
+    "arvancloud/redins/config"
+    "arvancloud/redins/eventlog"
 )
 
 type DnsRequestHandler struct {
-    config         *HandlerConfig
+    DefaultTtl     int
+    ZoneReload     int
+    CacheTimeout   int
     Zones          []string
     LastZoneUpdate time.Time
     Redis          *redis.Redis
+    Logger         *eventlog.EventLogger
     cache          *cache.Cache
 }
 
@@ -119,30 +123,19 @@ type RecordConfig struct {
     HealthCheckConfig HealthCheckRecordConfig `json:"health_check"`
 }
 
-type HandlerConfig struct {
-    redisConfig *redis.RedisConfig
-    ttl         uint32
-}
-
-func LoadConfig(cfg *ini.File, section string) *HandlerConfig {
-    handlerConfig := cfg.Section(section)
-    redisSection := handlerConfig.Key("redis").MustString("redis")
-    return &HandlerConfig{
-        redisConfig: redis.LoadConfig(cfg, redisSection),
-        ttl:         uint32(handlerConfig.Key("ttl").MustUint(360)),
-    }
-}
-
-func NewHandler(config *HandlerConfig) *DnsRequestHandler {
+func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
     h := &DnsRequestHandler {
-        config: config,
+        DefaultTtl: config.Handler.DefaultTtl,
+        ZoneReload: config.Handler.ZoneReload,
+        CacheTimeout: config.Handler.CacheTimeout,
     }
 
-    h.Redis = redis.NewRedis(config.redisConfig)
+    h.Redis = redis.NewRedis(&config.Handler.Redis)
+    h.Logger = eventlog.NewLogger(&config.Handler.Log)
 
     h.LoadZones()
 
-    h.cache = cache.New(time.Second * time.Duration(config.ttl), time.Duration(config.ttl) * time.Second * 10)
+    h.cache = cache.New(time.Second * time.Duration(h.CacheTimeout), time.Duration(h.CacheTimeout) * time.Second * 10)
 
     return h
 }
@@ -159,7 +152,7 @@ func (h *DnsRequestHandler) FetchRecord(qname string) (*Record, int) {
     }
     record, res := h.GetRecord(qname)
     if res == dns.RcodeSuccess {
-        h.cache.Set(qname, record, time.Duration(h.config.ttl) * time.Second)
+        h.cache.Set(qname, record, time.Duration(h.CacheTimeout) * time.Second)
         return record.(*Record), dns.RcodeSuccess
     }
     return nil, res
@@ -271,13 +264,13 @@ func (h *DnsRequestHandler) SOA(name string, record *Record) (answers []dns.RR) 
     r := new(dns.SOA)
     if record.SOA.Ns == "" {
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeSOA,
-            Class: dns.ClassINET, Ttl: h.config.ttl}
+            Class: dns.ClassINET, Ttl: uint32(h.DefaultTtl)}
         r.Ns = "ns1." + name
         r.Mbox = hostmaster + "." + name
         r.Refresh = 86400
         r.Retry = 7200
         r.Expire = 3600
-        r.Minttl = uint32(h.config.ttl)
+        r.Minttl = uint32(h.DefaultTtl)
     } else {
         r.Hdr = dns.RR_Header{Name: record.ZoneName, Rrtype: dns.TypeSOA,
             Class: dns.ClassINET, Ttl: h.minTtl(record.SOA.Ttl)}
@@ -298,17 +291,18 @@ func (h *DnsRequestHandler) serial() uint32 {
 }
 
 func (h *DnsRequestHandler) minTtl(ttl uint32) uint32 {
-    if h.config.ttl == 0 && ttl == 0 {
+    defaultTtl := uint32(h.DefaultTtl)
+    if defaultTtl == 0 && ttl == 0 {
         return defaultTtl
     }
-    if h.config.ttl == 0 {
+    if defaultTtl == 0 {
         return ttl
     }
     if ttl == 0 {
-        return h.config.ttl
+        return defaultTtl
     }
-    if h.config.ttl < ttl {
-        return h.config.ttl
+    if defaultTtl < ttl {
+        return defaultTtl
     }
     return ttl
 }
@@ -419,7 +413,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
     // log.Printf("[DEBUG] GetRecord")
 
     // log.Println("[DEBUG]", h.Zones)
-    if time.Since(h.LastZoneUpdate) > zoneUpdateTime {
+    if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload) * time.Second {
         // log.Printf("[DEBUG] loading zones")
         h.LoadZones()
     }
@@ -506,7 +500,7 @@ func GetWeightedIp(ips []IP_Record) []IP_Record {
     for ; index < len(ips); index++ {
         x -= ips[index].Weight
         if x <= 0 {
-            break;
+            break
         }
     }
     return []IP_Record { ips[index] }
@@ -527,7 +521,5 @@ func GetANAME(location string, proxy string, qtype uint16) []dns.RR {
 }
 
 const (
-    defaultTtl     = 360
-    hostmaster     = "hostmaster"
-    zoneUpdateTime = 10 * time.Minute
+    hostmaster = "hostmaster"
 )

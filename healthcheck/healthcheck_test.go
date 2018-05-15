@@ -7,10 +7,10 @@ import (
     "strings"
     "strconv"
     "time"
+    "fmt"
 
     "arvancloud/redins/handler"
-    "github.com/go-ini/ini"
-    "fmt"
+    "arvancloud/redins/config"
 )
 
 var healthcheckGetEntries = [][]string {
@@ -75,12 +75,8 @@ var healthCheckTransferResults = [][]string {
 
 func TestGet(t *testing.T) {
     log.Println("TestGet")
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    h := NewHealthcheck(LoadConfig(cfg, "test"))
+    cfg := config.LoadConfig("config.json")
+    h := NewHealthcheck(cfg)
 
     h.redisStatusServer.Del("*")
     for _, entry := range healthcheckGetEntries {
@@ -101,12 +97,8 @@ func TestGet(t *testing.T) {
 
 func TestFilter(t *testing.T) {
     log.Println("TestFilter")
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    h := NewHealthcheck(LoadConfig(cfg, "test"))
+    cfg := config.LoadConfig("config.json")
+    h := NewHealthcheck(cfg)
 
     for _, entry := range healthcheckGetEntries {
         h.redisStatusServer.Set(entry[0], entry[1])
@@ -218,13 +210,8 @@ func TestFilter(t *testing.T) {
 
 func TestSet(t *testing.T) {
     log.Println("TestSet")
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        t.Fail()
-    }
-    config := LoadConfig(cfg, "test")
-    h := NewHealthcheck(config)
+    cfg := config.LoadConfig("config.json")
+    h := NewHealthcheck(cfg)
 
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")
@@ -249,14 +236,8 @@ func TestSet(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
     log.Printf("TestTransfer")
-    cfg, err := ini.LooseLoad("test.ini")
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s, err")
-        t.Fail()
-    }
-
-    config := LoadConfig(cfg, "test")
-    h := NewHealthcheck(config)
+    cfg := config.LoadConfig("config.json")
+    h := NewHealthcheck(cfg)
 
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")

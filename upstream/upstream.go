@@ -6,57 +6,38 @@ import (
     "strconv"
 
     "github.com/miekg/dns"
-    "github.com/go-ini/ini"
     "github.com/patrickmn/go-cache"
+    "arvancloud/redins/config"
 )
 
 type Upstream struct {
-    config        *UpstreamConfig
-    Enabled       bool
+    Enable        bool
     client        *dns.Client
     connectionStr string
     cache         *cache.Cache
 }
 
-type UpstreamConfig struct {
-    Enable   bool
-    ip       string
-    port     int
-    protocol string
-}
-
-func LoadConfig(cfg *ini.File, section string) *UpstreamConfig {
-    upstreamConfig := cfg.Section(section)
-    return &UpstreamConfig {
-        Enable: upstreamConfig.Key("enable").MustBool(false),
-        ip: upstreamConfig.Key("ip").MustString("1.1.1.1"),
-        port: upstreamConfig.Key("port").MustInt(53),
-        protocol: upstreamConfig.Key("protocol").In("udp", []string {"tcp", "udp"}),
-    }
-}
-
-func NewUpstream(config *UpstreamConfig) *Upstream {
+func NewUpstream(config *config.RedinsConfig) *Upstream {
     u := &Upstream {
-        config: config,
         client: nil,
-        Enabled: config.Enable,
+        Enable: config.Upstream.Enable,
     }
 
-    if u.config.Enable == false {
+    if u.Enable == false {
         return u
     }
 
     u.client = &dns.Client {
-        Net: config.protocol,
+        Net: config.Upstream.Protocol,
     }
-    u.connectionStr = config.ip + ":" + strconv.Itoa(config.port)
+    u.connectionStr = config.Upstream.Ip + ":" + strconv.Itoa(config.Upstream.Port)
     u.cache = cache.New(time.Second * time.Duration(defaultCacheTtl), time.Second * time.Duration(defaultCacheTtl) * 10)
 
     return u
 }
 
 func (u *Upstream) Query(location string, qtype uint16) []dns.RR {
-    if u.Enabled == false {
+    if u.Enable == false {
         return []dns.RR{}
     }
     key := location + ":" + strconv.Itoa(int(qtype))

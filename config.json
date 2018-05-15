@@ -1,0 +1,58 @@
+{
+  "server": {
+      "ip": "127.0.0.1",
+      "port": 1053,
+      "protocol": "udp"
+    },
+  "handler": {
+    "default_ttl": 300,
+    "cache_timeout": 60,
+    "zone_reload": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "test_",
+      "suffix": "_test",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+      "enable": true,
+      "path": "/tmp/redins.log"
+    }
+  },
+  "upstream": {
+    "enable": true,
+    "ip": "1.1.1.1",
+    "port": 53,
+    "protocol": "udp"
+  },
+  "geoip": {
+    "enable": true,
+    "db": "geoCity.mmdb",
+    "log": {
+      "enable": true,
+      "path": "/tmp/geoip.log"
+    }
+  },
+  "healthcheck": {
+    "enable": true,
+    "max_requests": 10,
+    "update_interval": 600,
+    "check_interval": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "healthcheck_",
+      "suffix": "_healthcheck",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+      "enable": true,
+      "path": "/tmp/healthcheck.log"
+    }
+  }
+}
