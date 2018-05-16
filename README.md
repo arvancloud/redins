@@ -5,6 +5,7 @@
     - [handler](#handler)
     - [healthcheck](#healthcheck)
     - [geoip](#geoip)
+    - [upstream](#upstream)
     - [redis](#redis)
     - [log](#log)
     - [example](#example)
@@ -31,154 +32,210 @@
 ### server
 dns listening server configuration
 
-~~~ini
-[server]
-ip = 127.0.0.1
-prot = 1053
-protocol = udp
+~~~json
+"server": {
+  "ip": "127.0.0.1",
+  "port": 1053,
+  "protocol": = udp
+}
 ~~~
 
-* ip : ip address to bind
-* port : port number to bind
-* protocol : protocol; can be tcp or udp
+* ip : ip address to bind, default: 127.0.0.1
+* port : port number to bind, default: 1053
+* protocol : protocol; can be tcp or udp, default: udp
 
 ### handler
 dns query handler configuration
 
-~~~ini
-[handler]
-ttl = 300
-redis = redis_config
+~~~json
+"handler": {
+    "default_ttl": 300,
+    "cache_timeout": 60,
+    "zone_reload": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "test_",
+      "suffix": "_test",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+    "enable": true,
+    "path": "/tmp/redins.log"
+    }
+}
 ~~~
 
-* ttl : default ttl in seconds
-* redis : name of config file section containing redis configuration to use for handler
+* default_ttl : default ttl in seconds, default: 300
+* redis : redis configuration to use for handler
+* log : log configuration to use for handler
 
 ### healthcheck
 healthcheck configuration
 
-~~~ini
-[healthcheck]
-enable = true
-max_requests = 10
-update_interval = 10m
-check_interval = 10m
-redis_config = healthcheck_redis_config
-redis_status = healthcheck_redis_status
-log = healthcheck_log_config
+~~~json
+  "healthcheck": {
+    "enable": true,
+    "max_requests": 10,
+    "update_interval": 600,
+    "check_interval": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "healthcheck_",
+      "suffix": "_healthcheck",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+      "enable": true,
+      "path": "/tmp/healthcheck.log"
+    }
+  }
 ~~~
 
-* enable : enable/disable healthcheck
-* max_requests : maximum number of simultanous healthcheck requests
-* update_interval : time between checking for updated data from redis
-* check_interval : time between two healthcheck requests
-* redis_config : name of config file section containing redis configuration to use for healthcheck
-* redis_status : name of config file section to use for healthcheck status
-* log : name of config file section containing log configuration to use for healthcheck logs
+* enable : enable/disable healthcheck, default: disable
+* max_requests : maximum number of simultanous healthcheck requests, deafult: 10
+* update_interval : time between checking for updated data from redis in seconds, default: 300
+* check_interval : time between two healthcheck requests in seconds, default: 600
+* redis : redis configuration to use for healthcheck stats
+* log : log configuration to use for healthcheck logs
 
 ### geoip
 geoip configuration
 
-~~~ini
-[geoip]
-enable = true
-db = geoCity.mmdb
-log = geoip_log_config
+~~~json
+  "geoip": {
+    "enable": true,
+    "db": "geoCity.mmdb",
+    "log": {
+      "enable": true,
+      "path": "/tmp/geoip.log"
+    }
+  }
 ~~~
 
-* enable : enable/disable geoip calculations
-* db : maxminddb file to use
-* log : name of config file section containing log configuration to use for geoip logs
+* enable : enable/disable geoip calculations, default: disable
+* db : maxminddb file to use, default: geoCity.mmdb
+* log : log configuration to use for geoip logs
+
+### upstream
+
+~~~json
+"upstream": {
+    "enable": true,
+    "ip": "1.1.1.1",
+    "port": 53,
+    "protocol": "udp"
+},
+~~~
+
+* enable : enable/disable upstream, deafault: disable
+* ip : upstream ip address, default: 1.1.1.1
+* port : upstream port number, deafult: 53
+* protocol : upstream protocol, default : udp
 
 ### redis
 redis configurations
 
-~~~ini
-ip = 127.0.0.1
-port = 6379
-password = 
-prefix = test_
-suffix = _test
-connect_timeout = 200ms
-read_timeout = 200ms
+~~~json
+"redis": {
+  "ip": "127.0.0.1",
+  "port": 6379,
+  "password": "",
+  "prefix": "test_",
+  "suffix": "_test",
+  "connect_timeout": 0,
+  "read_timeout": 0
+},
 ~~~
 
-* ip : redis server ip
-* port : redis server port
-* password : redis password
+* ip : redis server ip, default: 127.0.0.1
+* port : redis server port, deafult: 6379
+* password : redis password, deafult: ""
 * prefix : limit redis keys to those prefixed with this string
 * suffix : limit redis keys to those suffixed with this string
-* connect_timeout : time to wait for connecting to redis server
-* read_timeout : time to wait for redis query results
+* connect_timeout : time to wait for connecting to redis server in milliseconds, deafult: 0 
+* read_timeout : time to wait for redis query results in milliseconds, default: 0
 
 ### log
 log configuration
 
-~~~ini
-enable = true
-path = /tmp/log.log
+~~~json
+"log": {
+  "enable": true,
+  "path": "/tmp/redins.log"
+}
 ~~~
 
-* enable : enable/disable this log resource
-* path : log output file path
+* enable : enable/disable this log resource, default: disable
+* path : log output file path, default: 
 
 ### example
 sample config:
 
-~~~ini
-[server]
-ip = 127.0.0.1
-port = 1053
-protocol = udp
-
-[handler]
-ttl = 300
-redis = handler_redis
-
-[handler_redis]
-ip = 127.0.0.1
-port = 6379
-password = 
-prefix = test_
-suffix = _test
-connect_timeout = 200ms
-read_timeout = 200ms
-
-[geoip]
-enable = true
-mode = manual
-db = geoCity.mmdb
-log = geoip_log
-
-[log]
-enable = true
-path = /tmp/dns.log
-
-[healthcheck]
-enable = true
-max_requests = 10
-update_interval = 10m
-check_interval = 10m
-redis = healthcheck_redis
-log = healthcheck_log
-
-[geoip_log]
-enable = true
-path = /tmp/geoip.log
-
-[healthcheck_log]
-enable = true
-path = /tmp/healthcheck.log
-
-[healthcheck_redis]
-ip = 127.0.0.1
-port = 6379
-password =
-prefix = healthcheck_
-suffix = _healthcheck
-connect_timeout = 200ms
-read_timeout = 200ms
-
+~~~json
+{
+  "server": {
+      "ip": "127.0.0.1",
+      "port": 1053,
+      "protocol": "udp"
+    },
+  "handler": {
+    "default_ttl": 300,
+    "cache_timeout": 60,
+    "zone_reload": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "test_",
+      "suffix": "_test",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+      "enable": true,
+      "path": "/tmp/redins.log"
+    }
+  },
+  "upstream": {
+    "enable": true,
+    "ip": "1.1.1.1",
+    "port": 53,
+    "protocol": "udp"
+  },
+  "geoip": {
+    "enable": true,
+    "db": "geoCity.mmdb",
+    "log": {
+      "enable": true,
+      "path": "/tmp/geoip.log"
+    }
+  },
+  "healthcheck": {
+    "enable": true,
+    "max_requests": 10,
+    "update_interval": 600,
+    "check_interval": 600,
+    "redis": {
+      "ip": "127.0.0.1",
+      "port": 6379,
+      "password": "",
+      "prefix": "healthcheck_",
+      "suffix": "_healthcheck",
+      "connect_timeout": 0,
+      "read_timeout": 0
+    },
+    "log": {
+      "enable": true,
+      "path": "/tmp/healthcheck.log"
+    }
+  }
+}
 ~~~
 
 ## zone format in redis db
