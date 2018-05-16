@@ -35,10 +35,10 @@ func (redis *Redis) Connect() {
                 opts = append(opts, redisCon.DialPassword(redis.Config.Password))
             }
             if redis.Config.ConnectTimeout != 0 {
-                opts = append(opts, redisCon.DialConnectTimeout(time.Duration(redis.Config.ConnectTimeout)* time.Second))
+                opts = append(opts, redisCon.DialConnectTimeout(time.Duration(redis.Config.ConnectTimeout)* time.Millisecond))
             }
             if redis.Config.ReadTimeout != 0 {
-                opts = append(opts, redisCon.DialReadTimeout(time.Duration(redis.Config.ReadTimeout)*time.Second))
+                opts = append(opts, redisCon.DialReadTimeout(time.Duration(redis.Config.ReadTimeout)*time.Millisecond))
             }
 
             return redisCon.Dial("tcp", redis.RedisAddress, opts...)
