@@ -2,17 +2,18 @@ package handler
 
 import (
     "encoding/json"
-    "net"
     "strings"
     "time"
     "log"
     "math/rand"
+    "sync"
 
     "github.com/miekg/dns"
     "arvancloud/redins/redis"
     "github.com/patrickmn/go-cache"
     "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
+    "arvancloud/redins/dns_types"
 )
 
 type DnsRequestHandler struct {
@@ -20,18 +21,11 @@ type DnsRequestHandler struct {
     ZoneReload     int
     CacheTimeout   int
     Zones          []string
+    zoneLock       sync.RWMutex
     LastZoneUpdate time.Time
     Redis          *redis.Redis
     Logger         *eventlog.EventLogger
     cache          *cache.Cache
-}
-
-
-type HealthCheckZoneConfig struct {
-    Enable         bool `json:"enable"`
-    UpCount        int  `json:"up_count"`
-    DownCount      int  `json:"down_count"`
-    RequestTimeout int  `json:"request_timeout"`
 }
 
 type Zone struct {
@@ -39,95 +33,12 @@ type Zone struct {
     Locations map[string]struct{}
 }
 
-type RRSet struct {
-    A            []IP_Record    `json:"a,omitempty"`
-    AAAA         []IP_Record    `json:"aaaa,omitempty"`
-    TXT          []TXT_Record   `json:"txt,omitempty"`
-    CNAME        []CNAME_Record `json:"cname,omitempty"`
-    NS           []NS_Record    `json:"ns,omitempty"`
-    MX           []MX_Record    `json:"mx,omitempty"`
-    SRV          []SRV_Record   `json:"srv,omitempty"`
-    SOA          SOA_Record     `json:"soa,omitempty"`
-    ANAME        *ANAME_Record  `json:"aname,omitempty"`
-}
-
-type Record struct {
-    RRSet
-    Config       RecordConfig   `json:"config,omitempty"`
-    ZoneName     string         `json:"-"`
-}
-
-type IP_Record struct {
-    Ttl         uint32 `json:"ttl,omitempty"`
-    Ip          net.IP `json:"ip"`
-    Country     string `json:"country,omitempty"`
-    Weight      int    `json:"weight"`
-}
-
-type ANAME_Record struct {
-    Location string `json:"location,omitempty"`
-    Proxy    string `json:"proxy,omitempty"`
-}
-
-type TXT_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
-    Text string `json:"text"`
-}
-
-type CNAME_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
-    Host string `json:"host"`
-}
-
-type NS_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
-    Host string `json:"host"`
-}
-
-type MX_Record struct {
-    Ttl        uint32 `json:"ttl,omitempty"`
-    Host       string `json:"host"`
-    Preference uint16 `json:"preference"`
-}
-
-type SRV_Record struct {
-    Ttl      uint32 `json:"ttl,omitempty"`
-    Priority uint16 `json:"priority"`
-    Weight   uint16 `json:"weight"`
-    Port     uint16 `json:"port"`
-    Target   string `json:"target"`
-}
-
-type SOA_Record struct {
-    Ttl     uint32 `json:"ttl,omitempty"`
-    Ns      string `json:"ns"`
-    MBox    string `json:"MBox"`
-    Refresh uint32 `json:"refresh"`
-    Retry   uint32 `json:"retry"`
-    Expire  uint32 `json:"expire"`
-    MinTtl  uint32 `json:"minttl"`
-}
-
-type HealthCheckRecordConfig struct {
-    Enable    bool          `json:"enable,omitempty"`
-    Protocol  string        `json:"protocol,omitempty"`
-    Uri       string        `json:"uri,omitempty"`
-    Port      int           `json:"port,omitempty"`
-    Timeout   time.Duration `json:"timeout,omitempty"`
-    UpCount   int           `json:"up_count,omitempty"`
-    DownCount int           `json:"down_count,omitempty"`
-}
-
-type RecordConfig struct {
-    IpFilterMode string `json:"ip_filter_mode"` // "multi", "rr", "geo_country", "geo_location"
-    HealthCheckConfig HealthCheckRecordConfig `json:"health_check"`
-}
-
 func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
     h := &DnsRequestHandler {
         DefaultTtl: config.Handler.DefaultTtl,
         ZoneReload: config.Handler.ZoneReload,
         CacheTimeout: config.Handler.CacheTimeout,
+        zoneLock: sync.RWMutex{},
     }
 
     h.Redis = redis.NewRedis(&config.Handler.Redis)
@@ -142,23 +53,26 @@ func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
 
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
-    h.Zones = h.Redis.GetKeys()
+    newZones := h.Redis.GetKeys()
+    h.zoneLock.Lock()
+    h.Zones = newZones
+    h.zoneLock.Unlock()
 }
 
-func (h *DnsRequestHandler) FetchRecord(qname string) (*Record, int) {
+func (h *DnsRequestHandler) FetchRecord(qname string) (*dns_types.Record, int) {
     record, found := h.cache.Get(qname)
     if found {
-        return record.(*Record), dns.RcodeSuccess
+        return record.(*dns_types.Record), dns.RcodeSuccess
     }
     record, res := h.GetRecord(qname)
     if res == dns.RcodeSuccess {
         h.cache.Set(qname, record, time.Duration(h.CacheTimeout) * time.Second)
-        return record.(*Record), dns.RcodeSuccess
+        return record.(*dns_types.Record), dns.RcodeSuccess
     }
     return nil, res
 }
 
-func (h *DnsRequestHandler) A(name string, ips []IP_Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) A(name string, ips []dns_types.IP_Record) (answers []dns.RR) {
     for _, ip := range ips {
         if ip.Ip == nil {
             continue
@@ -172,7 +86,7 @@ func (h *DnsRequestHandler) A(name string, ips []IP_Record) (answers []dns.RR) {
     return
 }
 
-func (h *DnsRequestHandler) AAAA(name string, ips []IP_Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) AAAA(name string, ips []dns_types.IP_Record) (answers []dns.RR) {
     for _, ip := range ips {
         if ip.Ip == nil {
             continue
@@ -186,7 +100,7 @@ func (h *DnsRequestHandler) AAAA(name string, ips []IP_Record) (answers []dns.RR
     return
 }
 
-func (h *DnsRequestHandler) CNAME(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) CNAME(name string, record *dns_types.Record) (answers []dns.RR) {
     for _, cname := range record.CNAME {
         if len(cname.Host) == 0 {
             continue
@@ -200,7 +114,7 @@ func (h *DnsRequestHandler) CNAME(name string, record *Record) (answers []dns.RR
     return
 }
 
-func (h *DnsRequestHandler) TXT(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) TXT(name string, record *dns_types.Record) (answers []dns.RR) {
     for _, txt := range record.TXT {
         if len(txt.Text) == 0 {
             continue
@@ -214,7 +128,7 @@ func (h *DnsRequestHandler) TXT(name string, record *Record) (answers []dns.RR) 
     return
 }
 
-func (h *DnsRequestHandler) NS(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) NS(name string, record *dns_types.Record) (answers []dns.RR) {
     for _, ns := range record.NS {
         if len(ns.Host) == 0 {
             continue
@@ -228,7 +142,7 @@ func (h *DnsRequestHandler) NS(name string, record *Record) (answers []dns.RR) {
     return
 }
 
-func (h *DnsRequestHandler) MX(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) MX(name string, record *dns_types.Record) (answers []dns.RR) {
     for _, mx := range record.MX {
         if len(mx.Host) == 0 {
             continue
@@ -243,7 +157,7 @@ func (h *DnsRequestHandler) MX(name string, record *Record) (answers []dns.RR) {
     return
 }
 
-func (h *DnsRequestHandler) SRV(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) SRV(name string, record *dns_types.Record) (answers []dns.RR) {
     for _, srv := range record.SRV {
         if len(srv.Target) == 0 {
             continue
@@ -260,7 +174,7 @@ func (h *DnsRequestHandler) SRV(name string, record *Record) (answers []dns.RR) 
     return
 }
 
-func (h *DnsRequestHandler) SOA(name string, record *Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) SOA(name string, record *dns_types.Record) (answers []dns.RR) {
     r := new(dns.SOA)
     if record.SOA.Ns == "" {
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeSOA,
@@ -398,7 +312,10 @@ func split255(s string) []string {
 
 func (h *DnsRequestHandler) Matches(qname string) string {
     zone := ""
-    for _, zname := range h.Zones {
+    h.zoneLock.RLock()
+    zones := h.Zones
+    h.zoneLock.RUnlock()
+    for _, zname := range zones {
         if dns.IsSubDomain(zname, qname) {
             // We want the *longest* matching zone, otherwise we may end up in a parent
             if len(zname) > len(zone) {
@@ -409,7 +326,7 @@ func (h *DnsRequestHandler) Matches(qname string) string {
     return zone
 }
 
-func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
+func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, rcode int) {
     // log.Printf("[DEBUG] GetRecord")
 
     // log.Println("[DEBUG]", h.Zones)
@@ -456,7 +373,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     return z
 }
 
-func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *Record {
+func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *dns_types.Record {
     var label string
     if location == z.Name {
         label = "@"
@@ -464,7 +381,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *Record {
         label = location
     }
     val := h.Redis.HGet(z.Name, label)
-    r := new(Record)
+    r := new(dns_types.Record)
     r.Config.IpFilterMode = "multi"
     r.Config.HealthCheckConfig.Enable = false
     err := json.Unmarshal([]byte(val), r)
@@ -475,7 +392,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *Record {
     return r
 }
 
-func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
+func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *dns_types.Record) {
     jsonValue, err := json.Marshal(val)
     if err != nil {
         log.Printf("[ERROR] cannot encode to json : %s", err)
@@ -490,7 +407,7 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
     h.Redis.HSet(z.Name, label, string(jsonValue))
 }
 
-func GetWeightedIp(ips []IP_Record) []IP_Record {
+func GetWeightedIp(ips []dns_types.IP_Record) []dns_types.IP_Record {
     sum := 0
     for _, ip := range ips {
         sum += ip.Weight
@@ -503,7 +420,7 @@ func GetWeightedIp(ips []IP_Record) []IP_Record {
             break
         }
     }
-    return []IP_Record { ips[index] }
+    return []dns_types.IP_Record { ips[index] }
 }
 
 func GetANAME(location string, proxy string, qtype uint16) []dns.RR {

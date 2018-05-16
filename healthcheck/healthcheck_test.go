@@ -9,8 +9,8 @@ import (
     "time"
     "fmt"
 
-    "arvancloud/redins/handler"
     "arvancloud/redins/config"
+    "arvancloud/redins/dns_types"
 )
 
 var healthcheckGetEntries = [][]string {
@@ -104,19 +104,19 @@ func TestFilter(t *testing.T) {
         h.redisStatusServer.Set(entry[0], entry[1])
     }
 
-    w := []handler.Record {
+    w := []dns_types.Record {
         {
-            Config: handler.RecordConfig {
+            Config: dns_types.RecordConfig {
                 IpFilterMode: "multi",
-                HealthCheckConfig: handler.HealthCheckRecordConfig {
+                HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
                     UpCount: 3,
                     Timeout: 1000,
                 },
             },
-            RRSet: handler.RRSet {
-                A: []handler.IP_Record{
+            RRSet: dns_types.RRSet {
+                A: []dns_types.IP_Record{
                     {Ip: net.ParseIP("1.2.3.4")},
                     {Ip: net.ParseIP("2.3.4.5")},
                     {Ip: net.ParseIP("3.4.5.6")},
@@ -126,17 +126,17 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            Config: handler.RecordConfig {
+            Config: dns_types.RecordConfig {
                 IpFilterMode: "multi",
-                HealthCheckConfig: handler.HealthCheckRecordConfig {
+                HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
                     UpCount: 3,
                     Timeout: 1000,
                 },
             },
-            RRSet: handler.RRSet {
-                A: []handler.IP_Record{
+            RRSet: dns_types.RRSet {
+                A: []dns_types.IP_Record{
                     {Ip: net.ParseIP("2.3.4.5")},
                     {Ip: net.ParseIP("3.4.5.6")},
                     {Ip: net.ParseIP("4.5.6.7")},
@@ -145,17 +145,17 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            Config: handler.RecordConfig {
+            Config: dns_types.RecordConfig {
                 IpFilterMode: "multi",
-                HealthCheckConfig: handler.HealthCheckRecordConfig {
+                HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
                     UpCount: 3,
                     Timeout: 1000,
                 },
             },
-            RRSet: handler.RRSet {
-                A: []handler.IP_Record{
+            RRSet: dns_types.RRSet {
+                A: []dns_types.IP_Record{
                     {Ip: net.ParseIP("3.4.5.6")},
                     {Ip: net.ParseIP("4.5.6.7")},
                     {Ip: net.ParseIP("5.6.7.8")},
@@ -163,34 +163,34 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            Config: handler.RecordConfig {
+            Config: dns_types.RecordConfig {
                 IpFilterMode: "multi",
-                HealthCheckConfig: handler.HealthCheckRecordConfig {
+                HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
                     UpCount: 3,
                     Timeout: 1000,
                 },
             },
-            RRSet: handler.RRSet {
-                A: []handler.IP_Record{
+            RRSet: dns_types.RRSet {
+                A: []dns_types.IP_Record{
                     {Ip: net.ParseIP("4.5.6.7")},
                     {Ip: net.ParseIP("5.6.7.8")},
                 },
             },
         },
         {
-            Config: handler.RecordConfig {
+            Config: dns_types.RecordConfig {
                 IpFilterMode: "multi",
-                HealthCheckConfig: handler.HealthCheckRecordConfig {
+                HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
                     UpCount: 3,
                     Timeout: 1000,
                 },
             },
-            RRSet: handler.RRSet {
-                A: []handler.IP_Record{
+            RRSet: dns_types.RRSet {
+                A: []dns_types.IP_Record{
                     {Ip: net.ParseIP("5.6.7.8")},
                 },
             },

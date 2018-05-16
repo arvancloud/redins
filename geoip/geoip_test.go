@@ -5,8 +5,8 @@ import (
     "net"
     "log"
 
-    "arvancloud/redins/handler"
     "arvancloud/redins/config"
+    "arvancloud/redins/dns_types"
 )
 
 func TestGeoIpAutomatic(t *testing.T) {
@@ -55,13 +55,13 @@ func TestGeoIpAutomatic(t *testing.T) {
     g := NewGeoIp(cfg)
 
     for i,_ := range sip {
-        dest := new(handler.Record)
+        dest := new(dns_types.Record)
         for i,_ := range dip {
             _, _, cc, _ := g.GetGeoLocation(net.ParseIP(dip[i][0]))
             if cc != dip[i][1] {
                 t.Fail()
             }
-            r := handler.IP_Record {
+            r := dns_types.IP_Record {
                 Ip:  net.ParseIP(dip[i][0]),
                 Ttl: 100,
             }
@@ -88,8 +88,8 @@ func TestGeoIpManual(t *testing.T) {
 
 
     for i, _ := range sip {
-        var dest handler.Record
-        dest.A = []handler.IP_Record {
+        var dest dns_types.Record
+        dest.A = []dns_types.IP_Record {
             { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},

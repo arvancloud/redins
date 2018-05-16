@@ -1,9 +1,16 @@
 {
-  "server": {
+  "server": [
+    {
       "ip": "127.0.0.1",
       "port": 1053,
       "protocol": "udp"
     },
+    {
+      "ip": "127.0.0.1",
+      "port": 2053,
+      "protocol": "udp"
+    }
+  ],
   "handler": {
     "default_ttl": 300,
     "cache_timeout": 60,

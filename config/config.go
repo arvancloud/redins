@@ -59,7 +59,7 @@ type LogConfig struct {
 }
 
 type RedinsConfig struct {
-    Server ServerConfig `json:"server,omitempty"`
+    Server []ServerConfig `json:"server,omitempty"`
     Handler HandlerConfig `json:"handler,omitempty"`
     Upstream UpstreamConfig `json:"upstream,omitempty"`
     GeoIp GeoIpConfig `json:"geoip,omitempty"`
@@ -69,10 +69,12 @@ type RedinsConfig struct {
 
 func LoadConfig(path string) *RedinsConfig {
     config := &RedinsConfig {
-        Server: ServerConfig {
-            Ip: "127.0.0.1",
-            Port: 1053,
-            Protocol: "udp",
+        Server: []ServerConfig {
+            {
+                Ip:       "127.0.0.1",
+                Port:     1053,
+                Protocol: "udp",
+            },
         },
         Handler: HandlerConfig {
             DefaultTtl: 300,

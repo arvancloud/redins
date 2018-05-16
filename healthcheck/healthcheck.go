@@ -11,7 +11,7 @@ import (
     "net/http"
 
     "arvancloud/redins/redis"
-    "arvancloud/redins/handler"
+    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
     "arvancloud/redins/config"
@@ -128,7 +128,7 @@ func (h *Healthcheck) transferItems() {
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
             recordStr := h.redisConfigServer.HGet(zone, subDomain)
-            record := new(handler.Record)
+            record := new(dns_types.Record)
             record.Config.HealthCheckConfig.Enable = false
             err := json.Unmarshal([]byte(recordStr), record)
             if err != nil {
@@ -286,8 +286,8 @@ func (h *Healthcheck) statusUp(item *HealthCheckItem) {
     }
 }
 
-func (h *Healthcheck) FilterHealthcheck(qname string, record *handler.Record, ips []handler.IP_Record) []handler.IP_Record {
-    newIps := []handler.IP_Record {}
+func (h *Healthcheck) FilterHealthcheck(qname string, record *dns_types.Record, ips []dns_types.IP_Record) []dns_types.IP_Record {
+    newIps := []dns_types.IP_Record {}
     if h.Enable == false {
         newIps = append(newIps, ips...)
         return newIps

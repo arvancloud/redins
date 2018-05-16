@@ -6,6 +6,7 @@ import (
     "strings"
     "os"
     "net"
+    "time"
 
     "github.com/miekg/dns"
     "github.com/coredns/coredns/request"
@@ -15,10 +16,11 @@ import (
     "arvancloud/redins/healthcheck"
     "arvancloud/redins/upstream"
     "arvancloud/redins/config"
+    "arvancloud/redins/dns_types"
 )
 
 var (
-    s *dns.Server
+    s []dns.Server
     h *handler.DnsRequestHandler
     g *geoip.GeoIp
     k *healthcheck.Healthcheck
@@ -70,7 +72,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
     if res == dns.RcodeSuccess {
         if qtype == dns.TypeA {
-            ips := []handler.IP_Record{}
+            ips := []dns_types.IP_Record{}
             if len(record.A) == 0 && record.ANAME != nil {
                 answers = handler.GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
             } else {
@@ -80,7 +82,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
                 answers = h.A(qname, ips)
             }
         } else if qtype == dns.TypeAAAA {
-            ips := []handler.IP_Record{}
+            ips := []dns_types.IP_Record{}
             if len(record.AAAA) == 0 && record.ANAME != nil {
                 answers = handler.GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
             } else {
@@ -126,7 +128,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     w.WriteMsg(m)
 }
 
-func Filter(request *request.Request, filterMode string, ips []handler.IP_Record) []handler.IP_Record {
+func Filter(request *request.Request, filterMode string, ips []dns_types.IP_Record) []dns_types.IP_Record {
     switch  filterMode {
     case "multi":
         return ips
@@ -174,8 +176,12 @@ func main() {
     dns.HandleFunc(".", handleRequest)
 
     var wg sync.WaitGroup
-    go s.ListenAndServe()
+    for i := range s {
+        go s[i].ListenAndServe()
+        wg.Add(1)
+        time.Sleep(1 * time.Second)
+    }
     go k.Start()
-    wg.Add(2)
+    wg.Add(1)
     wg.Wait()
 }

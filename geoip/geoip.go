@@ -6,7 +6,7 @@ import (
     "log"
 
     "github.com/oschwald/maxminddb-golang"
-    "arvancloud/redins/handler"
+    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/config"
 )
@@ -35,7 +35,7 @@ func NewGeoIp(config *config.RedinsConfig) *GeoIp {
     return g
 }
 
-func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
@@ -61,16 +61,16 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []handler.IP_Record) []handl
         }
         if matched {
             g.logGeoIp(sourceIp, sourceCountry, ips[matchedIndex].Ip, ips[matchedIndex].Country)
-            return []handler.IP_Record{ips[matchedIndex]}
+            return []dns_types.IP_Record{ips[matchedIndex]}
         } else {
             g.logGeoIp(sourceIp, sourceCountry, ips[defaultIndex].Ip, ips[defaultIndex].Country)
-            return []handler.IP_Record{ips[defaultIndex]}
+            return []dns_types.IP_Record{ips[defaultIndex]}
         }
     }
-    return []handler.IP_Record{}
+    return []dns_types.IP_Record{}
 }
 
-func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []handler.IP_Record) []handler.IP_Record {
+func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
@@ -95,7 +95,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []handler.IP_Record) []h
     }
     if index > -1 {
         g.logGeoIp(sourceIp, "", ips[index].Ip, ips[index].Country)
-        return []handler.IP_Record { ips[index] }
+        return []dns_types.IP_Record { ips[index] }
     } else {
         log.Printf("[ERROR] getMinimumDistance failed")
         return ips

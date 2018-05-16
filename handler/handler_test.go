@@ -10,6 +10,7 @@ import (
     "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/request"
     "arvancloud/redins/config"
+    "arvancloud/redins/dns_types"
 )
 
 var lookupZones = []string {
@@ -284,7 +285,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestWeight(t *testing.T) {
-    ips := []IP_Record {
+    ips := []dns_types.IP_Record {
         { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
         { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
         { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
