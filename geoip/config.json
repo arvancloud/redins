@@ -1,9 +1,6 @@
 {
     "geoip": {
         "enable": true,
-        "db": "../geoCity.mmdb",
-        "log": {
-            "enable": false
-        }
+        "db": "../geoCity.mmdb"
     }
 }

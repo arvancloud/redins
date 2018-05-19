@@ -30,7 +30,6 @@ type UpstreamConfig struct {
 type GeoIpConfig struct {
     Enable bool `json:"enable,omitempty"`
     Db string `json:"db,omitempty"`
-    Log LogConfig `json:"log,omitempty"`
 }
 
 type HealthcheckConfig struct {
@@ -103,10 +102,6 @@ func LoadConfig(path string) *RedinsConfig {
         GeoIp: GeoIpConfig {
             Enable: false,
             Db: "geoCity.mmdb",
-            Log: LogConfig {
-                Enable: false,
-                Path: "/tmp/geoip.log",
-            },
         },
         HealthCheck: HealthcheckConfig {
             Enable: false,

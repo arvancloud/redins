@@ -110,17 +110,12 @@ geoip configuration
 ~~~json
   "geoip": {
     "enable": true,
-    "db": "geoCity.mmdb",
-    "log": {
-      "enable": true,
-      "path": "/tmp/geoip.log"
-    }
+    "db": "geoCity.mmdb"
   }
 ~~~
 
 * enable : enable/disable geoip calculations, default: disable
 * db : maxminddb file to use, default: geoCity.mmdb
-* log : log configuration to use for geoip logs
 
 ### upstream
 
@@ -210,11 +205,7 @@ sample config:
   },
   "geoip": {
     "enable": true,
-    "db": "geoCity.mmdb",
-    "log": {
-      "enable": true,
-      "path": "/tmp/geoip.log"
-    }
+    "db": "geoCity.mmdb"
   },
   "healthcheck": {
     "enable": true,

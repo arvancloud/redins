@@ -62,6 +62,7 @@ func (h *DnsRequestHandler) LoadZones() {
 func (h *DnsRequestHandler) FetchRecord(qname string) (*dns_types.Record, int) {
     record, found := h.cache.Get(qname)
     if found {
+        // log.Println("[DEBUG] cached")
         return record.(*dns_types.Record), dns.RcodeSuccess
     }
     record, res := h.GetRecord(qname)

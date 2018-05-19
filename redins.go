@@ -17,6 +17,7 @@ import (
     "arvancloud/redins/upstream"
     "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
+    "arvancloud/redins/eventlog"
 )
 
 var (
@@ -35,36 +36,24 @@ func GetSourceIp(request *request.Request) net.IP {
     return net.ParseIP(request.IP())
 }
 
-func LogRequest(request *request.Request) {
-    type RequestLogData struct {
-        SourceIP     string
-        Record       string
-        ClientSubnet string
-    }
-
-    data := RequestLogData {
-        SourceIP: request.IP(),
-        Record:   request.Name(),
-    }
-
-    opt := request.Req.IsEdns0()
-    if opt != nil && len(opt.Option) != 0 {
-        data.ClientSubnet = opt.Option[0].String()
-    }
-    h.Logger.Log(data, "request")
-}
-
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
-    log.Printf("[DEBUG] handle request")
+    // log.Printf("[DEBUG] handle request")
     state := request.Request{W: w, Req: r}
 
     qname := state.Name()
     qtype := state.QType()
 
-    log.Printf("[DEBUG] name : %s", state.Name())
-    log.Printf("[DEBUG] type : %s", state.Type())
+    // log.Printf("[DEBUG] name : %s", state.Name())
+    // log.Printf("[DEBUG] type : %s", state.Type())
 
-    LogRequest(&state)
+    logData := eventlog.RequestLogData {
+        SourceIP: state.IP(),
+        Record:   state.Name(),
+    }
+    opt := state.Req.IsEdns0()
+    if opt != nil && len(opt.Option) != 0 {
+        logData.ClientSubnet = opt.Option[0].String()
+    }
 
     record, res := h.FetchRecord(qname)
 
@@ -78,7 +67,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
             } else {
                 ips = append(ips, record.A...)
                 ips = k.FilterHealthcheck(qname, record, ips)
-                ips = Filter(&state, record.Config.IpFilterMode, ips)
+                ips = Filter(&state, record.Config.IpFilterMode, ips, &logData)
                 answers = h.A(qname, ips)
             }
         } else if qtype == dns.TypeAAAA {
@@ -88,7 +77,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
             } else {
                 ips = append(ips, record.AAAA...)
                 ips = k.FilterHealthcheck(qname, record, ips)
-                ips = Filter(&state, record.Config.IpFilterMode, ips)
+                ips = Filter(&state, record.Config.IpFilterMode, ips, &logData)
                 answers = h.AAAA(qname, ips)
             }
         } else {
@@ -107,6 +96,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
                 answers = h.SOA(qname, record)
             default:
                 errorResponse(state, dns.RcodeNotImplemented)
+                h.Logger.Log(logData, "request")
                 return
             }
         }
@@ -114,8 +104,11 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
         answers = u.Query(qname, qtype)
     } else {
         errorResponse(state, res)
+        h.Logger.Log(logData, "request")
         return
     }
+
+    h.Logger.Log(logData, "request")
 
     m := new(dns.Msg)
     m.SetReply(r)
@@ -128,16 +121,16 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     w.WriteMsg(m)
 }
 
-func Filter(request *request.Request, filterMode string, ips []dns_types.IP_Record) []dns_types.IP_Record {
+func Filter(request *request.Request, filterMode string, ips []dns_types.IP_Record, logData *eventlog.RequestLogData) []dns_types.IP_Record {
     switch  filterMode {
     case "multi":
         return ips
     case "rr":
         return handler.GetWeightedIp(ips)
     case "geo_country":
-        return g.GetSameCountry(GetSourceIp(request), ips)
+        return g.GetSameCountry(GetSourceIp(request), ips, logData)
     case "geo_location":
-        return g.GetMinimumDistance(GetSourceIp(request), ips)
+        return g.GetMinimumDistance(GetSourceIp(request), ips, logData)
     default:
         log.Printf("[ERROR] invalid filter mode : %s", filterMode)
         return ips

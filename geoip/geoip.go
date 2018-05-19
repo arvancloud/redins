@@ -14,7 +14,6 @@ import (
 type GeoIp struct {
     Enable bool
     db     *maxminddb.Reader
-    logger *eventlog.EventLogger
 }
 
 func NewGeoIp(config *config.RedinsConfig) *GeoIp {
@@ -29,13 +28,12 @@ func NewGeoIp(config *config.RedinsConfig) *GeoIp {
             g.Enable = false
             return g
         }
-        g.logger = eventlog.NewLogger(&config.GeoIp.Log)
     }
     // defer g.db.Close()
     return g
 }
 
-func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record) []dns_types.IP_Record {
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logData *eventlog.RequestLogData) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
@@ -60,17 +58,21 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record) []dns
             }
         }
         if matched {
-            g.logGeoIp(sourceIp, sourceCountry, ips[matchedIndex].Ip, ips[matchedIndex].Country)
+            logData.SourceCountry = sourceCountry
+            logData.DestinationIp = ips[matchedIndex].Ip.String()
+            logData.DestinationCountry = ips[matchedIndex].Country
             return []dns_types.IP_Record{ips[matchedIndex]}
         } else {
-            g.logGeoIp(sourceIp, sourceCountry, ips[defaultIndex].Ip, ips[defaultIndex].Country)
+            logData.SourceCountry = sourceCountry
+            logData.DestinationIp = ips[defaultIndex].Ip.String()
+            logData.DestinationCountry = ips[defaultIndex].Country
             return []dns_types.IP_Record{ips[defaultIndex]}
         }
     }
     return []dns_types.IP_Record{}
 }
 
-func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record) []dns_types.IP_Record {
+func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, logData *eventlog.RequestLogData) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
@@ -94,7 +96,9 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record) [
         }
     }
     if index > -1 {
-        g.logGeoIp(sourceIp, "", ips[index].Ip, ips[index].Country)
+        logData.SourceCountry = ""
+        logData.DestinationIp = ips[index].Ip.String()
+        logData.DestinationCountry = ips[index].Country
         return []dns_types.IP_Record { ips[index] }
     } else {
         log.Printf("[ERROR] getMinimumDistance failed")
@@ -139,26 +143,4 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
     g.db.Decode(record.Location.LongitudeOffset, &longitude)
     // log.Printf("[DEBUG] lat = ", record.Location.Latitude, " lang = ", longitude)
     return record.Location.Latitude, longitude, record.Country.ISOCode, nil
-}
-
-func (g *GeoIp) logGeoIp(sIp net.IP, sCountry string, dIp net.IP, dCountry string) {
-    if g.Enable == false {
-        return
-    }
-
-    type geoIpLogData struct {
-        SIp      string
-        SCountry string
-        DIp      string
-        DCountry string
-    }
-
-    data := geoIpLogData {
-        SIp: sIp.String(),
-        SCountry: sCountry,
-        DIp: dIp.String(),
-        DCountry: dCountry,
-    }
-
-    g.logger.Log(data,"geoip")
 }

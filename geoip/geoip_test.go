@@ -7,6 +7,7 @@ import (
 
     "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
+    "arvancloud/redins/eventlog"
 )
 
 func TestGeoIpAutomatic(t *testing.T) {
@@ -67,7 +68,8 @@ func TestGeoIpAutomatic(t *testing.T) {
             }
             dest.A = append(dest.A, r)
         }
-        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A)
+        logData := eventlog.RequestLogData {}
+        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A, &logData)
         log.Println("[DEBUG]", sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
         if sip[i][2] != dest.A[0].Ip.String() {
             t.Fail()
@@ -94,7 +96,8 @@ func TestGeoIpManual(t *testing.T) {
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},
         }
-        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A)
+        logData := eventlog.RequestLogData {}
+        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A, &logData)
         if len(dest.A) != 1 {
             t.Fail()
         }

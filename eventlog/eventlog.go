@@ -12,6 +12,15 @@ type EventLogger struct {
     log    *logrus.Logger
 }
 
+type RequestLogData struct {
+    SourceIP           string
+    SourceCountry      string
+    DestinationIp      string
+    DestinationCountry string
+    Record             string
+    ClientSubnet       string
+}
+
 func NewLogger(config *config.LogConfig) *EventLogger {
     logger := &EventLogger {
         Enable: config.Enable,

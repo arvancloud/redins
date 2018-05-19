@@ -13,7 +13,7 @@
   ],
   "handler": {
     "default_ttl": 300,
-    "cache_timeout": 60,
+    "cache_timeout": 10,
     "zone_reload": 600,
     "redis": {
       "ip": "127.0.0.1",
@@ -37,11 +37,7 @@
   },
   "geoip": {
     "enable": true,
-    "db": "geoCity.mmdb",
-    "log": {
-      "enable": true,
-      "path": "/tmp/geoip.log"
-    }
+    "db": "geoCity.mmdb"
   },
   "healthcheck": {
     "enable": true,
