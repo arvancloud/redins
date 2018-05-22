@@ -131,7 +131,8 @@ geoip configuration
     "enable": true,
     "ip": "1.1.1.1",
     "port": 53,
-    "protocol": "udp"
+    "protocol": "udp",
+    "timeout": 400
 },
 ~~~
 
@@ -139,6 +140,7 @@ geoip configuration
 * ip : upstream ip address, default: 1.1.1.1
 * port : upstream port number, deafult: 53
 * protocol : upstream protocol, default : udp
+* timeout : request timeout in milliseconds, default: 400
 
 ### error_log
 log configuration for error, debug, ... messages

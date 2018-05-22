@@ -1,8 +1,9 @@
 {
     "upstream": {
         "enable": true,
-        "ip": "1.1.1.1",
+        "ip": "4.2.2.4",
         "port": 53,
-        "protocol": "udp"
+        "protocol": "udp",
+        "timeout": 400
     }
 }

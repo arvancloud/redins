@@ -25,6 +25,7 @@ type UpstreamConfig struct {
     Ip       string `json:"ip,omitempty"`
     Port     int `json:"port,omitempty"`
     Protocol string `json:"protocol,omitempty"`
+    Timeout  int `json:"timeout,omitempty"`
 }
 
 type GeoIpConfig struct {
@@ -104,6 +105,7 @@ func LoadConfig(path string) *RedinsConfig {
             Ip: "1.1.1.1",
             Port: 53,
             Protocol: "udp",
+            Timeout: 400,
         },
         GeoIp: GeoIpConfig {
             Enable: false,

@@ -29,7 +29,7 @@ func NewUpstream(config *config.RedinsConfig) *Upstream {
 
     u.client = &dns.Client {
         Net: config.Upstream.Protocol,
-        Timeout: 100 * time.Millisecond,
+        Timeout: time.Duration(config.Upstream.Timeout) * time.Millisecond,
     }
     u.connectionStr = config.Upstream.Ip + ":" + strconv.Itoa(config.Upstream.Port)
     u.cache = cache.New(time.Second * time.Duration(defaultCacheTtl), time.Second * time.Duration(defaultCacheTtl) * 10)
