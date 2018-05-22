@@ -11,28 +11,29 @@ import (
 
     "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
+    "arvancloud/redins/eventlog"
 )
 
 var healthcheckGetEntries = [][]string {
-    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":3}"},
-    {"w0.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
-    {"w0.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w0.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w0.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":3}"},
+    {"w0.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":1}"},
+    {"w0.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
+    {"w0.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
+    {"w0.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
 
-    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":1}"},
-    {"w1.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w1.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w1.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":1}"},
+    {"w1.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
+    {"w1.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
+    {"w1.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
 
-    {"w2.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":0}"},
-    {"w2.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w2.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w2.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
+    {"w2.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
+    {"w2.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
 
-    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-1}"},
-    {"w3.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
+    {"w3.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
 
-    {"w4.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"status\":-3}"},
+    {"w4.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
 }
 
 var stats = []int { 3, 1, 0, -1, -3, 1, 0, -1, -3, 0, -1, -3, -1, -3, -3}
@@ -50,32 +51,33 @@ var healthCheckSetEntries = [][]string {
 
 var healthcheckTransferItems = [][]string{
     {"w0", "1.2.3.4",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri0\",\"port\":80, \"status\":3}",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri0\",\"port\":80, \"status\":2}",
+        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":3}",
+        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":2}",
     },
     {"w1", "2.3.4.5",
-        "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"uri111\",\"port\":8081}",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri1\",\"port\":80, \"status\":3}",
+        "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"/uri111\",\"port\":8081}",
+        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri1\",\"port\":80, \"status\":3}",
     },
     {"w2", "3.4.5.6",
         "",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri2\",\"port\":80, \"status\":3}",
+        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri2\",\"port\":80, \"status\":3}",
     },
     {"w3", "4.5.6.7",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri3\",\"port\":80, \"status\":3}",
+        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri3\",\"port\":80, \"status\":3}",
         "",
     },
 }
 
 var healthCheckTransferResults = [][]string {
-    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri0\",\"port\":80, \"status\":2}"},
-    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"uri111\",\"port\":8081, \"status\":0}"},
-    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"uri3\",\"port\":80, \"status\":0}"},
+    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":2}"},
+    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"/uri111\",\"port\":8081, \"status\":0}"},
+    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri3\",\"port\":80, \"status\":0}"},
 }
 
 func TestGet(t *testing.T) {
     log.Println("TestGet")
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     h := NewHealthcheck(cfg)
 
     h.redisStatusServer.Del("*")
@@ -98,6 +100,7 @@ func TestGet(t *testing.T) {
 func TestFilter(t *testing.T) {
     log.Println("TestFilter")
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     h := NewHealthcheck(cfg)
 
     for _, entry := range healthcheckGetEntries {
@@ -211,6 +214,7 @@ func TestFilter(t *testing.T) {
 func TestSet(t *testing.T) {
     log.Println("TestSet")
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     h := NewHealthcheck(cfg)
 
     h.redisConfigServer.Del("*")
@@ -237,6 +241,7 @@ func TestSet(t *testing.T) {
 func TestTransfer(t *testing.T) {
     log.Printf("TestTransfer")
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     h := NewHealthcheck(cfg)
 
     h.redisConfigServer.Del("*")

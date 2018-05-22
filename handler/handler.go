@@ -4,9 +4,9 @@ import (
     "encoding/json"
     "strings"
     "time"
-    "log"
     "math/rand"
     "sync"
+    "net"
 
     "github.com/miekg/dns"
     "arvancloud/redins/redis"
@@ -14,6 +14,10 @@ import (
     "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/dns_types"
+    "arvancloud/redins/upstream"
+    "arvancloud/redins/geoip"
+    "arvancloud/redins/healthcheck"
+    "github.com/coredns/coredns/request"
 )
 
 type DnsRequestHandler struct {
@@ -26,6 +30,10 @@ type DnsRequestHandler struct {
     Redis          *redis.Redis
     Logger         *eventlog.EventLogger
     cache          *cache.Cache
+    geoip          *geoip.GeoIp
+    healthcheck    *healthcheck.Healthcheck
+    upstream       *upstream.Upstream
+
 }
 
 type Zone struct {
@@ -43,12 +51,144 @@ func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
 
     h.Redis = redis.NewRedis(&config.Handler.Redis)
     h.Logger = eventlog.NewLogger(&config.Handler.Log)
+    h.geoip = geoip.NewGeoIp(config)
+    h.healthcheck = healthcheck.NewHealthcheck(config)
+    h.upstream = upstream.NewUpstream(config)
 
     h.LoadZones()
 
     h.cache = cache.New(time.Second * time.Duration(h.CacheTimeout), time.Duration(h.CacheTimeout) * time.Second * 10)
 
+    go h.healthcheck.Start()
+
     return h
+}
+
+func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
+    qname := state.Name()
+    qtype := state.QType()
+
+    eventlog.Logger.Debugf("name : %s", state.Name())
+    eventlog.Logger.Debugf("type : %s", state.Type())
+
+    requestStartTime := time.Now()
+
+    logData := map[string]interface{} {
+        "SourceIP": state.IP(),
+        "Record":   state.Name(),
+        "Type":     state.Type(),
+    }
+    opt := state.Req.IsEdns0()
+    if opt != nil && len(opt.Option) != 0 {
+        logData["ClientSubnet"] = opt.Option[0].String()
+    }
+
+    record, res := h.FetchRecord(qname, logData)
+
+    var answers []dns.RR
+
+    if res == dns.RcodeSuccess {
+        if qtype == dns.TypeA {
+            ips := []dns_types.IP_Record{}
+            if len(record.A) == 0 && record.ANAME != nil {
+                answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
+            } else {
+                ips = append(ips, record.A...)
+                ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
+                ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
+                answers = h.A(qname, ips)
+            }
+        } else if qtype == dns.TypeAAAA {
+            ips := []dns_types.IP_Record{}
+            if len(record.AAAA) == 0 && record.ANAME != nil {
+                answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
+            } else {
+                ips = append(ips, record.AAAA...)
+                ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
+                ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
+                answers = h.AAAA(qname, ips)
+            }
+        } else {
+            switch qtype {
+            case dns.TypeCNAME:
+                answers = h.CNAME(qname, record)
+            case dns.TypeTXT:
+                answers = h.TXT(qname, record)
+            case dns.TypeNS:
+                answers = h.NS(qname, record)
+            case dns.TypeMX:
+                answers = h.MX(qname, record)
+            case dns.TypeSRV:
+                answers = h.SRV(qname, record)
+            case dns.TypeSOA:
+                answers = h.SOA(qname, record)
+            default:
+                errorResponse(state, dns.RcodeNotImplemented)
+                h.LogRequest(logData, requestStartTime, dns.RcodeNotImplemented)
+                return
+            }
+        }
+    } else if res == dns.RcodeNotAuth && h.upstream.Enable {
+        answers, res = h.upstream.Query(qname, qtype)
+    } else {
+        errorResponse(state, res)
+        h.LogRequest(logData, requestStartTime, res)
+        return
+    }
+
+    h.LogRequest(logData, requestStartTime, dns.RcodeSuccess)
+
+    m := new(dns.Msg)
+    m.SetReply(state.Req)
+    m.Authoritative, m.RecursionAvailable, m.Compress = true, h.upstream.Enable, true
+
+    m.Answer = append(m.Answer, answers...)
+
+    state.SizeAndDo(m)
+    m, _ = state.Scrub(m)
+    state.W.WriteMsg(m)
+}
+
+func (h *DnsRequestHandler) Filter(request *request.Request, filterMode string, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
+    switch  filterMode {
+    case "multi":
+        return ips
+    case "rr":
+        return GetWeightedIp(ips, logData)
+    case "geo_country":
+        return h.geoip.GetSameCountry(GetSourceIp(request), ips, logData)
+    case "geo_location":
+        return h.geoip.GetMinimumDistance(GetSourceIp(request), ips, logData)
+    default:
+        eventlog.Logger.Errorf("invalid filter mode : %s", filterMode)
+        return ips
+    }
+    return ips
+}
+
+func errorResponse(state *request.Request, rcode int) {
+    m := new(dns.Msg)
+    m.SetRcode(state.Req, rcode)
+    m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
+
+    // m.Ns, _ = redis.SOA(state.Name(), zone, nil)
+
+    state.SizeAndDo(m)
+    state.W.WriteMsg(m)
+}
+
+func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime time.Time, responseCode int) {
+    data["ProcessTime"] = time.Since(startTime).Nanoseconds() / 1000000
+    data["ResponseCode"] = responseCode
+    h.Logger.Log(data, "request")
+}
+
+func GetSourceIp(request *request.Request) net.IP {
+    opt := request.Req.IsEdns0()
+    if len(opt.Option) != 0 {
+        return net.ParseIP(strings.Split(opt.Option[0].String(), "/")[0])
+    }
+    return net.ParseIP(request.IP())
 }
 
 func (h *DnsRequestHandler) LoadZones() {
@@ -59,18 +199,21 @@ func (h *DnsRequestHandler) LoadZones() {
     h.zoneLock.Unlock()
 }
 
-func (h *DnsRequestHandler) FetchRecord(qname string) (*dns_types.Record, int) {
-    record, found := h.cache.Get(qname)
+func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*dns_types.Record, int) {
+    cachedRecord, found := h.cache.Get(qname)
     if found {
-        // log.Println("[DEBUG] cached")
-        return record.(*dns_types.Record), dns.RcodeSuccess
+        eventlog.Logger.Debugf("cached")
+        logData["Cache"] = "HIT"
+        return cachedRecord.(*dns_types.Record), dns.RcodeSuccess
+    } else {
+        logData["Cache"] = "MISS"
+        record, res := h.GetRecord(qname)
+        if res == dns.RcodeSuccess {
+            h.cache.Set(qname, record, time.Duration(h.CacheTimeout)*time.Second)
+            return record, dns.RcodeSuccess
+        }
+        return nil, res
     }
-    record, res := h.GetRecord(qname)
-    if res == dns.RcodeSuccess {
-        h.cache.Set(qname, record, time.Duration(h.CacheTimeout) * time.Second)
-        return record.(*dns_types.Record), dns.RcodeSuccess
-    }
-    return nil, res
 }
 
 func (h *DnsRequestHandler) A(name string, ips []dns_types.IP_Record) (answers []dns.RR) {
@@ -328,25 +471,25 @@ func (h *DnsRequestHandler) Matches(qname string) string {
 }
 
 func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, rcode int) {
-    // log.Printf("[DEBUG] GetRecord")
+    eventlog.Logger.Debug("GetRecord")
 
-    // log.Println("[DEBUG]", h.Zones)
+    eventlog.Logger.Debugf("%v", h.Zones)
     if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload) * time.Second {
-        // log.Printf("[DEBUG] loading zones")
+        eventlog.Logger.Debugf("loading zones")
         h.LoadZones()
     }
-    // log.Println("[DEBUG]", h.Zones)
+    eventlog.Logger.Debugf("%v", h.Zones)
 
     zone := h.Matches(qname)
-    // log.Printf("[DEBUG] zone : %s", zone)
+    eventlog.Logger.Debugf("zone : %s", zone)
     if zone == "" {
-        log.Printf("[ERROR] no matching zone found for %s", qname)
+        eventlog.Logger.Debugf("no matching zone found for %s", qname)
         return nil, dns.RcodeNotAuth
     }
 
     z := h.LoadZone(zone)
     if z == nil {
-        log.Printf("[ERROR] empty zone : %s", zone)
+        eventlog.Logger.Errorf("empty zone : %s", zone)
         return nil, dns.RcodeServerFailure
     }
 
@@ -354,7 +497,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, r
     if len(location) == 0 { // empty, no results
         return nil, dns.RcodeNameError
     }
-    // log.Printf("[DEBUG] location : %s", location)
+    eventlog.Logger.Debugf("location : %s", location)
 
     record = h.GetLocation(location, z)
     record.ZoneName = zone
@@ -387,7 +530,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *dns_types.Rec
     r.Config.HealthCheckConfig.Enable = false
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
-        log.Printf("[ERROR] cannot parse json : %s -> %s", val, err)
+        eventlog.Logger.Errorf("cannot parse json : %s -> %s", val, err)
         return nil
     }
     return r
@@ -396,7 +539,7 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *dns_types.Rec
 func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *dns_types.Record) {
     jsonValue, err := json.Marshal(val)
     if err != nil {
-        log.Printf("[ERROR] cannot encode to json : %s", err)
+        eventlog.Logger.Errorf("cannot encode to json : %s", err)
         return
     }
     var label string
@@ -408,7 +551,7 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *dns_types
     h.Redis.HSet(z.Name, label, string(jsonValue))
 }
 
-func GetWeightedIp(ips []dns_types.IP_Record) []dns_types.IP_Record {
+func GetWeightedIp(ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
     sum := 0
     for _, ip := range ips {
         sum += ip.Weight
@@ -421,6 +564,7 @@ func GetWeightedIp(ips []dns_types.IP_Record) []dns_types.IP_Record {
             break
         }
     }
+    logData["DestinationIp"] = ips[index].Ip.String()
     return []dns_types.IP_Record { ips[index] }
 }
 
@@ -429,7 +573,7 @@ func GetANAME(location string, proxy string, qtype uint16) []dns.RR {
     m.SetQuestion(location, qtype)
     r, err := dns.Exchange(m, proxy)
     if err != nil {
-        log.Printf("[ERROR] failed to retreive record from proxy %s : %s", proxy, err)
+        eventlog.Logger.Errorf("failed to retreive record from proxy %s : %s", proxy, err)
         return []dns.RR{}
     }
     if len(r.Answer) == 0 {

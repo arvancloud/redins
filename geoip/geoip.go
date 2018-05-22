@@ -3,12 +3,11 @@ package geoip
 import (
     "math"
     "net"
-    "log"
 
     "github.com/oschwald/maxminddb-golang"
     "arvancloud/redins/dns_types"
-    "arvancloud/redins/eventlog"
     "arvancloud/redins/config"
+    "arvancloud/redins/eventlog"
 )
 
 type GeoIp struct {
@@ -24,7 +23,7 @@ func NewGeoIp(config *config.RedinsConfig) *GeoIp {
     if g.Enable {
         g.db, err = maxminddb.Open(config.GeoIp.Db)
         if err != nil {
-            log.Printf("[ERROR] cannot open maxminddb file %s", err)
+            eventlog.Logger.Errorf("cannot open maxminddb file %s", err)
             g.Enable = false
             return g
         }
@@ -33,13 +32,13 @@ func NewGeoIp(config *config.RedinsConfig) *GeoIp {
     return g
 }
 
-func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logData *eventlog.RequestLogData) []dns_types.IP_Record {
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        log.Printf("[ERROR] getSameCountry failed")
+        eventlog.Logger.Errorf("getSameCountry failed")
         return ips
     }
 
@@ -58,21 +57,21 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logDa
             }
         }
         if matched {
-            logData.SourceCountry = sourceCountry
-            logData.DestinationIp = ips[matchedIndex].Ip.String()
-            logData.DestinationCountry = ips[matchedIndex].Country
+            logData["SourceCountry"] = sourceCountry
+            logData["DestinationIp"] = ips[matchedIndex].Ip.String()
+            logData["DestinationCountry"] = ips[matchedIndex].Country
             return []dns_types.IP_Record{ips[matchedIndex]}
         } else {
-            logData.SourceCountry = sourceCountry
-            logData.DestinationIp = ips[defaultIndex].Ip.String()
-            logData.DestinationCountry = ips[defaultIndex].Country
+            logData["SourceCountry"] = sourceCountry
+            logData["DestinationIp"] = ips[defaultIndex].Ip.String()
+            logData["DestinationCountry"] = ips[defaultIndex].Country
             return []dns_types.IP_Record{ips[defaultIndex]}
         }
     }
     return []dns_types.IP_Record{}
 }
 
-func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, logData *eventlog.RequestLogData) []dns_types.IP_Record {
+func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
     if g.Enable == false {
         return ips
     }
@@ -80,7 +79,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, l
     index := -1
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        log.Printf("[ERROR] getMinimumDistance failed")
+        eventlog.Logger.Errorf("getMinimumDistance failed")
         return ips
     }
     for i, ip := range ips {
@@ -96,12 +95,11 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, l
         }
     }
     if index > -1 {
-        logData.SourceCountry = ""
-        logData.DestinationIp = ips[index].Ip.String()
-        logData.DestinationCountry = ips[index].Country
+        logData["DestinationIp"] = ips[index].Ip.String()
+        logData["DestinationCountry"] = ips[index].Country
         return []dns_types.IP_Record { ips[index] }
     } else {
-        log.Printf("[ERROR] getMinimumDistance failed")
+        eventlog.Logger.Errorf("getMinimumDistance failed")
         return ips
     }
 }
@@ -116,7 +114,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
         math.Cos(slat)*math.Cos(dlat)* math.Sin(deltaLong/2.0)*math.Sin(deltaLong/2.0)
     c := 2.0 * math.Atan2(math.Sqrt(a), math.Sqrt(1.0-a))
 
-    // log.Printf("[DEBUG] distance = ", c)
+    eventlog.Logger.Debugf("distance = ", c)
 
     return c, nil
 }
@@ -134,13 +132,13 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
             ISOCode string `maxminddb:"iso_code"`
         } `maxminddb:"country"`
     }
-    // log.Printf("[DEBUG], ip : %s\n", ip)
+    eventlog.Logger.Debugf("ip : %s\n", ip)
     err = g.db.Lookup(ip, &record)
     if err != nil {
-        log.Printf("[ERROR] lookup failed : %s", err)
+        eventlog.Logger.Errorf("lookup failed : %s", err)
         return 0, 0, "", err
     }
     g.db.Decode(record.Location.LongitudeOffset, &longitude)
-    // log.Printf("[DEBUG] lat = ", record.Location.Latitude, " lang = ", longitude)
+    eventlog.Logger.Debugf("lat = ", record.Location.Latitude, " lang = ", longitude)
     return record.Location.Latitude, longitude, record.Country.ISOCode, nil
 }

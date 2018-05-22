@@ -3,12 +3,12 @@ package redis
 import (
     "strings"
     "time"
-    "log"
     "strconv"
     "errors"
 
     redisCon "github.com/garyburd/redigo/redis"
     "arvancloud/redins/config"
+    "arvancloud/redins/eventlog"
 )
 
 type Redis struct {
@@ -54,7 +54,7 @@ func (redis *Redis) Get(key string) string {
     )
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return ""
     }
     defer conn.Close()
@@ -73,14 +73,14 @@ func (redis *Redis) Get(key string) string {
 func (redis *Redis) Set(key string, value string) error {
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return errors.New("connection to redis failed")
     }
     defer conn.Close()
 
     _, err := conn.Do("SET", redis.Config.Prefix + key + redis.Config.Suffix, value)
     if err != nil {
-        log.Printf("[ERROR] redis error : %s", err)
+        eventlog.Logger.Errorf("redis error : %s", err)
         return err
     }
     return nil
@@ -89,7 +89,7 @@ func (redis *Redis) Set(key string, value string) error {
 func (redis *Redis) Del(pattern string) {
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return
     }
     defer conn.Close()
@@ -106,7 +106,7 @@ func (redis *Redis) GetKeys() []string {
 
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return nil
     }
     defer conn.Close()
@@ -133,14 +133,14 @@ func (redis *Redis) GetHKeys(key string) []string {
 
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return nil
     }
     defer conn.Close()
 
     reply, err = conn.Do("HKEYS", redis.Config.Prefix + key + redis.Config.Suffix)
     if err != nil {
-        log.Printf("[ERROR] error in redis command : %s", err)
+        eventlog.Logger.Errorf("error in redis command : %s", err)
         return nil
     }
     vals, err = redisCon.Strings(reply, nil)
@@ -158,7 +158,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
     )
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return ""
     }
     defer conn.Close()
@@ -177,7 +177,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
 func (redis *Redis) HSet(key string, hkey string, value string) error {
     conn := redis.Pool.Get()
     if conn == nil {
-        log.Printf("[ERROR] cannot connect to redis")
+        eventlog.Logger.Errorf("cannot connect to redis")
         return errors.New("connection to redis failed")
     }
     defer conn.Close()
@@ -185,7 +185,7 @@ func (redis *Redis) HSet(key string, hkey string, value string) error {
     // log.Printf("[DEBUG] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
     _, err := conn.Do("HSET", redis.Config.Prefix + key + redis.Config.Suffix, hkey, value)
     if err != nil {
-        log.Printf("[ERROR] redis error : %s", err)
+        eventlog.Logger.Errorf("redis error : %s", err)
         return err
     }
     return nil

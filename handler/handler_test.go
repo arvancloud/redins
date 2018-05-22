@@ -11,6 +11,7 @@ import (
     "github.com/coredns/coredns/request"
     "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
+    "arvancloud/redins/eventlog"
 )
 
 var lookupZones = []string {
@@ -211,6 +212,8 @@ var anameEntries = [][]string{
 
 func TestHandler(t *testing.T) {
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
     h := NewHandler(cfg)
     for i, zone := range lookupZones {
         h.Redis.Del(zone)
@@ -232,7 +235,7 @@ func TestHandler(t *testing.T) {
             qname := state.Name()
             qtype := state.Type()
 
-            record, res := h.FetchRecord(qname)
+            record, res := h.FetchRecord(qname, map[string]interface{}{})
             answers := make([]dns.RR, 0, 10)
 
             if res != dns.RcodeSuccess {
@@ -285,6 +288,8 @@ func TestHandler(t *testing.T) {
 }
 
 func TestWeight(t *testing.T) {
+    cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     ips := []dns_types.IP_Record {
         { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
         { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
@@ -293,7 +298,7 @@ func TestWeight(t *testing.T) {
     }
     x4, x1, x5, x10 := 0, 0, 0, 0
     for i:= 0; i < 100000; i++ {
-        x := GetWeightedIp(ips)
+        x := GetWeightedIp(ips, map[string]interface{}{})
         switch x[0].Weight {
         case 4: x4++
         case 1: x1++
@@ -309,6 +314,8 @@ func TestWeight(t *testing.T) {
 func TestANAME(t *testing.T) {
     zone := "arvancloud.com."
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
     h := NewHandler(cfg)
     h.Redis.Del(zone)
     for _, cmd := range anameEntries {

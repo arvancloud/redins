@@ -39,7 +39,6 @@ type HealthcheckConfig struct {
     CheckInterval int `json:"check_interval,omitempty"`
     Redis RedisConfig `json:"redis,omitempty"`
     Log LogConfig `json:"log,omitempty"`
-
 }
 
 type RedisConfig struct {
@@ -54,7 +53,10 @@ type RedisConfig struct {
 
 type LogConfig struct {
     Enable bool `json:"enable,omitempty"`
+    Target string `json:"target,omitempty"`
+    Level string `json:"level,omitempty"`
     Path string `json:"path,omitempty"`
+    Format string `json:"format,omitempty"`
 }
 
 type RedinsConfig struct {
@@ -63,6 +65,7 @@ type RedinsConfig struct {
     Upstream UpstreamConfig `json:"upstream,omitempty"`
     GeoIp GeoIpConfig `json:"geoip,omitempty"`
     HealthCheck HealthcheckConfig `json:"healthcheck,omitempty"`
+    ErrorLog LogConfig `json:"error_log,omitempty"`
 }
 
 
@@ -90,7 +93,10 @@ func LoadConfig(path string) *RedinsConfig {
             },
             Log: LogConfig {
                 Enable: true,
+                Target: "file",
+                Level: "info",
                 Path: "/tmp/redins.log",
+                Format: "json",
             },
         },
         Upstream: UpstreamConfig {
@@ -119,8 +125,17 @@ func LoadConfig(path string) *RedinsConfig {
             },
             Log: LogConfig {
                 Enable: true,
+                Target: "file",
+                Level: "info",
                 Path: "/tmp/healthcheck.log",
+                Format: "json",
             },
+        },
+        ErrorLog: LogConfig {
+            Enable: true,
+            Target: "stdout",
+            Level: "info",
+            Format: "text",
         },
     }
     raw, err := ioutil.ReadFile(path)

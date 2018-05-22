@@ -6,6 +6,7 @@
     - [healthcheck](#healthcheck)
     - [geoip](#geoip)
     - [upstream](#upstream)
+    - [error log](#error_log)
     - [redis](#redis)
     - [log](#log)
     - [example](#example)
@@ -63,6 +64,9 @@ dns query handler configuration
     },
     "log": {
     "enable": true,
+    "level": "info",
+    "target": "file",
+    "format": "json",
     "path": "/tmp/redins.log"
     }
 }
@@ -92,6 +96,9 @@ healthcheck configuration
     },
     "log": {
       "enable": true,
+      "level": "info",
+      "target": "file",
+      "format": "json",
       "path": "/tmp/healthcheck.log"
     }
   }
@@ -133,6 +140,19 @@ geoip configuration
 * port : upstream port number, deafult: 53
 * protocol : upstream protocol, default : udp
 
+### error_log
+log configuration for error, debug, ... messages
+
+~~~json
+"log": {
+  "enable": true,
+  "level": "info",
+  "target": "file",
+  "format": "json",
+  "path": "/tmp/redins.log"
+}
+~~~
+
 ### redis
 redis configurations
 
@@ -162,11 +182,17 @@ log configuration
 ~~~json
 "log": {
   "enable": true,
+  "level": "info",
+  "target": "file",
+  "format": "json",
   "path": "/tmp/redins.log"
 }
 ~~~
 
 * enable : enable/disable this log resource, default: disable
+* level : log level, can be debug, info, warning, error, default: info
+* target : log target, can be stdout, stderr, file, default: stdout
+* format : log format, can be text, json, default: text
 * path : log output file path, default: 
 
 ### example
@@ -194,6 +220,9 @@ sample config:
     },
     "log": {
       "enable": true,
+      "level": "info",
+      "target": "file",
+      "format": "json",
       "path": "/tmp/redins.log"
     }
   },
@@ -223,8 +252,18 @@ sample config:
     },
     "log": {
       "enable": true,
+      "level": "info",
+      "target": "file",
+      "format": "json",
       "path": "/tmp/healthcheck.log"
     }
+  },
+  "error_log": {
+      "enable": true,
+      "level": "info",
+      "target": "stdout",
+      "format": "json",
+      "path": "/tmp/healthcheck.log"
   }
 }
 ~~~

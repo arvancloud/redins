@@ -26,11 +26,13 @@
     },
     "log": {
       "enable": true,
+      "target": "file",
+      "level": "info",
       "path": "/tmp/redins.log"
     }
   },
   "upstream": {
-    "enable": true,
+    "enable": false,
     "ip": "1.1.1.1",
     "port": 53,
     "protocol": "udp"
@@ -55,7 +57,16 @@
     },
     "log": {
       "enable": true,
+      "target": "file",
+      "level": "info",
       "path": "/tmp/healthcheck.log"
     }
+  },
+  "error_log": {
+    "enable": true,
+    "target": "file",
+    "level": "debug",
+    "path": "/tmp/error.log",
+    "format": "text"
   }
 }

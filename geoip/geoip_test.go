@@ -53,6 +53,8 @@ func TestGeoIpAutomatic(t *testing.T) {
     }
 
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
     g := NewGeoIp(cfg)
 
     for i,_ := range sip {
@@ -68,8 +70,7 @@ func TestGeoIpAutomatic(t *testing.T) {
             }
             dest.A = append(dest.A, r)
         }
-        logData := eventlog.RequestLogData {}
-        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A, &logData)
+        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A, map[string]interface{}{})
         log.Println("[DEBUG]", sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
         if sip[i][2] != dest.A[0].Ip.String() {
             t.Fail()
@@ -86,6 +87,8 @@ func TestGeoIpManual(t *testing.T) {
     }
 
     cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
     g := NewGeoIp(cfg)
 
 
@@ -96,8 +99,7 @@ func TestGeoIpManual(t *testing.T) {
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},
         }
-        logData := eventlog.RequestLogData {}
-        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A, &logData)
+        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A, map[string]interface{}{})
         if len(dest.A) != 1 {
             t.Fail()
         }

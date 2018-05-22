@@ -5,7 +5,6 @@ import (
     "time"
     "encoding/json"
     "strings"
-    "log"
     "sync"
     "net"
     "net/http"
@@ -86,7 +85,7 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
 func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     HostIp := strings.Split(key, ":")
     if len(HostIp) != 2 {
-        log.Printf("[ERROR] invalid key: %s", key)
+        eventlog.Logger.Errorf("invalid key: %s", key)
         return nil
     }
     item := new(HealthCheckItem)
@@ -107,7 +106,7 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
     key := item.Host + ":" + item.Ip
     itemStr, err := json.Marshal(item)
     if err != nil {
-        log.Printf("[ERROR] cannot marshal item to json : %s", err)
+        eventlog.Logger.Errorf("cannot marshal item to json : %s", err)
         return
     }
     h.redisStatusServer.Set(key, string(itemStr))
@@ -132,7 +131,7 @@ func (h *Healthcheck) transferItems() {
             record.Config.HealthCheckConfig.Enable = false
             err := json.Unmarshal([]byte(recordStr), record)
             if err != nil {
-                log.Printf("[ERROR] cannot parse json : %s -> %s", recordStr, err)
+                eventlog.Logger.Errorf("cannot parse json : %s -> %s", recordStr, err)
                 continue
             }
             var host string
@@ -217,16 +216,16 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
             },
         }
         url := item.Protocol + "://" + item.Ip + item.Uri
-        // log.Println("[DEBUG]", item)
+        // log.Println("[DEBUG]", url)
         req, err := http.NewRequest("HEAD", url, nil)
         if err != nil {
-            log.Printf("[ERROR] invalid request : %s", err)
+            eventlog.Logger.Errorf("invalid request : %s", err)
             h.statusDown(item)
         } else {
             req.Host = strings.TrimRight(item.Host, ".")
             resp, err := client.Do(req)
             if err != nil {
-                log.Printf("[ERROR] request failed : %s", err)
+                eventlog.Logger.Errorf("request failed : %s", err)
                 h.statusDown(item)
             } else {
                 // log.Printf("[INFO] http response : ", resp.Status)
@@ -245,20 +244,12 @@ func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup
 }
 
 func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
-    type HealthcheckLogData struct {
-        Ip string
-        Port int
-        Host string
-        Uri string
-        Status int
-    }
-
-    data := HealthcheckLogData {
-        Ip: item.Ip,
-        Port: item.Port,
-        Host: item.Host,
-        Uri: item.Uri,
-        Status: item.Status,
+    data := map[string]interface{} {
+        "Ip":     item.Ip,
+        "Port":   item.Port,
+        "Host":   item.Host,
+        "Uri":    item.Uri,
+        "Status": item.Status,
     }
 
     h.logger.Log(data,"healthcheck")
@@ -299,13 +290,13 @@ func (h *Healthcheck) FilterHealthcheck(qname string, record *dns_types.Record, 
             min = status
         }
     }
-    // log.Println("[DEBUG] min = ", min)
+    eventlog.Logger.Debugf("min = ", min)
     if min < record.Config.HealthCheckConfig.UpCount - 1 && min > record.Config.HealthCheckConfig.DownCount {
         min = record.Config.HealthCheckConfig.DownCount + 1
     }
-    // log.Println("[DEBUG] min = ", min)
+    eventlog.Logger.Debugf("min = ", min)
     for _, ip := range ips {
-        // log.Println("[DEBUG]", qname, ":", ip.Ip.String(), "status: ", h.getStatus(qname, ip.Ip))
+        eventlog.Logger.Debugf("qname: %s, status: %d", ip.Ip.String(), h.getStatus(qname, ip.Ip))
         if h.getStatus(qname, ip.Ip) < min {
             continue
         }
