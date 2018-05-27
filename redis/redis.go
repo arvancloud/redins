@@ -54,7 +54,7 @@ func (redis *Redis) Get(key string) string {
     )
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return ""
     }
     defer conn.Close()
@@ -73,7 +73,7 @@ func (redis *Redis) Get(key string) string {
 func (redis *Redis) Set(key string, value string) error {
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return errors.New("connection to redis failed")
     }
     defer conn.Close()
@@ -89,7 +89,7 @@ func (redis *Redis) Set(key string, value string) error {
 func (redis *Redis) Del(pattern string) {
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return
     }
     defer conn.Close()
@@ -106,7 +106,7 @@ func (redis *Redis) GetKeys() []string {
 
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return nil
     }
     defer conn.Close()
@@ -133,7 +133,7 @@ func (redis *Redis) GetHKeys(key string) []string {
 
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return nil
     }
     defer conn.Close()
@@ -158,7 +158,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
     )
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return ""
     }
     defer conn.Close()
@@ -177,7 +177,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
 func (redis *Redis) HSet(key string, hkey string, value string) error {
     conn := redis.Pool.Get()
     if conn == nil {
-        eventlog.Logger.Errorf("cannot connect to redis")
+        eventlog.Logger.Error("cannot connect to redis")
         return errors.New("connection to redis failed")
     }
     defer conn.Close()

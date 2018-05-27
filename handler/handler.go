@@ -202,7 +202,7 @@ func (h *DnsRequestHandler) LoadZones() {
 func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*dns_types.Record, int) {
     cachedRecord, found := h.cache.Get(qname)
     if found {
-        eventlog.Logger.Debugf("cached")
+        eventlog.Logger.Debug("cached")
         logData["Cache"] = "HIT"
         return cachedRecord.(*dns_types.Record), dns.RcodeSuccess
     } else {
@@ -475,7 +475,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, r
 
     eventlog.Logger.Debugf("%v", h.Zones)
     if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload) * time.Second {
-        eventlog.Logger.Debugf("loading zones")
+        eventlog.Logger.Debug("loading zones")
         h.LoadZones()
     }
     eventlog.Logger.Debugf("%v", h.Zones)

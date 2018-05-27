@@ -38,7 +38,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logDa
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        eventlog.Logger.Errorf("getSameCountry failed")
+        eventlog.Logger.Error("getSameCountry failed")
         return ips
     }
 
@@ -79,7 +79,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, l
     index := -1
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        eventlog.Logger.Errorf("getMinimumDistance failed")
+        eventlog.Logger.Error("getMinimumDistance failed")
         return ips
     }
     for i, ip := range ips {
@@ -99,7 +99,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, l
         logData["DestinationCountry"] = ips[index].Country
         return []dns_types.IP_Record { ips[index] }
     } else {
-        eventlog.Logger.Errorf("getMinimumDistance failed")
+        eventlog.Logger.Error("getMinimumDistance failed")
         return ips
     }
 }
