@@ -37,7 +37,7 @@ dns listening server configuration
 "server": {
   "ip": "127.0.0.1",
   "port": 1053,
-  "protocol": = udp
+  "protocol": "udp"
 }
 ~~~
 
@@ -364,7 +364,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 {
     "mx":{
         "host" : "mx1.example.com.",
-        "priority" : 10,
+        "preference" : 10,
         "ttl" : 360
     }
 }
@@ -375,7 +375,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~json
 {
     "srv":{
-        "host" : "sip.example.com.",
+        "target" : "sip.example.com.",
         "port" : 555,
         "priority" : 10,
         "weight" : 100,
