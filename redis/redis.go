@@ -6,7 +6,7 @@ import (
     "strconv"
     "errors"
 
-    redisCon "github.com/garyburd/redigo/redis"
+    redisCon "github.com/gomodule/redigo/redis"
     "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
 )
