@@ -312,6 +312,29 @@ func TestWeight(t *testing.T) {
     }
 }
 
+func TestMultiRR(t *testing.T) {
+    cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
+    ips := []dns_types.IP_Record {
+        { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
+        { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
+        { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
+        { Ip:net.ParseIP("4.5.6.7"), Weight: 10},
+    }
+    shuffled := ShuffleIps(ips)
+    valid := false
+    for i := range shuffled {
+        if shuffled[i].Ip.String() != ips[i].Ip.String() {
+            valid = true
+            break
+        }
+    }
+    if valid == false {
+        t.Fail()
+    }
+}
+
 func TestANAME(t *testing.T) {
     zone := "arvancloud.com."
     cfg := config.LoadConfig("config.json")
@@ -338,3 +361,4 @@ func TestANAME(t *testing.T) {
         log.Printf("%s\n", a.String())
     }
 }
+

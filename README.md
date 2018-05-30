@@ -420,6 +420,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 `ip-filter_mode` : filtering mode:
 * multi : return all A or AAAA records
+* multi_rr : shuffle records for each request
 * rr : weighted round robin selection
 * geo_location : nearest geographical location
 * geo_country : match with same country as source ip

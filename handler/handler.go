@@ -153,6 +153,8 @@ func (h *DnsRequestHandler) Filter(request *request.Request, filterMode string, 
     switch  filterMode {
     case "multi":
         return ips
+    case "multi_rr":
+        return ShuffleIps(ips)
     case "rr":
         return GetWeightedIp(ips, logData)
     case "geo_country":
@@ -566,6 +568,16 @@ func GetWeightedIp(ips []dns_types.IP_Record, logData map[string]interface{}) []
     }
     logData["DestinationIp"] = ips[index].Ip.String()
     return []dns_types.IP_Record { ips[index] }
+}
+
+func ShuffleIps(ips []dns_types.IP_Record) []dns_types.IP_Record {
+    r := rand.New(rand.NewSource(time.Now().Unix()))
+    ret := make([]dns_types.IP_Record, len(ips))
+    perm := r.Perm(len(ips))
+    for i, randIndex := range perm {
+        ret[i] = ips[randIndex]
+    }
+    return ret
 }
 
 func GetANAME(location string, proxy string, qtype uint16) []dns.RR {
