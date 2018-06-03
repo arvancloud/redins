@@ -558,7 +558,7 @@ func GetWeightedIp(ips []dns_types.IP_Record, logData map[string]interface{}) []
     for _, ip := range ips {
         sum += ip.Weight
     }
-    x := rand.Intn(sum)
+    x := rand.Intn(sum + 1)
     index := 0
     for ; index < len(ips); index++ {
         x -= ips[index].Weight
