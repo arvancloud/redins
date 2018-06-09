@@ -88,7 +88,9 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     var answers []dns.RR
 
     if res == dns.RcodeSuccess {
-        if qtype == dns.TypeA {
+        if len(record.CNAME) != 0 {
+            answers = h.CNAME(qname, record)
+        } else if qtype == dns.TypeA {
             ips := []dns_types.IP_Record{}
             if len(record.A) == 0 && record.ANAME != nil {
                 answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
@@ -110,8 +112,6 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         } else {
             switch qtype {
-            case dns.TypeCNAME:
-                answers = h.CNAME(qname, record)
             case dns.TypeTXT:
                 answers = h.TXT(qname, record)
             case dns.TypeNS:
@@ -502,6 +502,9 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, r
     eventlog.Logger.Debugf("location : %s", location)
 
     record = h.GetLocation(location, z)
+    if record == nil {
+        return nil, dns.RcodeServerFailure
+    }
     record.ZoneName = zone
 
     return record, dns.RcodeSuccess
