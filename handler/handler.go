@@ -83,45 +83,56 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         logData["ClientSubnet"] = opt.Option[0].String()
     }
 
-    record, res := h.FetchRecord(qname, logData)
-
+    var record *dns_types.Record
+    var res int
     var answers []dns.RR
+    for {
+        record, res = h.FetchRecord(qname, logData)
+        if res != dns.RcodeSuccess {
+            break
+        }
+        if len(record.CNAME.Host) == 0 {
+            break
+        }
+        answers = append(answers, h.CNAME(qname, record)...)
+        qname = record.CNAME.Host
+    }
 
     if res == dns.RcodeSuccess {
-        if len(record.CNAME) != 0 {
-            answers = h.CNAME(qname, record)
-        } else if qtype == dns.TypeA {
+        if qtype == dns.TypeA {
             ips := []dns_types.IP_Record{}
             if len(record.A) == 0 && record.ANAME != nil {
-                answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
+                answers = append(answers, GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)...)
             } else {
                 ips = append(ips, record.A...)
                 ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
                 ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
-                answers = h.A(qname, ips)
+                answers = append(answers, h.A(qname, ips)...)
             }
         } else if qtype == dns.TypeAAAA {
             ips := []dns_types.IP_Record{}
             if len(record.AAAA) == 0 && record.ANAME != nil {
-                answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
+                answers = append(answers, GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)...)
             } else {
                 ips = append(ips, record.AAAA...)
                 ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
                 ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
-                answers = h.AAAA(qname, ips)
+                answers = append(answers, h.AAAA(qname, ips)...)
             }
         } else {
             switch qtype {
+            case dns.TypeCNAME:
+
             case dns.TypeTXT:
-                answers = h.TXT(qname, record)
+                answers = append(answers, h.TXT(qname, record)...)
             case dns.TypeNS:
-                answers = h.NS(qname, record)
+                answers = append(answers, h.NS(qname, record)...)
             case dns.TypeMX:
-                answers = h.MX(qname, record)
+                answers = append(answers, h.MX(qname, record)...)
             case dns.TypeSRV:
-                answers = h.SRV(qname, record)
+                answers = append(answers, h.SRV(qname, record)...)
             case dns.TypeSOA:
-                answers = h.SOA(qname, record)
+                answers = append(answers, h.SOA(qname, record)...)
             default:
                 errorResponse(state, dns.RcodeNotImplemented)
                 h.LogRequest(logData, requestStartTime, dns.RcodeNotImplemented)
@@ -129,7 +140,10 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         }
     } else if res == dns.RcodeNotAuth && h.upstream.Enable {
-        answers, res = h.upstream.Query(qname, qtype)
+        upstreamAnswers, upstreamRes := h.upstream.Query(qname, qtype)
+        if upstreamRes == dns.RcodeSuccess {
+            answers = append(answers, upstreamAnswers...)
+        }
     } else {
         errorResponse(state, res)
         h.LogRequest(logData, requestStartTime, res)
@@ -247,16 +261,14 @@ func (h *DnsRequestHandler) AAAA(name string, ips []dns_types.IP_Record) (answer
 }
 
 func (h *DnsRequestHandler) CNAME(name string, record *dns_types.Record) (answers []dns.RR) {
-    for _, cname := range record.CNAME {
-        if len(cname.Host) == 0 {
-            continue
-        }
-        r := new(dns.CNAME)
-        r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME,
-            Class: dns.ClassINET, Ttl: h.minTtl(cname.Ttl)}
-        r.Target = dns.Fqdn(cname.Host)
-        answers = append(answers, r)
+    if len(record.CNAME.Host) == 0 {
+        return
     }
+    r := new(dns.CNAME)
+    r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME,
+        Class: dns.ClassINET, Ttl: h.minTtl(record.CNAME.Ttl)}
+    r.Target = dns.Fqdn(record.CNAME.Host)
+    answers = append(answers, r)
     return
 }
 

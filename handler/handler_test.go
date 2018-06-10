@@ -15,7 +15,7 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.",
+    "example.com.", "example.net.", "example.aaa.",
 }
 
 var lookupEntries = [][][]string {
@@ -34,7 +34,7 @@ var lookupEntries = [][][]string {
                 "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"y",
-            "{\"cname\":[{\"ttl\":300, \"host\":\"x.example.com.\"}]," +
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.com.\"}," +
             "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
         {"ns1",
@@ -85,6 +85,29 @@ var lookupEntries = [][][]string {
         {"_ssh._tcp.host2",
             "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
             "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+        },
+    },
+    {
+        {"@",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+        },
+        {"x",
+            "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\"}]," +
+                "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
+                "\"txt\":[{\"ttl\":300, \"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]," +
+                "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.aaa.\"},{\"ttl\":300, \"host\":\"ns2.example.aaa.\"}]," +
+                "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.aaa.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.aaa.\", \"preference\":10}]," +
+                "\"srv\":[{\"ttl\":300, \"target\":\"sip.example.aaa.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
+                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+        },
+        {"y",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}," +
+                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+        },
+        {"z",
+            "{\"cname\":{\"ttl\":300, \"host\":\"y.example.aaa.\"}," +
+                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
         },
     },
 }
@@ -196,22 +219,33 @@ var lookupTestCases = [][]test.Case{
             },
         },
     },
+    // CNAME tests
+    {
+        {
+            Qname: "y.example.aaa.", Qtype: dns.TypeCNAME,
+            Answer: []dns.RR{
+                test.CNAME("y.example.aaa. 300 IN CNAME x.example.aaa."),
+            },
+        },
+        {
+            Qname: "z.example.aaa.", Qtype: dns.TypeCNAME,
+            Answer: []dns.RR{
+                test.CNAME("y.example.aaa. 300 IN CNAME x.example.aaa."),
+                test.CNAME("z.example.aaa. 300 IN CNAME y.example.aaa."),
+            },
+        },
+        {
+            Qname: "z.example.aaa.", Qtype: dns.TypeA,
+            Answer: []dns.RR{
+                test.A("x.example.aaa. 300 IN A 1.2.3.4"),
+                test.CNAME("y.example.aaa. 300 IN CNAME x.example.aaa."),
+                test.CNAME("z.example.aaa. 300 IN CNAME y.example.aaa."),
+            },
+        },
+    },
 }
 
-var anameEntries = [][]string{
-    {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"aname\":{\"location\":\"arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
-    },
-    {"www",
-        "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
-            "\"aname\":{\"location\":\"www.arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
-    },
-}
-
-func TestHandler(t *testing.T) {
+func TestLookup(t *testing.T) {
     cfg := config.LoadConfig("config.json")
     eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
 
@@ -230,56 +264,9 @@ func TestHandler(t *testing.T) {
 
             r := tc.Msg()
             w := dnstest.NewRecorder(&test.ResponseWriter{})
-
             state := request.Request{W: w, Req: r}
+            h.HandleRequest(&state)
 
-            qname := state.Name()
-            qtype := state.Type()
-
-            record, res := h.FetchRecord(qname, map[string]interface{}{})
-            answers := make([]dns.RR, 0, 10)
-
-            if res != dns.RcodeSuccess {
-                m := new(dns.Msg)
-                m.SetRcode(state.Req, res)
-                m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
-
-                state.SizeAndDo(m)
-                state.W.WriteMsg(m)
-            } else {
-
-                switch qtype {
-                case "A":
-                    answers = h.A(qname, record.A)
-                case "AAAA":
-                    answers = h.AAAA(qname, record.AAAA)
-                case "CNAME":
-                    answers = h.CNAME(qname, record)
-                case "TXT":
-                    answers = h.TXT(qname, record)
-                case "NS":
-                    answers = h.NS(qname, record)
-                case "MX":
-                    answers = h.MX(qname, record)
-                case "SRV":
-                    answers = h.SRV(qname, record)
-                case "SOA":
-                    answers = h.SOA(qname, record)
-                default:
-                    t.Fail()
-                    return
-                }
-
-                m := new(dns.Msg)
-                m.SetReply(r)
-                m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
-
-                m.Answer = append(m.Answer, answers...)
-
-                state.SizeAndDo(m)
-                m, _ = state.Scrub(m)
-                w.WriteMsg(m)
-            }
             resp := w.Msg
 
             test.SortAndCheck(t, resp, tc)
@@ -372,6 +359,19 @@ func TestMultiRR(t *testing.T) {
     if valid == false {
         t.Fail()
     }
+}
+
+var anameEntries = [][]string{
+    {"@",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"aname\":{\"location\":\"arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+    },
+    {"www",
+        "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
+            "\"aname\":{\"location\":\"www.arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+    },
 }
 
 func TestANAME(t *testing.T) {

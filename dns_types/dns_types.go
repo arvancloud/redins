@@ -6,15 +6,15 @@ import (
 )
 
 type RRSet struct {
-    A            []IP_Record    `json:"a,omitempty"`
-    AAAA         []IP_Record    `json:"aaaa,omitempty"`
-    TXT          []TXT_Record   `json:"txt,omitempty"`
-    CNAME        []CNAME_Record `json:"cname,omitempty"` // TODO : only one cname record
-    NS           []NS_Record    `json:"ns,omitempty"`
-    MX           []MX_Record    `json:"mx,omitempty"`
-    SRV          []SRV_Record   `json:"srv,omitempty"`
-    SOA          SOA_Record     `json:"soa,omitempty"`
-    ANAME        *ANAME_Record  `json:"aname,omitempty"`
+    A            []IP_Record   `json:"a,omitempty"`
+    AAAA         []IP_Record   `json:"aaaa,omitempty"`
+    TXT          []TXT_Record  `json:"txt,omitempty"`
+    CNAME        CNAME_Record  `json:"cname,omitempty"`
+    NS           []NS_Record   `json:"ns,omitempty"`
+    MX           []MX_Record   `json:"mx,omitempty"`
+    SRV          []SRV_Record  `json:"srv,omitempty"`
+    SOA          SOA_Record    `json:"soa,omitempty"`
+    ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
 type HealthCheckRecordConfig struct {
