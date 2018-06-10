@@ -5,7 +5,6 @@ import (
     "time"
     "encoding/json"
     "strings"
-    "sync"
     "net"
     "net/http"
 
@@ -31,16 +30,139 @@ type HealthCheckItem struct {
 }
 
 type Healthcheck struct {
-    Enable         bool
-    maxRequests    int
-    updateInterval time.Duration
-    checkInterval  time.Duration
+    Enable            bool
+    maxRequests       int
+    updateInterval    time.Duration
+    checkInterval     time.Duration
     redisConfigServer *redis.Redis
     redisStatusServer *redis.Redis
     logger            *eventlog.EventLogger
     cachedItems       *cache.Cache
     lastUpdate        time.Time
+    dispatcher        *Dispatcher
 }
+
+type Job *HealthCheckItem
+
+type Dispatcher struct {
+    WorkerPool chan chan Job
+    MaxWorkers int
+    JobQueue chan Job
+}
+
+func NewDispatcher(maxWorkers int) *Dispatcher {
+    pool := make(chan chan Job, maxWorkers)
+    return &Dispatcher {
+        WorkerPool: pool,
+        MaxWorkers: maxWorkers,
+        JobQueue: make(chan Job, 100),
+    }
+}
+
+func (d *Dispatcher) Run(healthcheck *Healthcheck) {
+    for i := 0; i < d.MaxWorkers; i++ {
+        worker := NewWorker(d.WorkerPool, healthcheck, i)
+        worker.Start()
+    }
+
+    go d.dispatch()
+}
+
+func (d *Dispatcher) dispatch() {
+    for {
+        select {
+        case job := <- d.JobQueue:
+            go func(job Job) {
+                jobChannel := <- d.WorkerPool
+                jobChannel <- job
+            }(job)
+        }
+    }
+}
+
+type Worker struct {
+    Id int
+    Client *http.Client
+    healthcheck *Healthcheck
+    WorkerPool chan chan Job
+    JobChannel chan Job
+    quit chan bool
+}
+
+func NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) Worker {
+    tr := &http.Transport {
+        MaxIdleConnsPerHost: 1024,
+        TLSHandshakeTimeout: 0 * time.Second,
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+    client := &http.Client {
+        Transport: tr,
+        CheckRedirect: func(req *http.Request, via []*http.Request) error {
+            return http.ErrUseLastResponse
+        },
+
+    }
+
+    return Worker {
+        Id:          id,
+        Client:      client,
+        healthcheck: healthcheck,
+        WorkerPool:  workerPool,
+        JobChannel:  make(chan Job),
+        quit:        make(chan bool),
+    }
+}
+
+func (w Worker) Start() {
+    go func() {
+        eventlog.Logger.Debugf("Worker: worker %d started", w.Id)
+        for {
+            eventlog.Logger.Debugf("Worker: worker %d waiting for new job", w.Id)
+            w.WorkerPool <- w.JobChannel
+            select {
+            case item := <- w.JobChannel:
+                eventlog.Logger.Debugf("item %v received", item)
+                w.Client.Timeout = time.Duration(item.Timeout)
+                url := item.Protocol + "://" + item.Ip + item.Uri
+                // log.Println("[DEBUG]", url)
+                req, err := http.NewRequest("HEAD", url, nil)
+                if err != nil {
+                    eventlog.Logger.Errorf("invalid request : %s", err)
+                    statusDown(item)
+                } else {
+                    req.Host = strings.TrimRight(item.Host, ".")
+                    resp, err := w.Client.Do(req)
+                    if err != nil {
+                        eventlog.Logger.Errorf("request failed : %s", err)
+                        statusDown(item)
+                    } else {
+                        // log.Printf("[INFO] http response : ", resp.Status)
+                        switch resp.StatusCode {
+                        case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
+                            statusUp(item)
+                        default:
+                            statusDown(item)
+                        }
+                    }
+                }
+                item.LastCheck = time.Now()
+                w.healthcheck.storeItem(item)
+                w.healthcheck.logHealthcheck(item)
+
+            case <- w.quit:
+                return
+            }
+        }
+    }()
+}
+
+func (w Worker) Stop() {
+    go func() {
+        w.quit <- true
+    }()
+}
+
+
 
 func NewHealthcheck(config *config.RedinsConfig) *Healthcheck {
     h := &Healthcheck {
@@ -56,7 +178,7 @@ func NewHealthcheck(config *config.RedinsConfig) *Healthcheck {
         h.redisStatusServer = redis.NewRedis(&config.HealthCheck.Redis)
         h.cachedItems = cache.New(time.Second * time.Duration(config.HealthCheck.CheckInterval), time.Duration(config.HealthCheck.CheckInterval) * time.Second * 10)
         h.transferItems()
-
+        h.dispatcher = NewDispatcher(config.HealthCheck.MaxRequests)
         h.logger = eventlog.NewLogger(&config.HealthCheck.Log)
     }
 
@@ -109,6 +231,7 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
         eventlog.Logger.Errorf("cannot marshal item to json : %s", err)
         return
     }
+    eventlog.Logger.Debugf("setting %v in redis : %s", *item, string(itemStr))
     h.redisStatusServer.Set(key, string(itemStr))
 }
 
@@ -127,7 +250,19 @@ func (h *Healthcheck) transferItems() {
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
             recordStr := h.redisConfigServer.HGet(zone, subDomain)
-            record := new(dns_types.Record)
+            record := &dns_types.Record {
+                Config: dns_types.RecordConfig {
+                  HealthCheckConfig: dns_types.HealthCheckRecordConfig {
+                    Timeout: 1000,
+                    Port: 80,
+                    UpCount: 3,
+                    DownCount: -3,
+                    Protocol: "http",
+                    Uri: "/",
+                    Enable: false,
+                  },
+                },
+            }
             record.Config.HealthCheckConfig.Enable = false
             err := json.Unmarshal([]byte(recordStr), record)
             if err != nil {
@@ -172,14 +307,7 @@ func (h *Healthcheck) Start() {
     if h.Enable == false {
         return
     }
-    wg := new(sync.WaitGroup)
-
-    inputChan := make(chan *HealthCheckItem)
-
-    for i := 0; i<h.maxRequests; i++ {
-        wg.Add(1)
-        go h.worker(inputChan, wg)
-    }
+    h.dispatcher.Run(h)
 
     for {
         startTime := time.Now()
@@ -190,56 +318,16 @@ func (h *Healthcheck) Start() {
                 continue
             }
             if time.Since(item.LastCheck) > h.checkInterval {
-                inputChan <- item
+                eventlog.Logger.Debugf("item %v added", item)
+                h.dispatcher.JobQueue <- item
             }
         }
         if time.Since(h.lastUpdate) > h.updateInterval {
-            wg.Wait()
             h.transferItems()
         }
         if time.Since(startTime) < h.checkInterval {
             time.Sleep(h.checkInterval - time.Since(startTime))
         }
-    }
-}
-
-func (h *Healthcheck) worker(inputChan chan *HealthCheckItem, wg *sync.WaitGroup) {
-    defer wg.Done()
-    for item := range inputChan {
-        client := &http.Client{
-            Timeout: time.Duration(item.Timeout),
-            Transport: &http.Transport{
-                TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-            },
-            CheckRedirect: func(req *http.Request, via []*http.Request) error {
-                return http.ErrUseLastResponse
-            },
-        }
-        url := item.Protocol + "://" + item.Ip + item.Uri
-        // log.Println("[DEBUG]", url)
-        req, err := http.NewRequest("HEAD", url, nil)
-        if err != nil {
-            eventlog.Logger.Errorf("invalid request : %s", err)
-            h.statusDown(item)
-        } else {
-            req.Host = strings.TrimRight(item.Host, ".")
-            resp, err := client.Do(req)
-            if err != nil {
-                eventlog.Logger.Errorf("request failed : %s", err)
-                h.statusDown(item)
-            } else {
-                // log.Printf("[INFO] http response : ", resp.Status)
-                switch resp.StatusCode {
-                case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
-                    h.statusUp(item)
-                default:
-                    h.statusDown(item)
-                }
-            }
-        }
-        item.LastCheck = time.Now()
-        h.storeItem(item)
-        h.logHealthcheck(item)
     }
 }
 
@@ -255,7 +343,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
     h.logger.Log(data,"healthcheck")
 }
 
-func (h *Healthcheck) statusDown(item *HealthCheckItem) {
+func statusDown(item *HealthCheckItem) {
     if item.Status <= 0 {
         item.Status--
         if item.Status < item.DownCount {
@@ -266,7 +354,7 @@ func (h *Healthcheck) statusDown(item *HealthCheckItem) {
     }
 }
 
-func (h *Healthcheck) statusUp(item *HealthCheckItem) {
+func statusUp(item *HealthCheckItem) {
     if item.Status >= 0 {
         item.Status++
         if item.Status > item.UpCount {
