@@ -2,7 +2,6 @@ package dns_types
 
 import (
     "net"
-    "time"
 )
 
 type RRSet struct {
@@ -22,7 +21,7 @@ type HealthCheckRecordConfig struct {
     Protocol  string        `json:"protocol,omitempty"`
     Uri       string        `json:"uri,omitempty"`
     Port      int           `json:"port,omitempty"`
-    Timeout   time.Duration `json:"timeout,omitempty"`
+    Timeout   int           `json:"timeout,omitempty"`
     UpCount   int           `json:"up_count,omitempty"`
     DownCount int           `json:"down_count,omitempty"`
 }

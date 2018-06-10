@@ -16,17 +16,17 @@ import (
 )
 
 type HealthCheckItem struct {
-    Protocol  string        `json:"protocol,omitempty"`
-    Uri       string        `json:"uri,omitempty"`
-    Port      int           `json:"port,omitempty"`
-    Status    int           `json:"status,omitempty"`
-    LastCheck time.Time     `json:"lastcheck,omitempty"`
-    Timeout   time.Duration `json:"timeout,omitempty"`
-    UpCount   int           `json:"up_count,omitempty"`
-    DownCount int           `json:"down_count,omitempty"`
-    Enable    bool          `json:"enable,omitempty"`
-    Host      string        `json:"-"`
-    Ip        string        `json:"-"`
+    Protocol  string    `json:"protocol,omitempty"`
+    Uri       string    `json:"uri,omitempty"`
+    Port      int       `json:"port,omitempty"`
+    Status    int       `json:"status,omitempty"`
+    LastCheck time.Time `json:"lastcheck,omitempty"`
+    Timeout   int       `json:"timeout,omitempty"`
+    UpCount   int       `json:"up_count,omitempty"`
+    DownCount int       `json:"down_count,omitempty"`
+    Enable    bool      `json:"enable,omitempty"`
+    Host      string    `json:"-"`
+    Ip        string    `json:"-"`
 }
 
 type Healthcheck struct {
@@ -122,7 +122,7 @@ func (w Worker) Start() {
             select {
             case item := <- w.JobChannel:
                 eventlog.Logger.Debugf("item %v received", item)
-                w.Client.Timeout = time.Duration(item.Timeout)
+                w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
                 url := item.Protocol + "://" + item.Ip + item.Uri
                 // log.Println("[DEBUG]", url)
                 req, err := http.NewRequest("HEAD", url, nil)
