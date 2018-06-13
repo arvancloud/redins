@@ -384,7 +384,7 @@ func (h *Healthcheck) FilterHealthcheck(qname string, record *dns_types.Record, 
     }
     eventlog.Logger.Debugf("min = %d", min)
     for _, ip := range ips {
-        eventlog.Logger.Debugf("qname: %s, status: %d", ip.Ip.String(), h.getStatus(qname, ip.Ip))
+        eventlog.Logger.Debug("qname: ", ip.Ip.String(), " status: ", h.getStatus(qname, ip.Ip))
         if h.getStatus(qname, ip.Ip) < min {
             continue
         }
