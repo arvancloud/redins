@@ -83,6 +83,14 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         logData["ClientSubnet"] = opt.Option[0].String()
     }
 
+    _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
+    if err == nil {
+        logData["SourceCountry"] = sourceCountry
+    } else {
+        logData["SourceCountry"] = ""
+    }
+
+
     var record *dns_types.Record
     var res int
     var answers []dns.RR
