@@ -11,7 +11,6 @@ import (
 )
 
 type Upstream struct {
-    Enable        bool
     client        *dns.Client
     connectionStr string
     cache         *cache.Cache
@@ -20,11 +19,6 @@ type Upstream struct {
 func NewUpstream(config *config.RedinsConfig) *Upstream {
     u := &Upstream {
         client: nil,
-        Enable: config.Upstream.Enable,
-    }
-
-    if u.Enable == false {
-        return u
     }
 
     u.client = &dns.Client {
@@ -38,9 +32,6 @@ func NewUpstream(config *config.RedinsConfig) *Upstream {
 }
 
 func (u *Upstream) Query(location string, qtype uint16) ([]dns.RR, int) {
-    if u.Enable == false {
-        return []dns.RR{}, dns.RcodeNotZone
-    }
     key := location + ":" + strconv.Itoa(int(qtype))
     res, exp, found := u.cache.GetWithExpiration(key)
     if found {

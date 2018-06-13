@@ -53,6 +53,8 @@ dns query handler configuration
     "default_ttl": 300,
     "cache_timeout": 60,
     "zone_reload": 600,
+    "log_source_location": false,
+    "upstream_fallback": false,
     "redis": {
       "ip": "127.0.0.1",
       "port": 6379,
@@ -73,6 +75,10 @@ dns query handler configuration
 ~~~
 
 * default_ttl : default ttl in seconds, default: 300
+* cache_timeout : time in seconds before cached responses expire
+* zone_reload : time in seconds before zone data is reloaded from redis
+* log_source_location : enable logging source location of every request
+* upstream_fallback : enable using upstream for querying non-authoritative requests
 * redis : redis configuration to use for handler
 * log : log configuration to use for handler
 
@@ -128,7 +134,6 @@ geoip configuration
 
 ~~~json
 "upstream": {
-    "enable": true,
     "ip": "1.1.1.1",
     "port": 53,
     "protocol": "udp",
@@ -136,7 +141,6 @@ geoip configuration
 },
 ~~~
 
-* enable : enable/disable upstream, deafault: disable
 * ip : upstream ip address, default: 1.1.1.1
 * port : upstream port number, deafult: 53
 * protocol : upstream protocol, default : udp
@@ -211,6 +215,8 @@ sample config:
     "default_ttl": 300,
     "cache_timeout": 60,
     "zone_reload": 600,
+    "log_source_location": false,
+    "upstream_fallback": false,
     "redis": {
       "ip": "127.0.0.1",
       "port": 6379,
@@ -229,7 +235,6 @@ sample config:
     }
   },
   "upstream": {
-    "enable": true,
     "ip": "1.1.1.1",
     "port": 53,
     "protocol": "udp"
@@ -319,8 +324,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~json
 {
     "aname":{
-        "location": "x.example.com.",
-        "proxy": "1.1.1.1:53"
+        "location": "x.example.com."
     }
 }
 ~~~

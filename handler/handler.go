@@ -21,18 +21,20 @@ import (
 )
 
 type DnsRequestHandler struct {
-    DefaultTtl     int
-    ZoneReload     int
-    CacheTimeout   int
-    Zones          []string
-    zoneLock       sync.RWMutex
-    LastZoneUpdate time.Time
-    Redis          *redis.Redis
-    Logger         *eventlog.EventLogger
-    cache          *cache.Cache
-    geoip          *geoip.GeoIp
-    healthcheck    *healthcheck.Healthcheck
-    upstream       *upstream.Upstream
+    DefaultTtl        int
+    ZoneReload        int
+    CacheTimeout      int
+    LogSourceLocation bool
+    UpstreamFallback  bool
+    Zones             []string
+    zoneLock          sync.RWMutex
+    LastZoneUpdate    time.Time
+    Redis             *redis.Redis
+    Logger            *eventlog.EventLogger
+    cache             *cache.Cache
+    geoip             *geoip.GeoIp
+    healthcheck       *healthcheck.Healthcheck
+    upstream          *upstream.Upstream
 
 }
 
@@ -46,6 +48,8 @@ func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
         DefaultTtl: config.Handler.DefaultTtl,
         ZoneReload: config.Handler.ZoneReload,
         CacheTimeout: config.Handler.CacheTimeout,
+        LogSourceLocation: config.Handler.LogSourceLocation,
+        UpstreamFallback: config.Handler.UpstreamFallback,
         zoneLock: sync.RWMutex{},
     }
 
@@ -83,13 +87,16 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         logData["ClientSubnet"] = opt.Option[0].String()
     }
 
-    _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
-    if err == nil {
-        logData["SourceCountry"] = sourceCountry
-    } else {
-        logData["SourceCountry"] = ""
+    if h.LogSourceLocation {
+        _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
+        if err == nil {
+            logData["SourceCountry"] = sourceCountry
+        } else {
+            logData["SourceCountry"] = ""
+        }
     }
 
+    auth := true
 
     var record *dns_types.Record
     var res int
@@ -110,7 +117,14 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         if qtype == dns.TypeA {
             ips := []dns_types.IP_Record{}
             if len(record.A) == 0 && record.ANAME != nil {
-                answers = append(answers, GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)...)
+                upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
+                if upstreamRes == dns.RcodeSuccess {
+                    answers = append(answers, upstreamAnswers...)
+                } else {
+                    errorResponse(state, upstreamRes)
+                    h.LogRequest(logData, requestStartTime, upstreamRes)
+                    return
+                }
             } else {
                 ips = append(ips, record.A...)
                 ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
@@ -120,7 +134,14 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         } else if qtype == dns.TypeAAAA {
             ips := []dns_types.IP_Record{}
             if len(record.AAAA) == 0 && record.ANAME != nil {
-                answers = append(answers, GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)...)
+                upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
+                if upstreamRes == dns.RcodeSuccess {
+                    answers = append(answers, upstreamAnswers...)
+                } else {
+                    errorResponse(state, upstreamRes)
+                    h.LogRequest(logData, requestStartTime, upstreamRes)
+                    return
+                }
             } else {
                 ips = append(ips, record.AAAA...)
                 ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
@@ -147,10 +168,11 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 return
             }
         }
-    } else if res == dns.RcodeNotAuth && h.upstream.Enable {
+    } else if res == dns.RcodeNotAuth && h.UpstreamFallback {
         upstreamAnswers, upstreamRes := h.upstream.Query(qname, qtype)
         if upstreamRes == dns.RcodeSuccess {
             answers = append(answers, upstreamAnswers...)
+            auth = false
         }
     } else {
         errorResponse(state, res)
@@ -162,7 +184,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 
     m := new(dns.Msg)
     m.SetReply(state.Req)
-    m.Authoritative, m.RecursionAvailable, m.Compress = true, h.upstream.Enable, true
+    m.Authoritative, m.RecursionAvailable, m.Compress = auth, h.UpstreamFallback, true
 
     m.Answer = append(m.Answer, answers...)
 
@@ -247,7 +269,7 @@ func (h *DnsRequestHandler) A(name string, ips []dns_types.IP_Record) (answers [
         }
         r := new(dns.A)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA,
-            Class: dns.ClassINET, Ttl: h.minTtl(ip.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(ip.Ttl)}
         r.A = ip.Ip
         answers = append(answers, r)
     }
@@ -261,7 +283,7 @@ func (h *DnsRequestHandler) AAAA(name string, ips []dns_types.IP_Record) (answer
         }
         r := new(dns.AAAA)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA,
-            Class: dns.ClassINET, Ttl: h.minTtl(ip.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(ip.Ttl)}
         r.AAAA = ip.Ip
         answers = append(answers, r)
     }
@@ -274,7 +296,7 @@ func (h *DnsRequestHandler) CNAME(name string, record *dns_types.Record) (answer
     }
     r := new(dns.CNAME)
     r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeCNAME,
-        Class: dns.ClassINET, Ttl: h.minTtl(record.CNAME.Ttl)}
+        Class: dns.ClassINET, Ttl: h.getTtl(record.CNAME.Ttl)}
     r.Target = dns.Fqdn(record.CNAME.Host)
     answers = append(answers, r)
     return
@@ -287,7 +309,7 @@ func (h *DnsRequestHandler) TXT(name string, record *dns_types.Record) (answers 
         }
         r := new(dns.TXT)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeTXT,
-            Class: dns.ClassINET, Ttl: h.minTtl(txt.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(txt.Ttl)}
         r.Txt = split255(txt.Text)
         answers = append(answers, r)
     }
@@ -301,7 +323,7 @@ func (h *DnsRequestHandler) NS(name string, record *dns_types.Record) (answers [
         }
         r := new(dns.NS)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeNS,
-            Class: dns.ClassINET, Ttl: h.minTtl(ns.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(ns.Ttl)}
         r.Ns = ns.Host
         answers = append(answers, r)
     }
@@ -315,7 +337,7 @@ func (h *DnsRequestHandler) MX(name string, record *dns_types.Record) (answers [
         }
         r := new(dns.MX)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeMX,
-            Class: dns.ClassINET, Ttl: h.minTtl(mx.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(mx.Ttl)}
         r.Mx = mx.Host
         r.Preference = mx.Preference
         answers = append(answers, r)
@@ -330,7 +352,7 @@ func (h *DnsRequestHandler) SRV(name string, record *dns_types.Record) (answers 
         }
         r := new(dns.SRV)
         r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeSRV,
-            Class: dns.ClassINET, Ttl: h.minTtl(srv.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(srv.Ttl)}
         r.Target = srv.Target
         r.Weight = srv.Weight
         r.Port = srv.Port
@@ -353,7 +375,7 @@ func (h *DnsRequestHandler) SOA(name string, record *dns_types.Record) (answers 
         r.Minttl = uint32(h.DefaultTtl)
     } else {
         r.Hdr = dns.RR_Header{Name: record.ZoneName, Rrtype: dns.TypeSOA,
-            Class: dns.ClassINET, Ttl: h.minTtl(record.SOA.Ttl)}
+            Class: dns.ClassINET, Ttl: h.getTtl(record.SOA.Ttl)}
         r.Ns = record.SOA.Ns
         r.Mbox = record.SOA.MBox
         r.Refresh = record.SOA.Refresh
@@ -370,21 +392,14 @@ func (h *DnsRequestHandler) serial() uint32 {
     return uint32(time.Now().Unix())
 }
 
-func (h *DnsRequestHandler) minTtl(ttl uint32) uint32 {
+func (h *DnsRequestHandler) getTtl(ttl uint32) uint32 {
     defaultTtl := uint32(h.DefaultTtl)
-    if defaultTtl == 0 && ttl == 0 {
-        return defaultTtl
-    }
-    if defaultTtl == 0 {
+    if ttl != 0 {
         return ttl
-    }
-    if ttl == 0 {
+    } else if defaultTtl != 0 {
         return defaultTtl
     }
-    if defaultTtl < ttl {
-        return defaultTtl
-    }
-    return ttl
+    return 300
 }
 
 func (h *DnsRequestHandler) findLocation(query string, z *Zone) string {
@@ -612,20 +627,6 @@ func ShuffleIps(ips []dns_types.IP_Record) []dns_types.IP_Record {
         ret[i] = ips[randIndex]
     }
     return ret
-}
-
-func GetANAME(location string, proxy string, qtype uint16) []dns.RR {
-    m := new(dns.Msg)
-    m.SetQuestion(location, qtype)
-    r, err := dns.Exchange(m, proxy)
-    if err != nil {
-        eventlog.Logger.Errorf("failed to retreive record from proxy %s : %s", proxy, err)
-        return []dns.RR{}
-    }
-    if len(r.Answer) == 0 {
-        return []dns.RR{}
-    }
-    return r.Answer
 }
 
 const (

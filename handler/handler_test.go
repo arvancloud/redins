@@ -364,12 +364,12 @@ func TestMultiRR(t *testing.T) {
 var anameEntries = [][]string{
     {"@",
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"aname\":{\"location\":\"arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"aname\":{\"location\":\"arvancloud.com.\"}," +
             "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
     },
     {"www",
         "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
-            "\"aname\":{\"location\":\"www.arvancloud.com.\", \"proxy\":\"1.1.1.1:53\"}," +
+            "\"aname\":{\"location\":\"www.arvancloud.com.\"}," +
             "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
     },
 }
@@ -391,11 +391,20 @@ func TestANAME(t *testing.T) {
     h.LoadZones()
     z := h.LoadZone(zone)
     record := h.GetLocation(zone, z)
-    answers := GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeA)
+    answers, res := h.upstream.Query(record.ANAME.Location, dns.TypeA)
+    log.Println(res)
+    if res != dns.RcodeSuccess {
+        t.Fail()
+    }
     for _, a := range answers {
         log.Printf("%s\n", a.String())
     }
-    answers = GetANAME(record.ANAME.Location, record.ANAME.Proxy, dns.TypeAAAA)
+    record = h.GetLocation("www", z)
+    answers, res = h.upstream.Query(record.ANAME.Location, dns.TypeA)
+    log.Println(res)
+    if res != dns.RcodeSuccess {
+        t.Fail()
+    }
     for _, a := range answers {
         log.Printf("%s\n", a.String())
     }

@@ -8,10 +8,13 @@ import (
     "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
     */
+    "arvancloud/redins/eventlog"
+    "github.com/miekg/dns"
+    "arvancloud/redins/config"
+    "log"
 )
 
 func TestUpstream(t *testing.T) {
-    /*
     cfg := config.LoadConfig("config.json")
     eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
     u := NewUpstream(cfg)
@@ -30,5 +33,4 @@ func TestUpstream(t *testing.T) {
         log.Printf("[ERROR] TXT failed")
         t.Fail()
     }
-    */
 }

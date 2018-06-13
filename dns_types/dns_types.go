@@ -46,7 +46,6 @@ type IP_Record struct {
 
 type ANAME_Record struct {
     Location string `json:"location,omitempty"`
-    Proxy    string `json:"proxy,omitempty"`
 }
 
 type TXT_Record struct {

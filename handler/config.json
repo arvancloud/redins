@@ -15,5 +15,11 @@
         "log": {
             "enable": false
         }
+    },
+    "upstream": {
+        "ip": "1.1.1.1",
+        "port": 53,
+        "protocol": "udp",
+        "timeout": 1000
     }
 }

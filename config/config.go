@@ -16,12 +16,13 @@ type HandlerConfig struct {
     DefaultTtl int `json:"default_ttl,omitempty"`
     CacheTimeout int `json:"cache_timeout,omitempty"`
     ZoneReload int `json:"zone_reload,omitempty"`
+    LogSourceLocation bool `json:"log_source_location,omitempty"`
+    UpstreamFallback bool `json:"upstream_fallback,omitempty"`
     Redis RedisConfig `json:"redis,omitempty"`
     Log LogConfig `json:"log,omitempty"`
 }
 
 type UpstreamConfig struct {
-    Enable bool `json:"enable,omitempty"`
     Ip       string `json:"ip,omitempty"`
     Port     int `json:"port,omitempty"`
     Protocol string `json:"protocol,omitempty"`
@@ -83,6 +84,8 @@ func LoadConfig(path string) *RedinsConfig {
             DefaultTtl: 300,
             CacheTimeout: 60,
             ZoneReload: 600,
+            LogSourceLocation: false,
+            UpstreamFallback: false,
             Redis: RedisConfig {
               Ip: "127.0.0.1",
               Port: 6379,
@@ -101,7 +104,6 @@ func LoadConfig(path string) *RedinsConfig {
             },
         },
         Upstream: UpstreamConfig {
-            Enable: false,
             Ip: "1.1.1.1",
             Port: 53,
             Protocol: "udp",
