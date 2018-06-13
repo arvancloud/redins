@@ -292,12 +292,12 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "a":{
+    "a":[{
         "ip" : "1.2.3.4",
         "ttl" : 360,
         "country" : "US",
         "weight" : 10
-    }
+    }]
 }
 ~~~
 
@@ -305,12 +305,12 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "aaaa":{
+    "aaaa":[{
         "ip" : "::1",
         "ttl" : 360,
         "country" : "US",
         "weight" : 10
-    }
+    }]
 }
 ~~~
 
@@ -340,10 +340,10 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "txt":{
+    "txt":[{
         "text" : "this is a text",
         "ttl" : 360
-    }
+    }]
 }
 ~~~
 
@@ -351,10 +351,10 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "ns":{
+    "ns":[{
         "host" : "ns1.example.com.",
         "ttl" : 360
-    }
+    }]
 }
 ~~~
 
@@ -362,11 +362,11 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "mx":{
+    "mx":[{
         "host" : "mx1.example.com.",
         "preference" : 10,
         "ttl" : 360
-    }
+    }]
 }
 ~~~
 
@@ -374,13 +374,13 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "srv":{
+    "srv":[{
         "target" : "sip.example.com.",
         "port" : 555,
         "priority" : 10,
         "weight" : 100,
         "ttl" : 360
-    }
+    }]
 }
 ~~~
 
