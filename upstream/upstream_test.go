@@ -14,6 +14,7 @@ import (
     "log"
 )
 
+/*
 func TestUpstream(t *testing.T) {
     cfg := config.LoadConfig("config.json")
     eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
@@ -34,3 +35,4 @@ func TestUpstream(t *testing.T) {
         t.Fail()
     }
 }
+*/
