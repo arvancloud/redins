@@ -1,18 +1,18 @@
 package upstream
 
+/*
 import (
     "testing"
-    /*
     "log"
     "github.com/miekg/dns"
     "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
-    */
     "arvancloud/redins/eventlog"
     "github.com/miekg/dns"
     "arvancloud/redins/config"
     "log"
 )
+*/
 
 /*
 func TestUpstream(t *testing.T) {
