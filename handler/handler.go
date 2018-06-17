@@ -226,7 +226,7 @@ func errorResponse(state *request.Request, rcode int) {
 func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime time.Time, responseCode int) {
     data["ProcessTime"] = time.Since(startTime).Nanoseconds() / 1000000
     data["ResponseCode"] = responseCode
-    h.Logger.Log(data, "request")
+    h.Logger.Log(data, "ar_dns_request")
 }
 
 func GetSourceIp(request *request.Request) net.IP {

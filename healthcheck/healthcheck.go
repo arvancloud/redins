@@ -340,7 +340,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
         "Status": item.Status,
     }
 
-    h.logger.Log(data,"healthcheck")
+    h.logger.Log(data,"ar_dns_healthcheck")
 }
 
 func statusDown(item *HealthCheckItem) {
