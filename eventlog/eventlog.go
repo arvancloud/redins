@@ -70,7 +70,7 @@ func (l *EventLogger) Log(fields map[string]interface{}, message string) {
 
 func (l *EventLogger) Debugf(format string, args ...interface{}) {
     if l.Enable {
-        l.log.Debugf(format, args)
+        l.log.Debugf(format, args...)
     }
 }
 
@@ -82,7 +82,7 @@ func (l *EventLogger) Debug(args ...interface{}) {
 
 func (l *EventLogger) Infof(format string, args ...interface{}) {
     if l.Enable {
-        l.log.Infof(format, args)
+        l.log.Infof(format, args...)
     }
 }
 
@@ -94,7 +94,7 @@ func (l *EventLogger) Info(args ...interface{}) {
 
 func (l *EventLogger) Warningf(format string, args ...interface{}) {
     if l.Enable {
-        l.log.Warnf(format, args)
+        l.log.Warnf(format, args...)
     }
 }
 
@@ -106,7 +106,7 @@ func (l *EventLogger) Warning(args ...interface{}) {
 
 func (l *EventLogger) Errorf(format string, args ...interface{}) {
     if l.Enable {
-        l.log.Errorf(format, args)
+        l.log.Errorf(format, args...)
     }
 }
 
