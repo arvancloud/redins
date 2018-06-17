@@ -33,12 +33,12 @@
       "path": "/tmp/redins.log"
     }
   },
-  "upstream": {
+  "upstream": [{
     "ip": "1.1.1.1",
     "port": 53,
     "protocol": "udp",
     "timeout": 400
-  },
+  }],
   "geoip": {
     "enable": true,
     "db": "geoCity.mmdb"

@@ -10,23 +10,32 @@ import (
     "arvancloud/redins/eventlog"
 )
 
-type Upstream struct {
+type UpstreamConnection struct {
     client        *dns.Client
     connectionStr string
+}
+
+type Upstream struct {
+    connections   []*UpstreamConnection
     cache         *cache.Cache
 }
 
 func NewUpstream(config *config.RedinsConfig) *Upstream {
-    u := &Upstream {
-        client: nil,
-    }
+    u := &Upstream{}
 
-    u.client = &dns.Client {
-        Net: config.Upstream.Protocol,
-        Timeout: time.Duration(config.Upstream.Timeout) * time.Millisecond,
-    }
-    u.connectionStr = config.Upstream.Ip + ":" + strconv.Itoa(config.Upstream.Port)
     u.cache = cache.New(time.Second * time.Duration(defaultCacheTtl), time.Second * time.Duration(defaultCacheTtl) * 10)
+    for _, upstreamConfig := range config.Upstream {
+        client := &dns.Client {
+            Net: upstreamConfig.Protocol,
+            Timeout: time.Duration(upstreamConfig.Timeout) * time.Millisecond,
+        }
+        connectionStr := upstreamConfig.Ip + ":" + strconv.Itoa(upstreamConfig.Port)
+        connection := &UpstreamConnection {
+            client: client,
+            connectionStr: connectionStr,
+        }
+        u.connections = append(u.connections, connection)
+    }
 
     return u
 }
@@ -43,22 +52,27 @@ func (u *Upstream) Query(location string, qtype uint16) ([]dns.RR, int) {
     }
     m := new(dns.Msg)
     m.SetQuestion(location, qtype)
-    r, _, err := u.client.Exchange(m, u.connectionStr)
-    if err != nil {
-        eventlog.Logger.Errorf("failed to retreive record from upstream %s : %s", u.connectionStr, err)
-        return []dns.RR{}, dns.RcodeServerFailure
-    }
-    if len(r.Answer) == 0 {
-        return []dns.RR{}, dns.RcodeNameError
-    }
-    minTtl := r.Answer[0].Header().Ttl
-    for _, record := range r.Answer {
-        if record.Header().Ttl < minTtl {
-            minTtl = record.Header().Ttl
+    for _, c := range u.connections {
+        r, _, err := c.client.Exchange(m, c.connectionStr)
+        if err != nil {
+            eventlog.Logger.Error("failed to retreive record from upstream ", c.connectionStr, " : ", err)
+            continue
         }
+        if len(r.Answer) == 0 {
+            return []dns.RR{}, dns.RcodeNameError
+        }
+        minTtl := r.Answer[0].Header().Ttl
+        for _, record := range r.Answer {
+            if record.Header().Ttl < minTtl {
+                minTtl = record.Header().Ttl
+            }
+        }
+        u.cache.Set(key, r.Answer, time.Duration(minTtl) * time.Second)
+        u.connections[0], c = c, u.connections[0]
+
+        return r.Answer, dns.RcodeSuccess
     }
-    u.cache.Set(key, r.Answer, time.Duration(minTtl) * time.Second)
-    return r.Answer, dns.RcodeSuccess
+    return []dns.RR{}, dns.RcodeServerFailure
 }
 
 const (

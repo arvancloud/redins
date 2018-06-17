@@ -64,7 +64,7 @@ type LogConfig struct {
 type RedinsConfig struct {
     Server []ServerConfig `json:"server,omitempty"`
     Handler HandlerConfig `json:"handler,omitempty"`
-    Upstream UpstreamConfig `json:"upstream,omitempty"`
+    Upstream []UpstreamConfig `json:"upstream,omitempty"`
     GeoIp GeoIpConfig `json:"geoip,omitempty"`
     HealthCheck HealthcheckConfig `json:"healthcheck,omitempty"`
     ErrorLog LogConfig `json:"error_log,omitempty"`
@@ -103,11 +103,13 @@ func LoadConfig(path string) *RedinsConfig {
                 Format: "json",
             },
         },
-        Upstream: UpstreamConfig {
-            Ip: "1.1.1.1",
-            Port: 53,
-            Protocol: "udp",
-            Timeout: 400,
+        Upstream: []UpstreamConfig {
+            {
+                Ip:       "1.1.1.1",
+                Port:     53,
+                Protocol: "udp",
+                Timeout:  400,
+            },
         },
         GeoIp: GeoIpConfig {
             Enable: false,
