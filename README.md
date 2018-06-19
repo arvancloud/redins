@@ -408,7 +408,11 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~json
 {
     "config":{
-        "ip_filter_mode": "multi",
+        "ip_filter_mode":{
+            "count": "multi",
+            "order": "none",
+            "geo_filter": "none"
+        },
         "health_check":{
             "enable":true,
             "uri": "/hc/test.html",
@@ -423,25 +427,18 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 ~~~
 
 `ip-filter_mode` : filtering mode:
-* multi : return all A or AAAA records
-* multi_rr : shuffle records for each request
-* rr : weighted round robin selection
-* geo_location : nearest geographical location
-* geo_country : match with same country as source ip
+* count : return single or multiple results. values : "multi", "single"
+* order : order of result. values : "none" - saved order, "weighted" - weighted shuffle, "rr" - uniform shuffle
+* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination
 
-`enable` enable/disable healthcheck for this host:ip
-
-`uri` uri to use in healthcheck request
-
-`port` port to use in healthcheck request
-
-`protocol` protocol to use in healthcheck request, can be http or https
-
-`up_count` number of successful healthcheck requests to consider an ip valid
-
-`down_count` number of unsuccessful healthcheck requests to consider an ip invalid
-
-`timeout` time to wait for a healthcheck response
+`health_check` : health check configuration
+* enable : enable/disable healthcheck for this host:ip
+* uri : uri to use in healthcheck request
+* port : port to use in healthcheck request
+* protocol : protocol to use in healthcheck request, can be http or https
+* up_count : number of successful healthcheck requests to consider an ip valid
+* down_count : number of unsuccessful healthcheck requests to consider an ip invalid
+* timeout time : to wait for a healthcheck response
 
 ### zone example
 

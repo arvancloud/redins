@@ -26,8 +26,14 @@ type HealthCheckRecordConfig struct {
     DownCount int           `json:"down_count,omitempty"`
 }
 
+type IpFilterMode struct {
+    Count     string `json"count,omitempty"`       // "multi", "single"
+    Order     string `json:"order,omitmpty"`       // "weighted", "rr", "none"
+    GeoFilter string `json:"geo_filter,omitempty"` // "country", "location", "none"
+}
+
 type RecordConfig struct {
-    IpFilterMode string `json:"ip_filter_mode"` // "multi", "rr", "geo_country", "geo_location"
+    IpFilterMode      IpFilterMode            `json:"ip_filter_mode"`
     HealthCheckConfig HealthCheckRecordConfig `json:"health_check"`
 }
 

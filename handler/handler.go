@@ -127,8 +127,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 }
             } else {
                 ips = append(ips, record.A...)
-                ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
-                ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
+                ips = h.Filter(state, record, ips, logData)
                 answers = append(answers, h.A(qname, ips)...)
             }
         } else if qtype == dns.TypeAAAA {
@@ -144,8 +143,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 }
             } else {
                 ips = append(ips, record.AAAA...)
-                ips = h.healthcheck.FilterHealthcheck(qname, record, ips)
-                ips = h.Filter(state, record.Config.IpFilterMode, ips, logData)
+                ips = h.Filter(state, record, ips, logData)
                 answers = append(answers, h.AAAA(qname, ips)...)
             }
         } else {
@@ -193,21 +191,40 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     state.W.WriteMsg(m)
 }
 
-func (h *DnsRequestHandler) Filter(request *request.Request, filterMode string, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
-    switch  filterMode {
-    case "multi":
-        return ips
-    case "multi_rr":
-        return ShuffleIps(ips)
-    case "rr":
-        return GetWeightedIp(ips, logData)
-    case "geo_country":
-        return h.geoip.GetSameCountry(GetSourceIp(request), ips, logData)
-    case "geo_location":
-        return h.geoip.GetMinimumDistance(GetSourceIp(request), ips, logData)
+func (h *DnsRequestHandler) Filter(request *request.Request, record *dns_types.Record, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
+    ips = h.healthcheck.FilterHealthcheck(request.Name(), record, ips)
+    switch record.Config.IpFilterMode.GeoFilter {
+    case "country":
+        ips = h.geoip.GetSameCountry(GetSourceIp(request), ips, logData)
+    case "location":
+        ips = h.geoip.GetMinimumDistance(GetSourceIp(request), ips, logData)
     default:
-        eventlog.Logger.Errorf("invalid filter mode : %s", filterMode)
+    }
+    if len(ips) <= 1 {
         return ips
+    }
+
+    switch record.Config.IpFilterMode.Count {
+    case "single":
+        switch record.Config.IpFilterMode.Order {
+        case "weighted":
+            return ChooseIp(ips, logData, true)
+        case "rr":
+            return ChooseIp(ips, logData, false)
+        default:
+            return ips[:1]
+        }
+    case "multi":
+        fallthrough
+    default:
+        switch record.Config.IpFilterMode.Order {
+        case "weighted":
+            return ShuffleIps(ips, true)
+        case "rr":
+            return ShuffleIps(ips,false)
+        default:
+            return ips
+        }
     }
     return ips
 }
@@ -231,7 +248,7 @@ func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime ti
 
 func GetSourceIp(request *request.Request) net.IP {
     opt := request.Req.IsEdns0()
-    if len(opt.Option) != 0 {
+    if opt != nil && len(opt.Option) != 0 {
         return net.ParseIP(strings.Split(opt.Option[0].String(), "/")[0])
     }
     return net.ParseIP(request.IP())
@@ -566,8 +583,16 @@ func (h *DnsRequestHandler) GetLocation(location string, z *Zone) *dns_types.Rec
     }
     val := h.Redis.HGet(z.Name, label)
     r := new(dns_types.Record)
-    r.Config.IpFilterMode = "multi"
-    r.Config.HealthCheckConfig.Enable = false
+    r.Config = dns_types.RecordConfig {
+        IpFilterMode: dns_types.IpFilterMode {
+            Count: "multi",
+            Order: "none",
+            GeoFilter: "none",
+        },
+        HealthCheckConfig: dns_types.HealthCheckRecordConfig {
+            Enable: false,
+        },
+    }
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
         eventlog.Logger.Errorf("cannot parse json : %s -> %s", val, err)
@@ -591,12 +616,14 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *dns_types
     h.Redis.HSet(z.Name, label, string(jsonValue))
 }
 
-func GetWeightedIp(ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
+func ChooseIp(ips []dns_types.IP_Record, logData map[string]interface{}, weighted bool) []dns_types.IP_Record {
     sum := 0
-    for _, ip := range ips {
-        sum += ip.Weight
-    }
 
+    if weighted {
+        for _, ip := range ips {
+            sum += ip.Weight
+        }
+    }
     index := 0
 
     // all Ips have 0 weight, choosing a random one
@@ -616,17 +643,45 @@ func GetWeightedIp(ips []dns_types.IP_Record, logData map[string]interface{}) []
         }
     }
     logData["DestinationIp"] = ips[index].Ip.String()
+    logData["DestinationCountry"] = ips[index].Country
     return []dns_types.IP_Record { ips[index] }
 }
 
-func ShuffleIps(ips []dns_types.IP_Record) []dns_types.IP_Record {
-    r := rand.New(rand.NewSource(time.Now().Unix()))
-    ret := make([]dns_types.IP_Record, len(ips))
-    perm := r.Perm(len(ips))
-    for i, randIndex := range perm {
-        ret[i] = ips[randIndex]
+func ShuffleIps(ips []dns_types.IP_Record, weighted bool) []dns_types.IP_Record {
+    var (
+        weight func(int) (int)
+        sum func() (int)
+    )
+    if weighted == true {
+        weight = func(i int) int {
+            return ips[i].Weight
+        }
+        sum = func() int {
+            s := 0
+            for i := range ips {
+                s += ips[i].Weight
+            }
+            return s
+        }
+    } else {
+        weight = func(i int) int {
+            return 1
+        }
+        sum = func() int {
+            return len(ips)
+        }
     }
-    return ret
+
+    s := rand.Intn(sum()) + 1
+    index := 0
+    for i := range ips {
+        s -= weight(i)
+        if s <= 0 {
+            index = i
+            break
+        }
+    }
+    return append(ips[index:], ips[:index]...)
 }
 
 const (

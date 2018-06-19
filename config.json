@@ -38,6 +38,11 @@
     "port": 53,
     "protocol": "udp",
     "timeout": 400
+  },{
+    "ip": "8.8.8.8",
+    "port": 53,
+    "protocol": "udp",
+    "timeout": 400
   }],
   "geoip": {
     "enable": true,

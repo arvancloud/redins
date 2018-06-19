@@ -41,34 +41,28 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logDa
         eventlog.Logger.Error("getSameCountry failed")
         return ips
     }
+    logData["SourceCountry"] = sourceCountry
 
-    if len(ips) > 0 {
-        matched := false
-        matchedIndex := 0
-        defaultIndex := 0
-        for i, ip := range ips {
-            if ip.Country == sourceCountry {
-                matched = true
-                matchedIndex = i
-                break
-            }
-            if ip.Country == "" {
-                defaultIndex = i
-            }
-        }
-        if matched {
-            logData["SourceCountry"] = sourceCountry
-            logData["DestinationIp"] = ips[matchedIndex].Ip.String()
-            logData["DestinationCountry"] = ips[matchedIndex].Country
-            return []dns_types.IP_Record{ips[matchedIndex]}
-        } else {
-            logData["SourceCountry"] = sourceCountry
-            logData["DestinationIp"] = ips[defaultIndex].Ip.String()
-            logData["DestinationCountry"] = ips[defaultIndex].Country
-            return []dns_types.IP_Record{ips[defaultIndex]}
+    result := []dns_types.IP_Record{}
+    for _, ip := range ips {
+        if ip.Country == sourceCountry {
+            result = append(result, ip)
         }
     }
-    return []dns_types.IP_Record{}
+    if len(result) > 0 {
+        return result
+    }
+
+    for _, ip := range ips {
+        if ip.Country == "" {
+            result = append(result, ip)
+        }
+    }
+    if len(result) > 0 {
+        return result
+    }
+
+    return ips
 }
 
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
@@ -76,32 +70,34 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, l
         return ips
     }
     minDistance := 1000.0
-    index := -1
+    dists := []float64{}
+    result := []dns_types.IP_Record{}
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
         eventlog.Logger.Error("getMinimumDistance failed")
         return ips
     }
-    for i, ip := range ips {
+    for _, ip := range ips {
         destinationIp := ip.Ip
         dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
         d, err := g.getDistance(slat, slong, dlat, dlong)
         if err != nil {
-            continue
+            d = 1000.0
         }
         if d < minDistance {
             minDistance = d
-            index = i
+        }
+        dists = append(dists, d)
+    }
+    for i, ip := range ips {
+        if dists[i] == minDistance {
+            result = append(result, ip)
         }
     }
-    if index > -1 {
-        logData["DestinationIp"] = ips[index].Ip.String()
-        logData["DestinationCountry"] = ips[index].Country
-        return []dns_types.IP_Record { ips[index] }
-    } else {
-        eventlog.Logger.Error("getMinimumDistance failed")
-        return ips
+    if len(result) > 0 {
+        return result
     }
+    return ips
 }
 
 func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {

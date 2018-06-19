@@ -22,7 +22,7 @@ var lookupEntries = [][][]string {
     {
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"x",
             "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
@@ -31,66 +31,66 @@ var lookupEntries = [][][]string {
                 "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.com.\"},{\"ttl\":300, \"host\":\"ns2.example.com.\"}]," +
                 "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.com.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.com.\", \"preference\":10}]," +
                 "\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"y",
             "{\"cname\":{\"ttl\":300, \"host\":\"x.example.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"ns1",
             "{\"a\":[{\"ttl\":300, \"ip\":\"2.2.2.2\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"ns2",
             "{\"a\":[{\"ttl\":300, \"ip\":\"3.3.3.3\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"_sip._tcp",
             "{\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"sip",
             "{\"a\":[{\"ttl\":300, \"ip\":\"7.7.7.7\"}]," +
             "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
     },
     {
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
             "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"sub.*",
             "{\"txt\":[{\"ttl\":300, \"text\":\"this is not a wildcard\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"host1",
             "{\"a\":[{\"ttl\":300, \"ip\":\"5.5.5.5\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"subdel",
             "{\"ns\":[{\"ttl\":300, \"host\":\"ns1.subdel.example.net.\"},{\"ttl\":300, \"host\":\"ns2.subdel.example.net.\"}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"*",
             "{\"txt\":[{\"ttl\":300, \"text\":\"this is a wildcard\"}]," +
             "\"mx\":[{\"ttl\":300, \"host\":\"host1.example.net.\",\"preference\": 10}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"_ssh._tcp.host1",
             "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"_ssh._tcp.host2",
             "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
     },
     {
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"x",
             "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\"}]," +
@@ -99,15 +99,15 @@ var lookupEntries = [][][]string {
                 "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.aaa.\"},{\"ttl\":300, \"host\":\"ns2.example.aaa.\"}]," +
                 "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.aaa.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.aaa.\", \"preference\":10}]," +
                 "\"srv\":[{\"ttl\":300, \"target\":\"sip.example.aaa.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"y",
             "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}," +
-                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
         {"z",
             "{\"cname\":{\"ttl\":300, \"host\":\"y.example.aaa.\"}," +
-                "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
         },
     },
 }
@@ -288,7 +288,7 @@ func TestWeight(t *testing.T) {
     }
     n := make([]int, 4)
     for i:= 0; i < 100000; i++ {
-        x := GetWeightedIp(ips, map[string]interface{}{})
+        x := ChooseIp(ips, map[string]interface{}{}, true)
         switch x[0].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
@@ -306,7 +306,7 @@ func TestWeight(t *testing.T) {
     }
     n[0], n[1], n[2], n[3] = 0, 0, 0, 0
     for i:= 0; i < 100000; i++ {
-        x := GetWeightedIp(ips, map[string]interface{}{})
+        x := ChooseIp(ips, map[string]interface{}{}, true)
         switch x[0].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
@@ -324,7 +324,7 @@ func TestWeight(t *testing.T) {
     n[0], n[1], n[2], n[3] = 0, 0, 0, 0
     ips[0].Weight, ips[1].Weight, ips[2].Weight, ips[3].Weight = 0, 5, 7, 0
     for i:= 0; i < 100000; i++ {
-        x := GetWeightedIp(ips, map[string]interface{}{})
+        x := ChooseIp(ips, map[string]interface{}{}, true)
         switch x[0].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
@@ -336,28 +336,25 @@ func TestWeight(t *testing.T) {
     if n[0] > 0 || n[3] > 0 {
         t.Fail()
     }
-}
 
-func TestMultiRR(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
 
-    ips := []dns_types.IP_Record {
-        { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
-        { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
-        { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
-        { Ip:net.ParseIP("4.5.6.7"), Weight: 10},
-    }
-    shuffled := ShuffleIps(ips)
-    valid := false
-    for i := range shuffled {
-        if shuffled[i].Ip.String() != ips[i].Ip.String() {
-            valid = true
-            break
+    // weighted = false
+    n[0], n[1], n[2], n[3] = 0, 0, 0, 0
+    ips[0].Weight, ips[1].Weight, ips[2].Weight, ips[3].Weight = 0, 5, 7, 0
+    for i:= 0; i < 100000; i++ {
+        x := ChooseIp(ips, map[string]interface{}{}, false)
+        switch x[0].Ip.String() {
+        case "1.2.3.4": n[0]++
+        case "2.3.4.5": n[1]++
+        case "3.4.5.6": n[2]++
+        case "4.5.6.7": n[3]++
         }
     }
-    if valid == false {
-        t.Fail()
+    log.Println(n)
+    for i := 0; i < 4; i++ {
+        if n[i] < 2000 && n[i] > 3000 {
+            t.Fail()
+        }
     }
 }
 
@@ -365,12 +362,12 @@ var anameEntries = [][]string{
     {"@",
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
             "\"aname\":{\"location\":\"arvancloud.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
     },
     {"www",
         "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
             "\"aname\":{\"location\":\"www.arvancloud.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":{\"enable\":false}}}",
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
     },
 }
 
@@ -410,3 +407,414 @@ func TestANAME(t *testing.T) {
     }
 }
 
+var filterGeoEntries = [][]string{
+    {"@",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filter.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww1",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+        "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww2",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"US\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"GB\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"ES\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"country\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww3",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"US\"}," +
+            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"GB\"}," +
+            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"ES\"}," +
+            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"location\"}, \"health_check\":{\"enable\":false}}}",
+    },
+}
+
+var filterGeoTestCases = []test.Case{
+    {
+        Qname: "ww1.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.1"),
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.2"),
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.3"),
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.4"),
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww1.filtergeo.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww2.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww2.filtergeo.com. 300 IN A 127.0.0.4"),
+            test.A("ww2.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww2.filtergeo.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww3.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
+            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
+            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
+        },
+    },
+}
+
+func TestGeoFilter(t *testing.T) {
+    cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
+    zone := "filtergeo.com."
+    h := NewHandler(cfg)
+    h.Redis.Del(zone)
+    for _, cmd := range filterGeoEntries {
+        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            t.Fail()
+        }
+    }
+    h.LoadZones()
+    for _, tc := range filterGeoTestCases {
+
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        test.SortAndCheck(t, resp, tc)
+    }
+}
+
+var filterMultiEntries = [][]string{
+    {"@",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtermulti.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww1",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww2",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"weighted\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww3",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"rr\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+}
+
+var filterMultiTestCases = []test.Case{
+    {
+        Qname: "ww1.filtermulti.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.1"),
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.2"),
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.3"),
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.4"),
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.5"),
+            test.A("ww1.filtermulti.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww2.filtermulti.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+        },
+    },
+    {
+        Qname: "ww3.filtermulti.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+        },
+    },
+}
+
+func TestMultiFilter(t *testing.T) {
+    cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
+    zone := "filtermulti.com."
+    h := NewHandler(cfg)
+    h.Redis.Del(zone)
+    for _, cmd := range filterMultiEntries {
+        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            log.Println("1")
+            t.Fail()
+        }
+    }
+    h.LoadZones()
+
+    for i := 0; i < 10; i++ {
+        tc := filterMultiTestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        test.SortAndCheck(t, resp, tc)
+    }
+
+    w1, w4, w10, w2, w20 := 0, 0, 0, 0, 0
+    for i := 0; i < 10000; i++ {
+        tc := filterMultiTestCases[1]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if len(resp.Answer) != 5 {
+            log.Println("2")
+            t.Fail()
+        }
+
+        resa := resp.Answer[0].(*dns.A)
+
+        switch resa.A.String() {
+        case "127.0.0.1":
+            w1++
+        case "127.0.0.2":
+            w4++
+        case "127.0.0.3":
+            w10++
+        case "127.0.0.4":
+            w2++
+        case "127.0.0.5":
+            w20++
+        }
+    }
+    log.Println(w1, w2, w4, w10, w20)
+    if w1 > w2 || w2 > w4 || w4 > w10 || w10 > w20 {
+        log.Println("3")
+        t.Fail()
+    }
+
+    rr := make([]int, 5)
+    for i := 0; i < 10000; i++ {
+        tc := filterMultiTestCases[2]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if len(resp.Answer) != 5 {
+            log.Println("4")
+            t.Fail()
+        }
+
+        resa := resp.Answer[0].(*dns.A)
+
+        switch resa.A.String() {
+        case "127.0.0.1":
+            rr[0]++
+        case "127.0.0.2":
+            rr[1]++
+        case "127.0.0.3":
+            rr[2]++
+        case "127.0.0.4":
+            rr[3]++
+        case "127.0.0.5":
+            rr[4]++
+        }
+    }
+    log.Println(rr)
+    for i := range rr {
+        if rr[i] < 1500 || rr[i] > 2500 {
+            log.Println("5")
+            t.Fail()
+        }
+    }
+}
+
+var filterSingleEntries = [][]string{
+    {"@",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtersingle.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww1",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww2",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"weighted\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+    {"ww3",
+        "{\"a\":[" +
+            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
+            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"rr\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    },
+}
+
+var filterSingleTestCases = []test.Case{
+    {
+        Qname: "ww1.filtersingle.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww1.filtersingle.com. 300 IN A 127.0.0.1"),
+        },
+    },
+    {
+        Qname: "ww2.filtersingle.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+        },
+    },
+    {
+        Qname: "ww3.filtersingle.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+        },
+    },
+}
+
+func TestSingleFilter(t *testing.T) {
+    cfg := config.LoadConfig("config.json")
+    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+
+    zone := "filtersingle.com."
+    h := NewHandler(cfg)
+    h.Redis.Del(zone)
+    for _, cmd := range filterSingleEntries {
+        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            log.Println("1")
+            t.Fail()
+        }
+    }
+    h.LoadZones()
+
+    for i := 0; i < 10; i++ {
+        tc := filterSingleTestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        test.SortAndCheck(t, resp, tc)
+    }
+
+    w1, w4, w10, w2, w20 := 0, 0, 0, 0, 0
+    for i := 0; i < 10000; i++ {
+        tc := filterSingleTestCases[1]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if len(resp.Answer) != 1 {
+            log.Println("2")
+            t.Fail()
+        }
+
+        resa := resp.Answer[0].(*dns.A)
+
+        switch resa.A.String() {
+        case "127.0.0.1":
+            w1++
+        case "127.0.0.2":
+            w4++
+        case "127.0.0.3":
+            w10++
+        case "127.0.0.4":
+            w2++
+        case "127.0.0.5":
+            w20++
+        }
+    }
+    log.Println(w1, w2, w4, w10, w20)
+    if w1 > w2 || w2 > w4 || w4 > w10 || w10 > w20 {
+        log.Println("3")
+        t.Fail()
+    }
+
+    rr := make([]int, 5)
+    for i := 0; i < 10000; i++ {
+        tc := filterSingleTestCases[2]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if len(resp.Answer) != 1 {
+            log.Println("4")
+            t.Fail()
+        }
+
+        resa := resp.Answer[0].(*dns.A)
+
+        switch resa.A.String() {
+        case "127.0.0.1":
+            rr[0]++
+        case "127.0.0.2":
+            rr[1]++
+        case "127.0.0.3":
+            rr[2]++
+        case "127.0.0.4":
+            rr[3]++
+        case "127.0.0.5":
+            rr[4]++
+        }
+    }
+    log.Println(rr)
+    for i := range rr {
+        if rr[i] < 1500 || rr[i] > 2500 {
+            log.Println("5")
+            t.Fail()
+        }
+    }
+}

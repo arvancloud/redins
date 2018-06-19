@@ -110,7 +110,11 @@ func TestFilter(t *testing.T) {
     w := []dns_types.Record {
         {
             Config: dns_types.RecordConfig {
-                IpFilterMode: "multi",
+                IpFilterMode: dns_types.IpFilterMode {
+                  Count: "multi",
+                  Order: "none",
+                  GeoFilter: "none",
+                },
                 HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
@@ -130,7 +134,11 @@ func TestFilter(t *testing.T) {
         },
         {
             Config: dns_types.RecordConfig {
-                IpFilterMode: "multi",
+                IpFilterMode: dns_types.IpFilterMode {
+                    Count: "multi",
+                    Order: "none",
+                    GeoFilter: "none",
+                },
                 HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
@@ -149,7 +157,11 @@ func TestFilter(t *testing.T) {
         },
         {
             Config: dns_types.RecordConfig {
-                IpFilterMode: "multi",
+                IpFilterMode: dns_types.IpFilterMode {
+                    Count: "multi",
+                    Order: "none",
+                    GeoFilter: "none",
+                },
                 HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
@@ -167,7 +179,11 @@ func TestFilter(t *testing.T) {
         },
         {
             Config: dns_types.RecordConfig {
-                IpFilterMode: "multi",
+                IpFilterMode: dns_types.IpFilterMode {
+                    Count: "multi",
+                    Order: "none",
+                    GeoFilter: "none",
+                },
                 HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
@@ -184,7 +200,11 @@ func TestFilter(t *testing.T) {
         },
         {
             Config: dns_types.RecordConfig {
-                IpFilterMode: "multi",
+                IpFilterMode: dns_types.IpFilterMode {
+                    Count: "multi",
+                    Order: "none",
+                    GeoFilter: "none",
+                },
                 HealthCheckConfig: dns_types.HealthCheckRecordConfig {
                     Enable: true,
                     DownCount: -3,
@@ -220,7 +240,7 @@ func TestSet(t *testing.T) {
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")
     for _, str  := range healthCheckSetEntries {
-        a := fmt.Sprintf("{\"a\":[{\"ttl\":300, \"ip\":\"%s\"}],\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":%s}}", str[1], str[2])
+        a := fmt.Sprintf("{\"a\":[{\"ttl\":300, \"ip\":\"%s\"}],\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":%s}}", str[1], str[2])
         h.redisConfigServer.HSet("healthcheck.com.", str[0], a)
         var key string
         if str[0] == "@" {
@@ -248,7 +268,7 @@ func TestTransfer(t *testing.T) {
     h.redisStatusServer.Del("*")
     for _, str  := range healthcheckTransferItems {
         if str[2] != "" {
-            a := fmt.Sprintf("{\"a\":[{\"ttl\":300, \"ip\":\"%s\"}],\"config\":{\"ip_filter_mode\":\"multi\", \"health_check\":%s}}", str[1], str[2])
+            a := fmt.Sprintf("{\"a\":[{\"ttl\":300, \"ip\":\"%s\"}],\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":%s}}", str[1], str[2])
             h.redisConfigServer.HSet("healthcheck.com.", str[0], a)
         }
         if str[3] != "" {

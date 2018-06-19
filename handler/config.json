@@ -21,5 +21,15 @@
         "port": 53,
         "protocol": "udp",
         "timeout": 1000
-    }]
+    }],
+    "geoip": {
+        "enable": true,
+        "db": "../geoCity.mmdb"
+    },
+    "error_log": {
+        "enable": true,
+        "target": "stdout",
+        "level": "error",
+        "format": "text"
+    }
 }
