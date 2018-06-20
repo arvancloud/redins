@@ -206,25 +206,32 @@ func (h *DnsRequestHandler) Filter(request *request.Request, record *dns_types.R
 
     switch record.Config.IpFilterMode.Count {
     case "single":
+        index := 0
         switch record.Config.IpFilterMode.Order {
         case "weighted":
-            return ChooseIp(ips, logData, true)
+            index = ChooseIp(ips, true)
         case "rr":
-            return ChooseIp(ips, logData, false)
+            index = ChooseIp(ips, false)
         default:
-            return ips[:1]
+            index = 0
         }
+        logData["DestinationIp"] = ips[index].Ip.String()
+        logData["DestinationCountry"] = ips[index].Country
+        return []dns_types.IP_Record{ips[index]}
+
     case "multi":
         fallthrough
     default:
+        index := 0
         switch record.Config.IpFilterMode.Order {
         case "weighted":
-            return ShuffleIps(ips, true)
+            index = ChooseIp(ips, true)
         case "rr":
-            return ShuffleIps(ips,false)
+            index = ChooseIp(ips,false)
         default:
-            return ips
+            index = 0
         }
+        return append(ips[index:], ips[:index]...)
     }
     return ips
 }
@@ -616,72 +623,36 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *dns_types
     h.Redis.HSet(z.Name, label, string(jsonValue))
 }
 
-func ChooseIp(ips []dns_types.IP_Record, logData map[string]interface{}, weighted bool) []dns_types.IP_Record {
+func ChooseIp(ips []dns_types.IP_Record, weighted bool) int {
     sum := 0
 
-    if weighted {
-        for _, ip := range ips {
-            sum += ip.Weight
-        }
+    if weighted == false {
+        return rand.Intn(len(ips))
+    }
+
+    for _, ip := range ips {
+        sum += ip.Weight
     }
     index := 0
 
     // all Ips have 0 weight, choosing a random one
     if sum == 0 {
-        index = rand.Intn(len(ips))
-    } else {
-        x := rand.Intn(sum)
-        for ; index < len(ips); index++ {
-            // skip Ips with 0 weight
-            x -= ips[index].Weight
-            if x < 0 {
-                break
-            }
-        }
-        if index >= len(ips) {
-            index--
-        }
-    }
-    logData["DestinationIp"] = ips[index].Ip.String()
-    logData["DestinationCountry"] = ips[index].Country
-    return []dns_types.IP_Record { ips[index] }
-}
-
-func ShuffleIps(ips []dns_types.IP_Record, weighted bool) []dns_types.IP_Record {
-    var (
-        weight func(int) (int)
-        sum func() (int)
-    )
-    if weighted == true {
-        weight = func(i int) int {
-            return ips[i].Weight
-        }
-        sum = func() int {
-            s := 0
-            for i := range ips {
-                s += ips[i].Weight
-            }
-            return s
-        }
-    } else {
-        weight = func(i int) int {
-            return 1
-        }
-        sum = func() int {
-            return len(ips)
-        }
+        return rand.Intn(len(ips))
     }
 
-    s := rand.Intn(sum()) + 1
-    index := 0
-    for i := range ips {
-        s -= weight(i)
-        if s <= 0 {
-            index = i
+    x := rand.Intn(sum)
+    for ; index < len(ips); index++ {
+        // skip Ips with 0 weight
+        x -= ips[index].Weight
+        if x < 0 {
             break
         }
     }
-    return append(ips[index:], ips[:index]...)
+    if index >= len(ips) {
+        index--
+    }
+
+    return index
 }
 
 const (

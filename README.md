@@ -429,7 +429,7 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 `ip-filter_mode` : filtering mode:
 * count : return single or multiple results. values : "multi", "single"
 * order : order of result. values : "none" - saved order, "weighted" - weighted shuffle, "rr" - uniform shuffle
-* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination
+* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination, "none"
 
 `health_check` : health check configuration
 * enable : enable/disable healthcheck for this host:ip

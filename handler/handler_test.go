@@ -288,8 +288,8 @@ func TestWeight(t *testing.T) {
     }
     n := make([]int, 4)
     for i:= 0; i < 100000; i++ {
-        x := ChooseIp(ips, map[string]interface{}{}, true)
-        switch x[0].Ip.String() {
+        x := ChooseIp(ips, true)
+        switch ips[x].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
         case "3.4.5.6": n[2]++
@@ -306,8 +306,8 @@ func TestWeight(t *testing.T) {
     }
     n[0], n[1], n[2], n[3] = 0, 0, 0, 0
     for i:= 0; i < 100000; i++ {
-        x := ChooseIp(ips, map[string]interface{}{}, true)
-        switch x[0].Ip.String() {
+        x := ChooseIp(ips, true)
+        switch ips[x].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
         case "3.4.5.6": n[2]++
@@ -324,8 +324,8 @@ func TestWeight(t *testing.T) {
     n[0], n[1], n[2], n[3] = 0, 0, 0, 0
     ips[0].Weight, ips[1].Weight, ips[2].Weight, ips[3].Weight = 0, 5, 7, 0
     for i:= 0; i < 100000; i++ {
-        x := ChooseIp(ips, map[string]interface{}{}, true)
-        switch x[0].Ip.String() {
+        x := ChooseIp(ips, true)
+        switch ips[x].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
         case "3.4.5.6": n[2]++
@@ -342,8 +342,8 @@ func TestWeight(t *testing.T) {
     n[0], n[1], n[2], n[3] = 0, 0, 0, 0
     ips[0].Weight, ips[1].Weight, ips[2].Weight, ips[3].Weight = 0, 5, 7, 0
     for i:= 0; i < 100000; i++ {
-        x := ChooseIp(ips, map[string]interface{}{}, false)
-        switch x[0].Ip.String() {
+        x := ChooseIp(ips, false)
+        switch ips[x].Ip.String() {
         case "1.2.3.4": n[0]++
         case "2.3.4.5": n[1]++
         case "3.4.5.6": n[2]++
