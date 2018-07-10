@@ -230,7 +230,6 @@ var lookupTestCases = [][]test.Case{
         {
             Qname: "z.example.aaa.", Qtype: dns.TypeCNAME,
             Answer: []dns.RR{
-                test.CNAME("y.example.aaa. 300 IN CNAME x.example.aaa."),
                 test.CNAME("z.example.aaa. 300 IN CNAME y.example.aaa."),
             },
         },

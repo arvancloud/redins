@@ -101,21 +101,24 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     var record *dns_types.Record
     var res int
     var answers []dns.RR
-    for {
-        record, res = h.FetchRecord(qname, logData)
-        if res != dns.RcodeSuccess {
-            break
+    record, res = h.FetchRecord(qname, logData)
+    if qtype != dns.TypeCNAME {
+        for {
+            if res != dns.RcodeSuccess {
+                break
+            }
+            if record.CNAME == nil {
+                break
+            }
+            answers = append(answers, h.CNAME(qname, record)...)
+            qname = record.CNAME.Host
+            record, res = h.FetchRecord(qname, logData)
         }
-        if len(record.CNAME.Host) == 0 {
-            break
-        }
-        answers = append(answers, h.CNAME(qname, record)...)
-        qname = record.CNAME.Host
     }
 
     if res == dns.RcodeSuccess {
-        if qtype == dns.TypeA {
-            ips := []dns_types.IP_Record{}
+        switch qtype {
+        case dns.TypeA:
             if len(record.A) == 0 && record.ANAME != nil {
                 upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
                 if upstreamRes == dns.RcodeSuccess {
@@ -126,12 +129,12 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                     return
                 }
             } else {
+                var ips []dns_types.IP_Record
                 ips = append(ips, record.A...)
                 ips = h.Filter(state, record, ips, logData)
                 answers = append(answers, h.A(qname, ips)...)
             }
-        } else if qtype == dns.TypeAAAA {
-            ips := []dns_types.IP_Record{}
+        case dns.TypeAAAA:
             if len(record.AAAA) == 0 && record.ANAME != nil {
                 upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
                 if upstreamRes == dns.RcodeSuccess {
@@ -142,29 +145,27 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                     return
                 }
             } else {
+                var ips []dns_types.IP_Record
                 ips = append(ips, record.AAAA...)
                 ips = h.Filter(state, record, ips, logData)
                 answers = append(answers, h.AAAA(qname, ips)...)
             }
-        } else {
-            switch qtype {
-            case dns.TypeCNAME:
-
-            case dns.TypeTXT:
-                answers = append(answers, h.TXT(qname, record)...)
-            case dns.TypeNS:
-                answers = append(answers, h.NS(qname, record)...)
-            case dns.TypeMX:
-                answers = append(answers, h.MX(qname, record)...)
-            case dns.TypeSRV:
-                answers = append(answers, h.SRV(qname, record)...)
-            case dns.TypeSOA:
-                answers = append(answers, h.SOA(qname, record)...)
-            default:
-                errorResponse(state, dns.RcodeNotImplemented)
-                h.LogRequest(logData, requestStartTime, dns.RcodeNotImplemented)
-                return
-            }
+        case dns.TypeCNAME:
+            answers = append(answers, h.CNAME(qname, record)...)
+        case dns.TypeTXT:
+            answers = append(answers, h.TXT(qname, record)...)
+        case dns.TypeNS:
+            answers = append(answers, h.NS(qname, record)...)
+        case dns.TypeMX:
+            answers = append(answers, h.MX(qname, record)...)
+        case dns.TypeSRV:
+            answers = append(answers, h.SRV(qname, record)...)
+        case dns.TypeSOA:
+            answers = append(answers, h.SOA(qname, record)...)
+        default:
+            errorResponse(state, dns.RcodeNotImplemented)
+            h.LogRequest(logData, requestStartTime, dns.RcodeNotImplemented)
+            return
         }
     } else if res == dns.RcodeNotAuth && h.UpstreamFallback {
         upstreamAnswers, upstreamRes := h.upstream.Query(qname, qtype)
