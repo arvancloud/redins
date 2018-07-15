@@ -28,8 +28,6 @@ test:
     artifacts:
         paths:
         - ./redins
-    only:
-        - dev
 
 deploy-lab:
     stage: deploy-lab
