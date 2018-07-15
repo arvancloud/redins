@@ -11,12 +11,13 @@ before_script:
     - ln -sf `pwd` $GOPATH/src/arvancloud/redins
 
 stages:
-    - test
+    - test-lab
+    - test-production
     - deploy-lab
     - deploy-production
 
-test:
-    stage: test
+test-lab:
+    stage: test-lab
     image: labreg.arvancloud.com:5000/shared_runner:latest
     script:
         - echo test
@@ -28,12 +29,32 @@ test:
     artifacts:
         paths:
         - ./redins
+    only:
+        - dev
+
+test-production:
+    stage: test-production
+    image: labreg.arvancloud.com:5000/shared_runner:latest
+    script:
+        - echo test
+        - redis-server &
+        - cd $GOPATH/src/arvancloud/redins
+        - go get
+        - go build
+        - go test ./...
+    artifacts:
+        paths:
+        - ./redins
+    only:
+        - master
+    only:
+        - tags
 
 deploy-lab:
     stage: deploy-lab
     image: labreg.arvancloud.com:5000/docker:latest
     dependencies:
-    - test
+    - test-lab
     script:
         - echo deploy-lab
         - docker login labreg.arvancloud.com:5000 -u $REPO_USR -p $REPO_PWD
@@ -47,7 +68,7 @@ deploy-production:
     stage: deploy-production
     image: labreg.arvancloud.com:5000/docker:latest
     dependencies:
-    - test
+    - test-production
     script:
         - echo deploy-production
         - docker login reg.arvancloud.com:5000 -u $PROD_REPO_USR -p $PROD_REPO_PWD
