@@ -12,7 +12,8 @@ before_script:
 
 stages:
     - test
-    - deploy
+    - deploy-lab
+    - deploy-production
 
 test:
     stage: test
@@ -30,16 +31,31 @@ test:
     only:
         - dev
 
-deploy:
-    stage: deploy
+deploy-lab:
+    stage: deploy-lab
     image: labreg.arvancloud.com:5000/docker:latest
     dependencies:
     - test
     script:
-        - echo deploy
-        - BUILD_VERSION=`cat VERSION`
+        - echo deploy-lab
         - docker login labreg.arvancloud.com:5000 -u $REPO_USR -p $REPO_PWD
-        - docker build . -t labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
-        - docker push labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
+        - docker build . -t labreg.arvancloud.com:5000/arvan_redins:$CI_PIPELINE_ID -t labreg.arvancloud.com:5000/arvan_redins:latest
+        - docker push labreg.arvancloud.com:5000/arvan_redins:$CI_PIPELINE_ID 
+        - docker push labreg.arvancloud.com:5000/arvan_redins:latest
     only:
         - dev
+
+deploy-production:
+    stage: deploy-production
+    image: labreg.arvancloud.com:5000/docker:latest
+    dependencies:
+    - test
+    script:
+        - echo deploy-production
+        - docker login reg.arvancloud.com:5000 -u $PROD_REPO_USR -p $PROD_REPO_PWD
+        - docker build . -t reg.arvancloud.com:5000/arvan_redins:${CI_COMMIT_TAG}-production 
+        - docker push reg.arvancloud.com:5000/arvan_redins:${CI_COMMIT_TAG}-production 
+    only:
+        - master
+    only:
+        - tags
