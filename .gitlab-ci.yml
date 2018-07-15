@@ -23,7 +23,7 @@ test-lab:
         - echo test
         - redis-server &
         - cd $GOPATH/src/arvancloud/redins
-        - alias go='http_proxy=arvan.khoshnood.net:8888 go'
+        - alias go='http_proxy=http://arvan.khoshnood.net:8888/ go'
         - go get
         - go build
         - go test ./...
@@ -40,7 +40,7 @@ test-production:
         - echo test
         - redis-server &
         - cd $GOPATH/src/arvancloud/redins
-        - alias go='http_proxy=arvan.khoshnood.net:8888 go'
+        - alias go='http_proxy=http://arvan.khoshnood.net:8888/ go'
         - go get
         - go build
         - go test ./...
