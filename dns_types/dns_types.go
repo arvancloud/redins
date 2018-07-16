@@ -2,21 +2,65 @@ package dns_types
 
 import (
     "net"
+    "github.com/miekg/dns"
 )
 
-type RRSet struct {
-    A            []IP_Record   `json:"a,omitempty"`
-    AAAA         []IP_Record   `json:"aaaa,omitempty"`
-    TXT          []TXT_Record  `json:"txt,omitempty"`
-    CNAME        *CNAME_Record  `json:"cname,omitempty"`
-    NS           []NS_Record   `json:"ns,omitempty"`
-    MX           []MX_Record   `json:"mx,omitempty"`
-    SRV          []SRV_Record  `json:"srv,omitempty"`
-    SOA          SOA_Record    `json:"soa,omitempty"`
+type RRSets struct {
+    A            IP_RRSet      `json:"a,omitempty"`
+    AAAA         IP_RRSet      `json:"aaaa,omitempty"`
+    TXT          TXT_RRSet     `json:"txt,omitempty"`
+    CNAME        *CNAME_RRSet  `json:"cname,omitempty"`
+    NS           NS_RRSet      `json:"ns,omitempty"`
+    MX           MX_RRSet      `json:"mx,omitempty"`
+    SRV          SRV_RRSet     `json:"srv,omitempty"`
+    SOA          *SOA_RRSet    `json:"soa,omitempty"`
     ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
-type HealthCheckRecordConfig struct {
+type Record struct {
+    RRSets
+    Zone *Zone  `json:"-"`
+    Name string `json:"-"`
+}
+
+type ZoneKey struct {
+    Algorithm uint8 `json:"algorithm,omitempty"`
+    PublicKey string `json:"public_key,omitmpty"`
+    PrivateKey string `json:"private_key,omitempty"`
+}
+
+type ZoneConfig struct {
+    ZoneSigningKey *ZoneKey `json:"zsk,omitempty"`
+    DnsSec   bool `json:"dnssec,omitempty"`
+    CnameFlattening bool `json:"cname_flattening,omitempty"`
+}
+
+type Zone struct {
+    Name      string
+    Locations map[string]struct{}
+    Config ZoneConfig
+    Key *dns.DNSKEY
+}
+
+type Base_RRSet struct {
+    Ttl   uint32     `json:"ttl,omitempty"`
+    RRSig *dns.RRSIG `json:"-"`
+}
+
+type IP_RRSet struct {
+    Base_RRSet
+    Data              []IP_RR             `json:"records,omitempty"`
+    HealthCheckConfig IpHealthCheckConfig `json:"health_check,omitempty"`
+    FilterConfig      IpFilterConfig      `json:"filter,omitempty"`
+}
+
+type IP_RR struct {
+    Ip      net.IP `json:"ip"`
+    Country string `json:"country,omitempty"`
+    Weight  int    `json:"weight,omitempty"`
+}
+
+type IpHealthCheckConfig struct {
     Enable    bool          `json:"enable,omitempty"`
     Protocol  string        `json:"protocol,omitempty"`
     Uri       string        `json:"uri,omitempty"`
@@ -26,70 +70,68 @@ type HealthCheckRecordConfig struct {
     DownCount int           `json:"down_count,omitempty"`
 }
 
-type IpFilterMode struct {
-    Count     string `json"count,omitempty"`       // "multi", "single"
+type IpFilterConfig struct {
+    Count     string `json:"count,omitempty"`      // "multi", "single"
     Order     string `json:"order,omitmpty"`       // "weighted", "rr", "none"
     GeoFilter string `json:"geo_filter,omitempty"` // "country", "location", "none"
 }
 
-type RecordConfig struct {
-    IpFilterMode      IpFilterMode            `json:"ip_filter_mode"`
-    HealthCheckConfig HealthCheckRecordConfig `json:"health_check"`
+type CNAME_RRSet struct {
+    Base_RRSet
+    Host string `json:"host"`
 }
 
-type Record struct {
-    RRSet
-    Config       RecordConfig   `json:"config,omitempty"`
-    ZoneName     string         `json:"-"`
+type TXT_RRSet struct {
+    Base_RRSet
+    Data []TXT_RR `json:"records,omitempty"`
 }
 
-type IP_Record struct {
-    Ttl         uint32 `json:"ttl,omitempty"`
-    Ip          net.IP `json:"ip"`
-    Country     string `json:"country,omitempty"`
-    Weight      int    `json:"weight"`
-}
-
-type ANAME_Record struct {
-    Location string `json:"location,omitempty"`
-}
-
-type TXT_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
+type TXT_RR struct {
     Text string `json:"text"`
 }
 
-type CNAME_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
+type NS_RRSet struct {
+    Base_RRSet
+    Data []NS_RR `json:"records,omitempty"`
+}
+
+type NS_RR struct {
     Host string `json:"host"`
 }
 
-type NS_Record struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
-    Host string `json:"host"`
+type MX_RRSet struct {
+    Base_RRSet
+    Data []MX_RR `json:"records,omitempty"`
 }
 
-type MX_Record struct {
-    Ttl        uint32 `json:"ttl,omitempty"`
+type MX_RR struct {
     Host       string `json:"host"`
     Preference uint16 `json:"preference"`
 }
 
-type SRV_Record struct {
-    Ttl      uint32 `json:"ttl,omitempty"`
+type SRV_RRSet struct {
+    Base_RRSet
+    Data []SRV_RR `json:"records,omitempty"`
+}
+
+type SRV_RR struct {
     Priority uint16 `json:"priority"`
     Weight   uint16 `json:"weight"`
     Port     uint16 `json:"port"`
     Target   string `json:"target"`
 }
 
-type SOA_Record struct {
-    Ttl     uint32 `json:"ttl,omitempty"`
+type SOA_RRSet struct {
+    Base_RRSet
     Ns      string `json:"ns"`
     MBox    string `json:"MBox"`
     Refresh uint32 `json:"refresh"`
     Retry   uint32 `json:"retry"`
     Expire  uint32 `json:"expire"`
     MinTtl  uint32 `json:"minttl"`
+}
+
+type ANAME_Record struct {
+    Location string `json:"location,omitempty"`
 }
 

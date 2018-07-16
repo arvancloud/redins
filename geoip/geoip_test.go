@@ -58,21 +58,21 @@ func TestGeoIpAutomatic(t *testing.T) {
     g := NewGeoIp(cfg)
 
     for i,_ := range sip {
-        dest := new(dns_types.Record)
+        dest := new(dns_types.IP_RRSet)
         for i,_ := range dip {
             _, _, cc, _ := g.GetGeoLocation(net.ParseIP(dip[i][0]))
             if cc != dip[i][1] {
                 t.Fail()
             }
-            r := dns_types.IP_Record {
+            r := dns_types.IP_RR {
                 Ip:  net.ParseIP(dip[i][0]),
-                Ttl: 100,
             }
-            dest.A = append(dest.A, r)
+            dest.Data = append(dest.Data, r)
         }
-        dest.A = g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.A, map[string]interface{}{})
-        log.Println("[DEBUG]", sip[i][0], " ", dest.A[0].Ip.String(), " ", len(dest.A))
-        if sip[i][2] != dest.A[0].Ip.String() {
+        dest.Ttl = 100
+        ips := g.GetMinimumDistance(net.ParseIP(sip[i][0]), dest.Data, map[string]interface{}{})
+        log.Println("[DEBUG]", sip[i][0], " ", ips[0].Ip.String(), " ", len(ips))
+        if sip[i][2] != ips[0].Ip.String() {
             t.Fail()
         }
     }
@@ -93,18 +93,18 @@ func TestGeoIpManual(t *testing.T) {
 
 
     for i, _ := range sip {
-        var dest dns_types.Record
-        dest.A = []dns_types.IP_Record {
+        var dest dns_types.IP_RRSet
+        dest.Data = []dns_types.IP_RR {
             { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},
         }
-        dest.A = g.GetSameCountry(net.ParseIP(sip[i][0]), dest.A, map[string]interface{}{})
-        if len(dest.A) != 1 {
+        ips := g.GetSameCountry(net.ParseIP(sip[i][0]), dest.Data, map[string]interface{}{})
+        if len(ips) != 1 {
             t.Fail()
         }
-        log.Println("[DEBUG]", sip[i][1], sip[i][2], dest.A[0].Country, dest.A[0].Ip.String())
-        if dest.A[0].Country != sip[i][1] || dest.A[0].Ip.String() != sip[i][2] {
+        log.Println("[DEBUG]", sip[i][1], sip[i][2], ips[0].Country, ips[0].Ip.String())
+        if ips[0].Country != sip[i][1] || ips[0].Ip.String() != sip[i][2] {
             t.Fail()
         }
     }

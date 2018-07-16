@@ -21,93 +21,77 @@ var lookupZones = []string {
 var lookupEntries = [][][]string {
     {
         {"@",
-            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
         {"x",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
-                "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
-                "\"txt\":[{\"ttl\":300, \"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]," +
-                "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.com.\"},{\"ttl\":300, \"host\":\"ns2.example.com.\"}]," +
-                "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.com.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.com.\", \"preference\":10}]," +
-                "\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{" +
+            "\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
+            "\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}," +
+            "\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"foo\"},{\"text\":\"bar\"}]}," +
+            "\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.example.com.\"},{\"host\":\"ns2.example.com.\"}]}," +
+            "\"mx\":{\"ttl\":300, \"records\":[{\"host\":\"mx1.example.com.\", \"preference\":10},{\"host\":\"mx2.example.com.\", \"preference\":10}]}," +
+            "\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]}" +
+            "}",
         },
         {"y",
-            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.com.\"}}",
         },
         {"ns1",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"2.2.2.2\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"2.2.2.2\"}]}}",
         },
         {"ns2",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"3.3.3.3\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"3.3.3.3\"}]}}",
         },
         {"_sip._tcp",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"sip.example.com.\",\"port\":555,\"priority\":10,\"weight\":100}]}}",
         },
         {"sip",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"7.7.7.7\"}]," +
-            "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"7.7.7.7\"}]}," +
+            "{\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}}",
         },
     },
     {
         {"@",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.example.net.\"},{\"host\":\"ns2.example.net.\"}]}}",
         },
         {"sub.*",
-            "{\"txt\":[{\"ttl\":300, \"text\":\"this is not a wildcard\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"this is not a wildcard\"}]}}",
         },
         {"host1",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"5.5.5.5\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"5.5.5.5\"}]}}",
         },
         {"subdel",
-            "{\"ns\":[{\"ttl\":300, \"host\":\"ns1.subdel.example.net.\"},{\"ttl\":300, \"host\":\"ns2.subdel.example.net.\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.subdel.example.net.\"},{\"host\":\"ns2.subdel.example.net.\"}]}}",
         },
         {"*",
-            "{\"txt\":[{\"ttl\":300, \"text\":\"this is a wildcard\"}]," +
-            "\"mx\":[{\"ttl\":300, \"host\":\"host1.example.net.\",\"preference\": 10}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"this is a wildcard\"}]}," +
+            "\"mx\":{\"ttl\":300, \"records\":[{\"host\":\"host1.example.net.\",\"preference\": 10}]}}",
         },
         {"_ssh._tcp.host1",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}",
         },
         {"_ssh._tcp.host2",
-            "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}",
         },
     },
     {
         {"@",
-            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
         {"x",
-            "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\"}]," +
-                "\"aaaa\":[{\"ttl\":300, \"ip\":\"::1\"}]," +
-                "\"txt\":[{\"ttl\":300, \"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]," +
-                "\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.aaa.\"},{\"ttl\":300, \"host\":\"ns2.example.aaa.\"}]," +
-                "\"mx\":[{\"ttl\":300, \"host\":\"mx1.example.aaa.\", \"preference\":10},{\"ttl\":300, \"host\":\"mx2.example.aaa.\", \"preference\":10}]," +
-                "\"srv\":[{\"ttl\":300, \"target\":\"sip.example.aaa.\",\"port\":555,\"priority\":10,\"weight\":100}]," +
-                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\"}]}," +
+                "\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}," +
+                "\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"foo\"},{\"ttl\":300, \"text\":\"bar\"}]}," +
+                "\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.example.aaa.\"},{\"ttl\":300, \"host\":\"ns2.example.aaa.\"}]}," +
+                "\"mx\":{\"ttl\":300, \"records\":[{\"host\":\"mx1.example.aaa.\", \"preference\":10},{\"host\":\"mx2.example.aaa.\", \"preference\":10}]}," +
+                "\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"sip.example.aaa.\",\"port\":555,\"priority\":10,\"weight\":100}]}}",
         },
         {"y",
-            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}," +
-                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}}",
         },
         {"z",
-            "{\"cname\":{\"ttl\":300, \"host\":\"y.example.aaa.\"}," +
-                "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "{\"cname\":{\"ttl\":300, \"host\":\"y.example.aaa.\"}}",
         },
     },
 }
@@ -279,7 +263,7 @@ func TestWeight(t *testing.T) {
     eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
 
     // distribution
-    ips := []dns_types.IP_Record {
+    ips := []dns_types.IP_RR {
         { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
         { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
         { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
@@ -360,13 +344,11 @@ func TestWeight(t *testing.T) {
 var anameEntries = [][]string{
     {"@",
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"aname\":{\"location\":\"arvancloud.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+            "\"aname\":{\"location\":\"arvancloud.com.\"}}",
     },
     {"www",
-        "{\"a\":[{\"ttl\":300, \"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ttl\":300, \"ip\":\"5.6.7.8\", \"country\":\"\"}]," +
-            "\"aname\":{\"location\":\"www.arvancloud.com.\"}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
+            "\"aname\":{\"location\":\"www.arvancloud.com.\"}}",
     },
 }
 
@@ -386,7 +368,7 @@ func TestANAME(t *testing.T) {
     }
     h.LoadZones()
     z := h.LoadZone(zone)
-    record := h.GetLocation(zone, z)
+    record := h.LoadLocation(zone, z)
     answers, res := h.upstream.Query(record.ANAME.Location, dns.TypeA)
     log.Println(res)
     if res != dns.RcodeSuccess {
@@ -395,7 +377,7 @@ func TestANAME(t *testing.T) {
     for _, a := range answers {
         log.Printf("%s\n", a.String())
     }
-    record = h.GetLocation("www", z)
+    record = h.LoadLocation("www", z)
     answers, res = h.upstream.Query(record.ANAME.Location, dns.TypeA)
     log.Println(res)
     if res != dns.RcodeSuccess {
@@ -408,38 +390,37 @@ func TestANAME(t *testing.T) {
 
 var filterGeoEntries = [][]string{
     {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filter.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filter.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"ww1",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
-        "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}}}",
     },
     {"ww2",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"US\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"GB\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"ES\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"country\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"US\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"GB\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"ES\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"country\"}}}",
     },
     {"ww3",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"US\"}," +
-            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"GB\"}," +
-            "{\"ttl\":300, \"ip\":\"192.30.252.225\", \"country\":\"ES\"}," +
-            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"213.95.10.76\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"location\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"192.30.252.225\", \"country\":\"US\"}," +
+            "{\"ip\":\"192.30.252.225\", \"country\":\"GB\"}," +
+            "{\"ip\":\"192.30.252.225\", \"country\":\"ES\"}," +
+            "{\"ip\":\"213.95.10.76\", \"country\":\"\"}," +
+            "{\"ip\":\"213.95.10.76\", \"country\":\"\"}," +
+            "{\"ip\":\"213.95.10.76\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"location\"}}}",
     },
 }
 
@@ -507,32 +488,32 @@ var filterMultiEntries = [][]string{
             "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
     },
     {"ww1",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}}}",
     },
     {"ww2",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"weighted\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"weighted\",\"geo_filter\":\"none\"}}}",
     },
     {"ww3",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"rr\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"multi\",\"order\":\"rr\",\"geo_filter\":\"none\"}}}",
     },
 }
 
@@ -664,36 +645,35 @@ func TestMultiFilter(t *testing.T) {
 
 var filterSingleEntries = [][]string{
     {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtersingle.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtersingle.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"ww1",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.6\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"single\",\"order\":\"none\",\"geo_filter\":\"none\"}}}",
     },
     {"ww2",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"weighted\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\", \"weight\":1}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\", \"weight\":4}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\", \"weight\":10}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\", \"weight\":2}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\", \"weight\":20}]," +
+            "\"filter\":{\"count\":\"single\",\"order\":\"weighted\",\"geo_filter\":\"none\"}}}",
     },
     {"ww3",
-        "{\"a\":[" +
-            "{\"ttl\":300, \"ip\":\"127.0.0.1\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.2\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.3\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.4\", \"country\":\"\"}," +
-            "{\"ttl\":300, \"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"single\",\"order\":\"rr\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+        "{\"a\":{\"ttl\":300, \"records\":[" +
+            "{\"ip\":\"127.0.0.1\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.2\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.3\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.4\", \"country\":\"\"}," +
+            "{\"ip\":\"127.0.0.5\", \"country\":\"\"}]," +
+            "\"filter\":{\"count\":\"single\",\"order\":\"rr\",\"geo_filter\":\"none\"}}}",
     },
 }
 

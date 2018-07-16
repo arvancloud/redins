@@ -32,7 +32,7 @@ func NewGeoIp(config *config.RedinsConfig) *GeoIp {
     return g
 }
 
-func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
+func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_RR, logData map[string]interface{}) []dns_types.IP_RR {
     if g.Enable == false {
         return ips
     }
@@ -43,7 +43,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logDa
     }
     logData["SourceCountry"] = sourceCountry
 
-    result := []dns_types.IP_Record{}
+    var result []dns_types.IP_RR
     for _, ip := range ips {
         if ip.Country == sourceCountry {
             result = append(result, ip)
@@ -65,13 +65,13 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []dns_types.IP_Record, logDa
     return ips
 }
 
-func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_Record, logData map[string]interface{}) []dns_types.IP_Record {
+func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []dns_types.IP_RR, logData map[string]interface{}) []dns_types.IP_RR {
     if g.Enable == false {
         return ips
     }
     minDistance := 1000.0
     dists := []float64{}
-    result := []dns_types.IP_Record{}
+    var result []dns_types.IP_RR
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
         eventlog.Logger.Error("getMinimumDistance failed")

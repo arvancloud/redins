@@ -244,26 +244,23 @@ func (h *Healthcheck) transferItems() {
         }
         return true
     }
-    newItems := []*HealthCheckItem{}
+    var newItems []*HealthCheckItem
     zones := h.redisConfigServer.GetKeys()
     for _, zone := range zones {
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
             recordStr := h.redisConfigServer.HGet(zone, subDomain)
-            record := &dns_types.Record {
-                Config: dns_types.RecordConfig {
-                  HealthCheckConfig: dns_types.HealthCheckRecordConfig {
-                    Timeout: 1000,
-                    Port: 80,
-                    UpCount: 3,
-                    DownCount: -3,
-                    Protocol: "http",
-                    Uri: "/",
-                    Enable: false,
-                  },
-                },
+            record := new(dns_types.Record)
+            record.A.HealthCheckConfig = dns_types.IpHealthCheckConfig {
+                Timeout: 1000,
+                Port: 80,
+                UpCount: 3,
+                DownCount: -3,
+                Protocol: "http",
+                Uri: "/",
+                Enable: false,
             }
-            record.Config.HealthCheckConfig.Enable = false
+            record.AAAA = record.A
             err := json.Unmarshal([]byte(recordStr), record)
             if err != nil {
                 eventlog.Logger.Errorf("cannot parse json : %s -> %s", recordStr, err)
@@ -275,25 +272,27 @@ func (h *Healthcheck) transferItems() {
             } else {
                 host = subDomain + "." + zone
             }
-            for _,ipRecord := range record.A {
-                key := host + ":" + ipRecord.Ip.String()
-                newItem := &HealthCheckItem {
-                    Ip: ipRecord.Ip.String(),
-                    Port: record.Config.HealthCheckConfig.Port,
-                    Host: host,
-                    Enable: record.Config.HealthCheckConfig.Enable,
-                    DownCount: record.Config.HealthCheckConfig.DownCount,
-                    UpCount: record.Config.HealthCheckConfig.UpCount,
-                    Timeout: record.Config.HealthCheckConfig.Timeout,
-                    Uri: record.Config.HealthCheckConfig.Uri,
-                    Protocol: record.Config.HealthCheckConfig.Protocol,
+            for _, rrset := range []*dns_types.IP_RRSet{&record.A, &record.AAAA} {
+                for i := range rrset.Data {
+                    key := host + ":" + rrset.Data[i].Ip.String()
+                    newItem := &HealthCheckItem{
+                        Ip:        rrset.Data[i].Ip.String(),
+                        Port:      rrset.HealthCheckConfig.Port,
+                        Host:      host,
+                        Enable:    rrset.HealthCheckConfig.Enable,
+                        DownCount: rrset.HealthCheckConfig.DownCount,
+                        UpCount:   rrset.HealthCheckConfig.UpCount,
+                        Timeout:   rrset.HealthCheckConfig.Timeout,
+                        Uri:       rrset.HealthCheckConfig.Uri,
+                        Protocol:  rrset.HealthCheckConfig.Protocol,
+                    }
+                    oldItem := h.loadItem(key)
+                    if oldItem != nil && itemsEqual(oldItem, newItem) {
+                        newItem.Status = oldItem.Status
+                        newItem.LastCheck = oldItem.LastCheck
+                    }
+                    newItems = append(newItems, newItem)
                 }
-                oldItem := h.loadItem(key)
-                if oldItem != nil && itemsEqual(oldItem, newItem) {
-                    newItem.Status = oldItem.Status
-                    newItem.LastCheck = oldItem.LastCheck
-                }
-                newItems = append(newItems, newItem)
             }
         }
     }
@@ -365,25 +364,25 @@ func statusUp(item *HealthCheckItem) {
     }
 }
 
-func (h *Healthcheck) FilterHealthcheck(qname string, record *dns_types.Record, ips []dns_types.IP_Record) []dns_types.IP_Record {
-    newIps := []dns_types.IP_Record {}
+func (h *Healthcheck) FilterHealthcheck(qname string, rrset *dns_types.IP_RRSet) []dns_types.IP_RR {
+    var newIps []dns_types.IP_RR
     if h.Enable == false {
-        newIps = append(newIps, ips...)
+        newIps = append(newIps, rrset.Data...)
         return newIps
     }
-    min := record.Config.HealthCheckConfig.DownCount
-    for _, ip := range ips {
+    min := rrset.HealthCheckConfig.DownCount
+    for _, ip := range rrset.Data {
         status := h.getStatus(qname, ip.Ip)
         if  status > min {
             min = status
         }
     }
     eventlog.Logger.Debugf("min = %d", min)
-    if min < record.Config.HealthCheckConfig.UpCount - 1 && min > record.Config.HealthCheckConfig.DownCount {
-        min = record.Config.HealthCheckConfig.DownCount + 1
+    if min < rrset.HealthCheckConfig.UpCount - 1 && min > rrset.HealthCheckConfig.DownCount {
+        min = rrset.HealthCheckConfig.DownCount + 1
     }
     eventlog.Logger.Debugf("min = %d", min)
-    for _, ip := range ips {
+    for _, ip := range rrset.Data {
         eventlog.Logger.Debug("qname: ", ip.Ip.String(), " status: ", h.getStatus(qname, ip.Ip))
         if h.getStatus(qname, ip.Ip) < min {
             continue
