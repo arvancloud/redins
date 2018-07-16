@@ -23,9 +23,7 @@ test-lab:
         - echo test
         - redis-server &
         - cd $GOPATH/src/arvancloud/redins
-        - echo "@ofogh1299@" | /usr/sbin/openconnect 108.61.103.66:10443 -q --reconnect-timeout 60 --servercert sha256:db2c60fb8a3e4bef8800ff2d251564e12e1e6ca0cab605964d083dd7618244a2 -u ofogh --passwd-on-stdin
         - go get
-        - kill -s SIGINT $(pgrep openconnect)
         - go build
         - go test ./...
     artifacts:
@@ -41,9 +39,7 @@ test-production:
         - echo test
         - redis-server &
         - cd $GOPATH/src/arvancloud/redins
-        - echo "@ofogh1299@" | /usr/sbin/openconnect 108.61.103.66:10443 -q --reconnect-timeout 60 --servercert sha256:db2c60fb8a3e4bef8800ff2d251564e12e1e6ca0cab605964d083dd7618244a2 -u ofogh --passwd-on-stdin
         - go get
-        - kill -s SIGINT $(pgrep openconnect)
         - go build
         - go test ./...
     artifacts:
