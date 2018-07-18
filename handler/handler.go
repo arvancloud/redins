@@ -64,7 +64,6 @@ func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
 }
 
 func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
-    do := state.Do()
     qname := state.Name()
     qtype := state.QType()
 
@@ -98,7 +97,11 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     var localRes int
     var res int
     var answers []dns.RR
+    var authority []dns.RR
     record, localRes = h.FetchRecord(qname, logData)
+    originalRecord := record
+    originalName := qname
+    secured := state.Do() && record != nil && record.Zone.Config.DnsSec
     if qtype != dns.TypeCNAME {
         for {
             if localRes != dns.RcodeSuccess {
@@ -107,7 +110,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if record.CNAME == nil {
                 break
             }
-            answers = append(answers, h.CNAME(qname, record)...)
+            answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured, record.CNAME.RRSig)
+            authority = AppendNSEC(authority, qname, record, 300, secured)
             qname = record.CNAME.Host
             record, localRes = h.FetchRecord(qname, logData)
         }
@@ -117,42 +121,91 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     if localRes == dns.RcodeSuccess {
         switch qtype {
         case dns.TypeA:
-            if len(record.A.Data) == 0 && record.ANAME != nil {
-                upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
-                if upstreamRes == dns.RcodeSuccess {
-                    answers = append(answers, upstreamAnswers...)
+            if len(record.A.Data) == 0 {
+                if record.ANAME != nil {
+                    upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
+                    if upstreamRes == dns.RcodeSuccess {
+                        answers = append(answers, upstreamAnswers...)
+                    }
+                    res = upstreamRes
+                } else {
+                    answers = []dns.RR{}
+                    authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
                 }
-                res = upstreamRes
             } else {
                 ips := h.Filter(state, &record.A, logData)
-                answers = append(answers, h.A(qname, record, ips)...)
+                answers = AppendRR(answers, h.A(qname, record, ips), qname, record, secured, nil)
             }
         case dns.TypeAAAA:
-            if len(record.AAAA.Data) == 0 && record.ANAME != nil {
-                upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
-                if upstreamRes == dns.RcodeSuccess {
-                    answers = append(answers, upstreamAnswers...)
+            if len(record.AAAA.Data) == 0 {
+                if record.ANAME != nil {
+                    upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
+                    if upstreamRes == dns.RcodeSuccess {
+                        answers = append(answers, upstreamAnswers...)
+                    }
+                    res = upstreamRes
+                } else {
+                    answers = []dns.RR{}
+                    authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
                 }
-                res = upstreamRes
             } else {
                 ips := h.Filter(state, &record.AAAA, logData)
-                answers = append(answers, h.AAAA(qname, record, ips)...)
+                answers = AppendRR(answers,h.AAAA(qname, record, ips), qname, record, secured, nil)
             }
         case dns.TypeCNAME:
-            answers = append(answers, h.CNAME(qname, record)...)
+            if record.CNAME == nil {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured, record.CNAME.RRSig)
+            }
         case dns.TypeTXT:
-            answers = append(answers, h.TXT(qname, record)...)
+            if len(record.TXT.Data) == 0 {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.TXT(qname, record), qname, record, secured, record.TXT.RRSig)
+            }
         case dns.TypeNS:
-            answers = append(answers, h.NS(qname, record)...)
+            if len(record.NS.Data) == 0 {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.NS(qname, record), qname, record, secured, record.NS.RRSig)
+            }
         case dns.TypeMX:
-            answers = append(answers, h.MX(qname, record)...)
+            if len(record.MX.Data) == 0 {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.MX(qname, record), qname, record, secured, record.MX.RRSig)
+            }
         case dns.TypeSRV:
-            answers = append(answers, h.SRV(qname, record)...)
+            if len(record.SRV.Data) == 0 {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.SRV(qname, record), qname, record, secured, record.SRV.RRSig)
+            }
         case dns.TypeSOA:
-            answers = append(answers, h.SOA(qname, record)...)
+            if record.SOA == nil {
+                answers = []dns.RR{}
+                authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+            } else {
+                answers = AppendRR(answers, h.SOA(qname, record), qname, record, secured, record.SOA.RRSig)
+            }
+        case dns.TypeDNSKEY:
+            if secured {
+                answers = []dns.RR{record.Zone.DnsKey, record.Zone.DnsKeySig}
+            }
         default:
+            answers = []dns.RR{}
+            authority = []dns.RR{}
             res = dns.RcodeNotImplemented
         }
+    } else if localRes == dns.RcodeNameError {
+        answers = []dns.RR{}
+        authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
     } else if localRes == dns.RcodeNotAuth && h.UpstreamFallback {
         upstreamAnswers, upstreamRes := h.upstream.Query(qname, qtype)
         if upstreamRes == dns.RcodeSuccess {
@@ -162,17 +215,16 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         res = upstreamRes
     }
 
-    h.LogRequest(logData, requestStartTime, res)
+    if res == dns.RcodeSuccess && qname != originalName && len(answers) > 0 {
+        authority = AppendNSEC(authority, originalName, originalRecord, 300, secured)
+    }
 
+    h.LogRequest(logData, requestStartTime, res)
     m := new(dns.Msg)
     m.SetReply(state.Req)
     m.Authoritative, m.RecursionAvailable, m.Compress = auth, h.UpstreamFallback, true
     m.SetRcode(state.Req, res)
     m.Answer = append(m.Answer, answers...)
-
-    if do && record.Zone.Config.DnsSec {
-        Sign(m, state, record.Zone)
-    }
 
     state.SizeAndDo(m)
     m, _ = state.Scrub(m)
@@ -566,11 +618,6 @@ func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
     }
 
     z.Config = dns_types.ZoneConfig {
-        ZoneSigningKey: &dns_types.ZoneKey {
-            PublicKey: "",
-            PrivateKey: "",
-            Algorithm: 0,
-        },
         DnsSec: false,
         CnameFlattening: false,
     }
@@ -579,6 +626,39 @@ func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
         err := json.Unmarshal([]byte(val), &z.Config)
         if err != nil {
             eventlog.Logger.Errorf("cannot parse zone config : %s", err)
+        }
+    }
+    if z.Config.DnsSec {
+        pubStr := h.Redis.Get(z.Name + "_pub")
+        privStr := h.Redis.Get(z.Name + "_priv")
+        privStr = strings.Replace(privStr, "\\n", "\n", -1)
+        if pubStr == "" || privStr == "" {
+            eventlog.Logger.Errorf("key is not set for zone %s", z.Name)
+            z.Config.DnsSec = false
+            return z
+        }
+        if rr, err := dns.NewRR(pubStr); err == nil {
+            z.DnsKey = rr.(*dns.DNSKEY)
+        } else {
+            eventlog.Logger.Errorf("cannot parse zone key : %s", err)
+            z.Config.DnsSec = false
+            return z
+        }
+        eventlog.Logger.Error(privStr)
+        if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
+            z.PrivateKey = pk
+        } else {
+            eventlog.Logger.Errorf("cannot create private key : %s", err)
+            z.Config.DnsSec = false
+            return z
+        }
+        now := time.Now()
+        z.KeyInception = uint32(now.Add(-3 * time.Hour).Unix())
+        z.KeyExpiration = uint32(now.Add(8 * 24 * time.Hour).Unix())
+        if rrsig, err := Sign([]dns.RR{z.DnsKey}, z.Name, z, 300); err == nil {
+            z.DnsKeySig = rrsig
+        } else {
+            eventlog.Logger.Errorf("cannot create RRSIG for DNSKEY : %s", err)
         }
     }
 
@@ -615,6 +695,10 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *dns_types.Zone) *dn
     }
     r.Zone = z
     r.Name = name
+    if z.Config.DnsSec {
+        h.SignLocation(r)
+    }
+
     return r
 }
 
@@ -663,6 +747,35 @@ func ChooseIp(ips []dns_types.IP_RR, weighted bool) int {
     }
 
     return index
+}
+
+func AppendRR(target []dns.RR, rrs []dns.RR, qname string, record *dns_types.Record, secured bool, rrsig dns.RR) []dns.RR {
+    if len(rrs) == 0 {
+        return target
+    }
+    target = append(target, rrs...)
+    if secured {
+        if rrsig != nil {
+            qsig := dns.Copy(rrsig)
+            qsig.Header().Name = qname
+            target = append(target, qsig)
+        } else {
+            if rrsig, err := Sign(rrs, qname, record.Zone, rrs[0].Header().Ttl); err == nil {
+                target = append(target, rrsig)
+            }
+        }
+    }
+    return target
+}
+
+func AppendNSEC(target []dns.RR, qname string, record *dns_types.Record, ttl uint32, secured bool) []dns.RR {
+    if !secured {
+        return target
+    }
+    if rrs, err := NSec(qname, record.Zone, ttl); err == nil {
+        target = append(target, rrs...)
+    }
+    return target
 }
 
 const (

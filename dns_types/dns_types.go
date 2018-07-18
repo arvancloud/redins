@@ -2,6 +2,7 @@ package dns_types
 
 import (
     "net"
+    "crypto"
     "github.com/miekg/dns"
 )
 
@@ -30,7 +31,6 @@ type ZoneKey struct {
 }
 
 type ZoneConfig struct {
-    ZoneSigningKey *ZoneKey `json:"zsk,omitempty"`
     DnsSec   bool `json:"dnssec,omitempty"`
     CnameFlattening bool `json:"cname_flattening,omitempty"`
 }
@@ -39,12 +39,16 @@ type Zone struct {
     Name      string
     Locations map[string]struct{}
     Config ZoneConfig
-    Key *dns.DNSKEY
+    DnsKey *dns.DNSKEY
+    DnsKeySig dns.RR
+    PrivateKey crypto.PrivateKey
+    KeyInception uint32
+    KeyExpiration uint32
 }
 
 type Base_RRSet struct {
-    Ttl   uint32     `json:"ttl,omitempty"`
-    RRSig *dns.RRSIG `json:"-"`
+    Ttl   uint32 `json:"ttl,omitempty"`
+    RRSig dns.RR `json:"-"`
 }
 
 type IP_RRSet struct {
