@@ -1,4 +1,4 @@
-FROM labreg.arvan.me/alpine:latest
+FROM alpine:latest
 RUN apk update && apk add libc6-compat
 ADD redins /usr/bin
 ADD config.json /CORE/redins/etc/
