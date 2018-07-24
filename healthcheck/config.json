@@ -1,6 +1,6 @@
 {
   "handler": {
-    "default_ttl": 300,
+    "max_ttl": 300,
     "cache_timeout": 60,
     "zone_reload": 600,
     "redis": {

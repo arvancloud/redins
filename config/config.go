@@ -13,7 +13,7 @@ type ServerConfig struct {
 }
 
 type HandlerConfig struct {
-    DefaultTtl int `json:"default_ttl,omitempty"`
+    MaxTtl int `json:"max_ttl,omitempty"`
     CacheTimeout int `json:"cache_timeout,omitempty"`
     ZoneReload int `json:"zone_reload,omitempty"`
     LogSourceLocation bool `json:"log_source_location,omitempty"`
@@ -81,7 +81,7 @@ func LoadConfig(path string) *RedinsConfig {
             },
         },
         Handler: HandlerConfig {
-            DefaultTtl: 300,
+            MaxTtl: 3600,
             CacheTimeout: 60,
             ZoneReload: 600,
             LogSourceLocation: false,

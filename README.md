@@ -49,7 +49,7 @@ dns query handler configuration
 
 ~~~json
 "handler": {
-    "default_ttl": 300,
+    "max_ttl": 300,
     "cache_timeout": 60,
     "zone_reload": 600,
     "log_source_location": false,
@@ -73,7 +73,7 @@ dns query handler configuration
 }
 ~~~
 
-* default_ttl : default ttl in seconds, default: 300
+* max_ttl : max ttl in seconds, default: 3600
 * cache_timeout : time in seconds before cached responses expire
 * zone_reload : time in seconds before zone data is reloaded from redis
 * log_source_location : enable logging source location of every request
@@ -211,7 +211,7 @@ sample config:
       "protocol": "udp"
     },
   "handler": {
-    "default_ttl": 300,
+    "max_ttl": 300,
     "cache_timeout": 60,
     "zone_reload": 600,
     "log_source_location": false,

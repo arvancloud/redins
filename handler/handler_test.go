@@ -82,7 +82,7 @@ var lookupEntries = [][][]string {
     },
     {
         {"@config",
-            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"cname_flattening\":true}",
         },
         {"x",
             "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\"}]}," +

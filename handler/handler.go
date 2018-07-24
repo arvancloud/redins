@@ -21,7 +21,7 @@ import (
 )
 
 type DnsRequestHandler struct {
-    DefaultTtl        int
+    MaxTtl            int
     ZoneReload        int
     CacheTimeout      int
     LogSourceLocation bool
@@ -40,7 +40,7 @@ type DnsRequestHandler struct {
 
 func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
     h := &DnsRequestHandler {
-        DefaultTtl: config.Handler.DefaultTtl,
+        MaxTtl: config.Handler.MaxTtl,
         ZoneReload: config.Handler.ZoneReload,
         CacheTimeout: config.Handler.CacheTimeout,
         LogSourceLocation: config.Handler.LogSourceLocation,
@@ -101,7 +101,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     record, localRes = h.FetchRecord(qname, logData)
     originalRecord := record
     secured := state.Do() && record != nil && record.Zone.Config.DnsSec
-    if qtype != dns.TypeCNAME {
+    if record != nil && record.Zone.Config.CnameFlattening && qtype != dns.TypeCNAME {
         for {
             if localRes != dns.RcodeSuccess {
                 break
@@ -420,13 +420,17 @@ func (h *DnsRequestHandler) SRV(name string, record *dns_types.Record) (answers 
 }
 
 func (h *DnsRequestHandler) getTtl(ttl uint32) uint32 {
-    defaultTtl := uint32(h.DefaultTtl)
-    if ttl != 0 {
-        return ttl
-    } else if defaultTtl != 0 {
-        return defaultTtl
+    maxTtl := uint32(h.MaxTtl)
+    if ttl == 0 {
+        return maxTtl
     }
-    return 300
+    if maxTtl == 0 {
+        return ttl
+    }
+    if ttl > maxTtl {
+        return maxTtl
+    }
+    return ttl
 }
 
 func (h *DnsRequestHandler) findLocation(query string, z *dns_types.Zone) string {
