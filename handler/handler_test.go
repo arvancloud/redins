@@ -20,7 +20,7 @@ var lookupZones = []string {
 
 var lookupEntries = [][][]string {
     {
-        {"@",
+        {"@config",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
         {"x",
@@ -51,9 +51,11 @@ var lookupEntries = [][][]string {
         },
     },
     {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+        },
         {"@",
-            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.example.net.\"},{\"host\":\"ns2.example.net.\"}]}}",
+            "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.example.net.\"},{\"host\":\"ns2.example.net.\"}]}}",
         },
         {"sub.*",
             "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"this is not a wildcard\"}]}}",
@@ -76,7 +78,7 @@ var lookupEntries = [][][]string {
         },
     },
     {
-        {"@",
+        {"@config",
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.aaa.\",\"ns\":\"ns1.example.aaa.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
         },
         {"x",
@@ -156,6 +158,9 @@ var lookupTestCases = [][]test.Case{
         {
             Qname: "notexists.example.com.", Qtype: dns.TypeA,
             Rcode: dns.RcodeNameError,
+            Ns: []dns.RR{
+                test.SOA("example.com. 300 IN SOA ns1.example.com. hostmaster.example.com. 1460498836 44 55 66 100"),
+            },
         },
         // SOA Test
         {
@@ -175,6 +180,9 @@ var lookupTestCases = [][]test.Case{
         },
         {
             Qname: "host3.example.net.", Qtype: dns.TypeA,
+            Ns: []dns.RR{
+                test.SOA("example.net. 300 IN SOA ns1.example.net. hostmaster.example.net. 1460498836 44 55 66 100"),
+            },
         },
         {
             Qname: "foo.bar.example.net.", Qtype: dns.TypeTXT,
@@ -184,17 +192,29 @@ var lookupTestCases = [][]test.Case{
         },
         {
             Qname: "host1.example.net.", Qtype: dns.TypeMX,
+            Ns: []dns.RR{
+                test.SOA("example.net. 300 IN SOA ns1.example.net. hostmaster.example.net. 1460498836 44 55 66 100"),
+            },
         },
         {
             Qname: "sub.*.example.net.", Qtype: dns.TypeMX,
+            Ns: []dns.RR{
+                test.SOA("example.net. 300 IN SOA ns1.example.net. hostmaster.example.net. 1460498836 44 55 66 100"),
+            },
         },
         {
             Qname: "host.subdel.example.net.", Qtype: dns.TypeA,
             Rcode: dns.RcodeNameError,
+            Ns: []dns.RR{
+                test.SOA("example.net. 300 IN SOA ns1.example.net. hostmaster.example.net. 1460498836 44 55 66 100"),
+            },
         },
         {
             Qname: "ghost.*.example.net.", Qtype: dns.TypeMX,
             Rcode: dns.RcodeNameError,
+            Ns: []dns.RR{
+                test.SOA("example.net. 300 IN SOA ns1.example.net. hostmaster.example.net. 1460498836 44 55 66 100"),
+            },
         },
         {
             Qname: "f.h.g.f.t.r.e.example.net.", Qtype: dns.TypeTXT,
@@ -342,9 +362,11 @@ func TestWeight(t *testing.T) {
 }
 
 var anameEntries = [][]string{
+    {"@config",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+    },
     {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"aname\":{\"location\":\"arvancloud.com.\"}}",
+        "{\"aname\":{\"location\":\"arvancloud.com.\"}}",
     },
     {"www",
         "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
@@ -389,7 +411,7 @@ func TestANAME(t *testing.T) {
 }
 
 var filterGeoEntries = [][]string{
-    {"@",
+    {"@config",
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filter.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"ww1",
@@ -483,9 +505,8 @@ func TestGeoFilter(t *testing.T) {
 }
 
 var filterMultiEntries = [][]string{
-    {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtermulti.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-            "\"config\":{\"ip_filter_mode\":{\"count\":\"multi\",\"order\":\"none\",\"geo_filter\":\"none\"}, \"health_check\":{\"enable\":false}}}",
+    {"@config",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtermulti.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"ww1",
         "{\"a\":{\"ttl\":300, \"records\":[" +
@@ -644,7 +665,7 @@ func TestMultiFilter(t *testing.T) {
 }
 
 var filterSingleEntries = [][]string{
-    {"@",
+    {"@config",
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.filtersingle.com.\",\"ns\":\"ns1.filter.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"ww1",

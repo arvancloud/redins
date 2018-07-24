@@ -14,7 +14,6 @@ type RRSets struct {
     NS           NS_RRSet      `json:"ns,omitempty"`
     MX           MX_RRSet      `json:"mx,omitempty"`
     SRV          SRV_RRSet     `json:"srv,omitempty"`
-    SOA          *SOA_RRSet    `json:"soa,omitempty"`
     ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
@@ -31,8 +30,9 @@ type ZoneKey struct {
 }
 
 type ZoneConfig struct {
-    DnsSec   bool `json:"dnssec,omitempty"`
-    CnameFlattening bool `json:"cname_flattening,omitempty"`
+    SOA             *SOA_RRSet `json:"soa,omitempty"`
+    DnsSec          bool       `json:"dnssec,omitempty"`
+    CnameFlattening bool       `json:"cname_flattening,omitempty"`
 }
 
 type Zone struct {
@@ -127,6 +127,7 @@ type SRV_RR struct {
 
 type SOA_RRSet struct {
     Base_RRSet
+    Data *dns.SOA `json:"-"`
     Ns      string `json:"ns"`
     MBox    string `json:"MBox"`
     Refresh uint32 `json:"refresh"`

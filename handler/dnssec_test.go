@@ -10,13 +10,18 @@ import (
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
     "sort"
+    "fmt"
 )
 
 var dnssecZone = string("dnssec_test.com.")
 
 var dnssecEntries = [][]string {
+    {"@config",
+        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.dnssec_test.com.\",\"ns\":\"ns1.dnssec_test.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
+        "\"dnssec\": true, \"cname_flattening\": true}",
+    },
     {"@",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.dnssec_test.com.\",\"ns\":\"ns1.dnssec_test.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+        "{\"ns\":{\"ttl\":300,\"records\":[{\"host\":\"a.dnssec_test.com.\"}]}}",
     },
     {"x",
         "{" +
@@ -28,8 +33,35 @@ var dnssecEntries = [][]string {
             "\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"sip.dnssec_test.com.\",\"port\":555,\"priority\":10,\"weight\":100}]}" +
             "}",
     },
-    {"@config",
-        "{\"dnssec\": true, \"cname_flattening\": true}",
+    {"*",
+        "{\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"wildcard text\"}]}}",
+    },
+    {"a",
+        "{\"a\":{\"ttl\":300,\"records\":[{\"ip\":\"129.0.2.1\"}]},\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"a text\"}]}}",
+    },
+    {"d",
+        "{\"a\":{\"ttl\":300,\"records\":[{\"ip\":\"129.0.2.1\"}]},\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"d text\"}]}}",
+    },
+    {"c1",
+        "{\"cname\":{\"ttl\":300, \"host\":\"c2.dnssec_test.com.\"}}",
+    },
+    {"c2",
+        "{\"cname\":{\"ttl\":300, \"host\":\"c3.dnssec_test.com.\"}}",
+    },
+    {"c3",
+        "{\"cname\":{\"ttl\":300, \"host\":\"a.dnssec_test.com.\"}}",
+    },
+    {"w",
+        "{\"cname\":{\"ttl\":300, \"host\":\"w.a.dnssec_test.com.\"}}",
+    },
+    {"*.a",
+        "{\"cname\":{\"ttl\":300, \"host\":\"w.b.dnssec_test.com.\"}}",
+    },
+    {"*.b",
+        "{\"cname\":{\"ttl\":300, \"host\":\"w.c.dnssec_test.com.\"}}",
+    },
+    {"*.c",
+        "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"129.0.2.1\"}]}}",
     },
 }
 
@@ -131,6 +163,70 @@ var dnssecTestCases = []test.Case{
             test.OPT(4096, true),
         },
     },
+    // wildcard Test
+    {
+        Qname: "z.dnssec_test.com.", Qtype: dns.TypeTXT,
+        Answer: []dns.RR{
+            test.TXT("z.dnssec_test.com. 300 IN TXT \"wildcard text\""),
+            test.RRSIG("z.dnssec_test.com.	300	IN	RRSIG	TXT 5 3 300 20180731095235 20180723065235 22548 dnssec_test.com. YCmkNMLkg6qtey+9+Yt+Jq0V1itDF9Gw8rodPk82b486jE22xxleLq8zcwne8Xekp57H/9Sk5mmTzczWTZQAUauUQF+o2QzLkgiI5vr0gtC5Y3fraRCDclo9/8IQ2yEs"),
+        },
+        Do: true,
+        Extra: []dns.RR{
+            test.OPT(4096, true),
+        },
+    },
+    // cname flattening test
+    {
+        Qname:"c1.dnssec_test.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.CNAME("c1.dnssec_test.com.	300	IN	CNAME	c2.dnssec_test.com."),
+            test.RRSIG("c1.dnssec_test.com.	300	IN	RRSIG	CNAME 5 3 300 20180731105909 20180723075909 22548 dnssec_test.com. lvcR8ruQHs3qnQd+SZEr8LsTfIbcPQr7G6xHprp0vgcjstnb+0egDgJNJfJZHanwn3Ya/72Bqww3cDpIFV/8/kSVlSYz4cMb9hJR8Cq+ttFsRAFgSEA0cFxX4fG6WG85"),
+            test.CNAME("c2.dnssec_test.com.	300	IN	CNAME	c3.dnssec_test.com."),
+            test.RRSIG("c2.dnssec_test.com.	300	IN	RRSIG	CNAME 5 3 300 20180731105909 20180723075909 22548 dnssec_test.com. YNSfNKSz5LOhhoeGmZ77aLE/Z/QZEnkz5UD8g9fxalAkogVKR/bAEYcNkxMh5u5wjTH9/HnWMBLkK56FjmXIrI5KeY3paXWJ85QJJGeTAcwj/uLgF0Qq+nVCqldudmN+"),
+            test.CNAME("c3.dnssec_test.com.	300	IN	CNAME	a.dnssec_test.com."),
+            test.RRSIG("c3.dnssec_test.com.	300	IN	RRSIG	CNAME 5 3 300 20180731105909 20180723075909 22548 dnssec_test.com. FFE4WsYh2sAsYlewm1/1/GSo0oeFwJPt+35C2k/6nB+w+9/rBcRXwS8kfEvCuJS4GxcYV/vCLncQxNY5OI7Q5Vaxyo1OV+xWYY7OKTS7MBivUdlNvquMMkgIqZwqYdFl"),
+            test.A("a.dnssec_test.com.	300	IN	A	129.0.2.1"),
+            test.RRSIG("a.dnssec_test.com.	300	IN	RRSIG	A 5 3 300 20180731105909 20180723075909 22548 dnssec_test.com. fKHuZTJgweFmBmASxDiZYr8r300CtAmJ03ICKAHS8FkATjLvUyZxWqjI/fExZz277pZ0FMGRiwIb7o6aI31fpAahtU1E0Mo7J0sXjVATCBhME0S88DDuPXgrOMzu8f7K"),
+        },
+        Do: true,
+        Extra: []dns.RR{
+            test.OPT(4096, true),
+        },
+        Ns: []dns.RR{
+            test.NSEC("c1.dnssec_test.com.	100	IN	NSEC	\\000.c1.dnssec_test.com. CNAME NSEC RRSIG"),
+            test.RRSIG("c1.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. GKj8gVYO7eZdeyBvrfu4yaN3oz3Hj5pBTdm3DAPb32E3gkJBtPtnxZaJL05dfu58IfVTzg5e8YDZ4P54oJmxgo8Qu49b0mGiOosPlDaA4U32+jLWpxzYSjOjvafmc+Dx"),
+            test.NSEC("c2.dnssec_test.com.	100	IN	NSEC	\\000.c2.dnssec_test.com. CNAME NSEC RRSIG"),
+            test.RRSIG("c2.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. UPSJvvx+zn3XwXxn455ABOxxn3cH1veAid8MqqA+EXPpiXuTCydQ0GtIDpc3x4hruwXGxnURDV31ZS+zI7HLWCCg0WVIcSE92nvrovfr79VnaKefac+rSq6S4u0MrnF0"),
+            test.NSEC("c3.dnssec_test.com.	100	IN	NSEC	\\000.c3.dnssec_test.com. CNAME NSEC RRSIG"),
+            test.RRSIG("c3.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. RmXEzTvRPka+U6pxm7S61Q9EU8EhUTQldT4fMlR7Gj1lPp8/ScSPmvdVSraacQH4CAEkFhV4BNBpJIHeyZJgGIol9fcEO/DypEqisinN+Aqhpl+/SAvitiAuliEUanXK"),
+        },
+    },
+    // CNAME flattening + wildcard Test
+    {
+        Qname:"w.dnssec_test.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.CNAME("w.a.dnssec_test.com.	300	IN	CNAME	w.b.dnssec_test.com."),
+            test.RRSIG("w.a.dnssec_test.com.	300	IN	RRSIG	CNAME 5 4 300 20180801064612 20180724034612 22548 dnssec_test.com. OZlpQZTJH6KjNJPDuB/YPQORgwRfPpGz5FR0AReqRizAJMOjPSNjcmzpjpFXi7N5Hg+x+15RD0pnE8yL6XXSrg5pNsQo7p9XJa/6H9AL9OGMgYcOJe5FRJwHN9XXGrVr"),
+            test.CNAME("w.b.dnssec_test.com.	300	IN	CNAME	w.c.dnssec_test.com."),
+            test.RRSIG("w.b.dnssec_test.com.	300	IN	RRSIG	CNAME 5 4 300 20180801064612 20180724034612 22548 dnssec_test.com. VMs35joPFxyRrWtz1gyGRKju9j6p7MrQihOwU8m7cmCKmNT/6e58qS3OYYnp6tH34IxJnf+DZGapL07pMwSe+JyaOpsSirTmmytKU6NRQoidijKa7QkMXtXpY1l70Fga"),
+            test.A("w.c.dnssec_test.com.	300	IN	A	129.0.2.1"),
+            test.RRSIG("w.c.dnssec_test.com.	300	IN	RRSIG	A 5 4 300 20180801064612 20180724034612 22548 dnssec_test.com. LrrMYhyADHnznyVFx/DKqpteVrRqqOIgkrWzpOO3AI8Mx1xTfNqy6xMi/ngZPRfUuLHqkp9dyYhJN1qHrRwu2rJw1P+X3n7oD3hDL982ppB3hYAWPzTcwYO0C5848AQD"),
+            test.CNAME("w.dnssec_test.com.	300	IN	CNAME	w.a.dnssec_test.com."),
+            test.RRSIG("w.dnssec_test.com.	300	IN	RRSIG	CNAME 5 3 300 20180801064612 20180724034612 22548 dnssec_test.com. fgaoAooAffMg2apxMqmQBKgVVTGx+PaOo7ik61DvsG9UP7EeBQ7K0bNGxYlcQHDv7aZdLwtTU5OpLk2UCbZPhVAr69Irdr0RYOc+/Jzgw0u+iWU2o0ERxUG9ICiB+Ix8"),
+        },
+        Do: true,
+        Extra: []dns.RR{
+            test.OPT(4096, true),
+        },
+        Ns: []dns.RR{
+            test.NSEC("w.a.dnssec_test.com.	100	IN	NSEC	\\000.w.a.dnssec_test.com. CNAME RRSIG NSEC"),
+            test.RRSIG("w.a.dnssec_test.com.	100	IN	RRSIG	NSEC 5 4 100 20180801064612 20180724034612 22548 dnssec_test.com. SwDu6ZjOObzPcu9me12150KNmKXBj34TDI5m/83pM4cX3CbqMZFwDJuQUb17Ry3Ymts0QVW6uu0yN8dGPsvNVjCCeRtzz5E+6LtGEBkYboJap9RnU06dQ9sATGgSR49S"),
+            test.NSEC("w.b.dnssec_test.com.	100	IN	NSEC	\\000.w.b.dnssec_test.com. CNAME RRSIG NSEC"),
+            test.RRSIG("w.b.dnssec_test.com.	100	IN	RRSIG	NSEC 5 4 100 20180801064612 20180724034612 22548 dnssec_test.com. UzFt4VYpuIxeIaqYAiUxyhkgZbzKOurSpvsxQcoehy77f/8fPfFHc42+aR0+tBuQliVQKo7dpltsSS5qk0jRaUKOwC4fnMXWkY/WphdHtGJBBbKnxWBD9AfNybxYvwwS"),
+            test.NSEC("w.dnssec_test.com.	100	IN	NSEC	\\000.w.dnssec_test.com. CNAME RRSIG NSEC"),
+            test.RRSIG("w.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180801064612 20180724034612 22548 dnssec_test.com. JlbwIhYN3DRztKChDNtCDe/ruUnGO7qUM3amBvA4XpAnlEhBd0LvReIcStot31h/7ZMYW4gpKGziHFMCeAiHT1+QGYiEV09n7Er1Fl7ewNg8xFtoE01mTlYxRwzhQopp"),
+        },
+    },
 }
 
 func TestDNSSEC(t *testing.T) {
@@ -164,26 +260,48 @@ func TestDNSSEC(t *testing.T) {
         tc := test.Case{
             Qname: dnssecTestCases[i].Qname, Qtype: dnssecTestCases[i].Qtype,
             Answer: make([]dns.RR, len(dnssecTestCases[i].Answer)),
+            Ns: make([]dns.RR, len(dnssecTestCases[i].Ns)),
             Do: true,
             Extra: []dns.RR{
                 test.OPT(4096, true),
             },
         }
         copy(tc.Answer, dnssecTestCases[i].Answer)
+        copy(tc.Ns, dnssecTestCases[i].Ns)
         sort.Sort(test.RRSet(tc.Answer))
+        sort.Sort(test.RRSet(tc.Ns))
 
         r := tc.Msg()
         w := dnstest.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
         resp := w.Msg
-        rrsig := resp.Answer[len(resp.Answer)-1].(*dns.RRSIG)
-        if rrsig.Verify(dnskey.(*dns.DNSKEY), resp.Answer[0 : len(resp.Answer)-1]) != nil {
-            t.Fail()
+        if i == 7 {
+            fmt.Println("here")
         }
-        if rrsig.Verify(dnskey.(*dns.DNSKEY), tc0.Answer[0 : len(resp.Answer)-1]) != nil {
-            t.Fail()
+        for zz, rrs := range ([][]dns.RR{tc0.Answer, tc0.Ns, resp.Answer, resp.Ns}) {
+            fmt.Println(zz)
+            s := 0
+            e := 1
+            for {
+                if s >= len(rrs) || e >= len(rrs) {
+                    break
+                }
+                if rrsig, ok := rrs[e].(*dns.RRSIG); ok {
+                    fmt.Printf("s = %d, e = %d\n", s, e)
+                    if rrsig.Verify(dnskey.(*dns.DNSKEY), rrs[s:e]) != nil {
+                        fmt.Println("fail")
+                        t.Fail()
+                    }
+                    s = e+1
+                    e = s+1
+                } else {
+                    e++
+                }
+            }
         }
+        fmt.Println("dddd")
         test.SortAndCheck(t, resp, tc)
+        fmt.Println("xxxx")
     }
 }

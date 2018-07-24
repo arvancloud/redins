@@ -10,6 +10,11 @@ import (
     "arvancloud/redins/eventlog"
 )
 
+var (
+    NSecTypesNone = []uint16 { dns.TypeRRSIG, dns.TypeNSEC}
+    NSecTypesCNAME = []uint16 {dns.TypeCNAME, dns.TypeRRSIG, dns.TypeNSEC}
+)
+
 func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
     if len(record.A.Data) > 0 {
         a := h.A(record.Name, record, record.A.Data)
@@ -67,14 +72,6 @@ func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
             eventlog.Logger.Errorf("cannot sign cname record set for %s : %s", record.Name+"'"+record.Zone.Name, err)
         }
     }
-    if record.SOA != nil {
-        soa := h.SOA(record.Name, record)
-        if rrsig, err := Sign(soa, record.Name, record.Zone, record.SOA.Ttl); err == nil {
-            record.SOA.RRSig = rrsig
-        } else {
-            eventlog.Logger.Errorf("cannot sign soa record set for %s : %s", record.Name+"'"+record.Zone.Name, err)
-        }
-    }
 }
 
 func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRSIG, error) {
@@ -88,9 +85,15 @@ func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRS
     }
     switch rrsig.Algorithm {
     case dns.RSAMD5, dns.RSASHA1, dns.RSASHA1NSEC3SHA1, dns.RSASHA256, dns.RSASHA512:
-        rrsig.Sign(zone.PrivateKey.(*rsa.PrivateKey), rrs)
+        if err := rrsig.Sign(zone.PrivateKey.(*rsa.PrivateKey), rrs); err != nil {
+            eventlog.Logger.Errorf("sign failed : %s", err)
+            return nil, err
+        }
     case dns.ECDSAP256SHA256, dns.ECDSAP384SHA384:
-        rrsig.Sign(zone.PrivateKey.(*ecdsa.PrivateKey), rrs)
+        if err := rrsig.Sign(zone.PrivateKey.(*ecdsa.PrivateKey), rrs); err != nil {
+            eventlog.Logger.Errorf("sign failed : %s", err)
+            return nil, err
+        }
     case dns.DSA, dns.DSANSEC3SHA1:
         //rrsig.Sign(zone.PrivateKey.(*dsa.PrivateKey), rrs)
         fallthrough
@@ -100,16 +103,16 @@ func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRS
     return rrsig, nil
 }
 
-func NSec(name string, zone *dns_types.Zone, ttl uint32) ([]dns.RR, error) {
+func NSec(name string, zone *dns_types.Zone, nxTypes []uint16) ([]dns.RR, error) {
     nsec := &dns.NSEC{
-        Hdr: dns.RR_Header{name, dns.TypeNSEC, dns.ClassINET, ttl, 0},
+        Hdr: dns.RR_Header{name, dns.TypeNSEC, dns.ClassINET, zone.Config.SOA.MinTtl, 0},
         NextDomain: "\\000." + name,
-        TypeBitMap: []uint16{dns.TypeRRSIG, dns.TypeNSEC},
+        TypeBitMap: nxTypes,
     }
-    sigs, err := Sign([]dns.RR{nsec}, name, zone, ttl)
+    sigs, err := Sign([]dns.RR{nsec}, name, zone, zone.Config.SOA.MinTtl)
     if err != nil {
         return nil, err
     }
 
-    return []dns.RR{sigs, nsec}, nil
+    return []dns.RR{nsec, sigs}, nil
 }
