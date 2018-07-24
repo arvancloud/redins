@@ -49,6 +49,9 @@ var lookupEntries = [][][]string {
             "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"7.7.7.7\"}]}," +
             "{\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}}",
         },
+        {"t.u.v.w",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"9.9.9.9\"}]}}",
+        },
     },
     {
         {"@config",
@@ -169,6 +172,13 @@ var lookupTestCases = [][]test.Case{
                 test.SOA("example.com. 300 IN SOA ns1.example.com. hostmaster.example.com. 1460498836 44 55 66 100"),
             },
         },
+        // Empty non-terminal Test
+        // FIXME: should return NOERROR instead of NXDOMAIN
+        /*
+        {
+            Qname:"v.w.example.com.", Qtype: dns.TypeA,
+        },
+        */
     },
     // Wildcard Tests
     {
