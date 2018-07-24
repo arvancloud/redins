@@ -22,7 +22,6 @@
         - [MX](#mx)
         - [SRV](#srv)
         - [SOA](#soa)
-        - [Config](#config)
     - [example](#zone-example)
     
 
@@ -279,7 +278,7 @@ sample config:
 
 ### zones
 
-each zone is stored in redis as a hash map with *zone* as key
+each zone is stored in redis as a hash map with *zone* as key.
 
 ~~~
 redis-cli>KEYS *
@@ -291,18 +290,48 @@ redis-cli>
 ### dns RRs 
 
 dns RRs are stored in redis as json strings inside a hash map using address as field key.
-*@* is used for zone's own RR values.
+ there are two special labels: @config for zone specific configuration and @ for TLD records.
+
+~~~
+redis-cli>HGETALL example.com.
+1) "@"
+2) "@config"
+3) "www"
+~~~
 
 #### A
 
 ~~~json
 {
-    "a":[{
-        "ip" : "1.2.3.4",
+    "a":{
         "ttl" : 360,
-        "country" : "US",
-        "weight" : 10
-    }]
+        "records":[
+          {
+            "ip" : "1.2.3.4",
+            "country" : "US",
+            "weight" : 10
+          },
+          {
+            "ip" : "2.2.3.4",
+            "country" : "US",
+            "weight" : 10
+          }
+        ],
+        "filter": {
+          "count":"single",
+          "order": "rr",
+          "geo_filter":"country"
+        },
+        "health_check":{
+          "enable":true,
+          "uri": "/hc/test.html",
+          "port": 8080,
+          "protocol": "https",
+          "up_count":3,
+          "down_count":-3,
+          "timeout":1000
+        }
+    }
 }
 ~~~
 
@@ -310,14 +339,51 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "aaaa":[{
-        "ip" : "::1",
+    "aaaa":{
         "ttl" : 360,
-        "country" : "US",
-        "weight" : 10
-    }]
+        "records":[
+          {
+            "ip" : "1.2.3.4",
+            "country" : "US",
+            "weight" : 10
+          },
+          {
+            "ip" : "1.2.3.4",
+            "country" : "US",
+            "weight" : 10
+          }
+        ],
+        "filter": {
+          "count":"single",
+          "order": "rr",
+          "geo_filter":"country"
+        },
+        "health_check":{
+          "enable":true,
+          "uri": "/hc/test.html",
+          "port": 8080,
+          "protocol": "https",
+          "up_count":3,
+          "down_count":-3,
+          "timeout":1000
+        }
+    }
 }
 ~~~
+
+`filter` : filtering mode:
+* count : return single or multiple results. values : "multi", "single"
+* order : order of result. values : "none" - saved order, "weighted" - weighted shuffle, "rr" - uniform shuffle
+* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination, "none"
+
+`health_check` : health check configuration
+* enable : enable/disable healthcheck for this host:ip
+* uri : uri to use in healthcheck request
+* port : port to use in healthcheck request
+* protocol : protocol to use in healthcheck request, can be http or https
+* up_count : number of successful healthcheck requests to consider an ip valid
+* down_count : number of unsuccessful healthcheck requests to consider an ip invalid
+* timeout time : to wait for a healthcheck response
 
 #### ANAME
 
@@ -344,10 +410,13 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "txt":[{
-        "text" : "this is a text",
-        "ttl" : 360
-    }]
+    "txt":{
+      "ttl" : 360,
+      "records":[
+        {"text" : "this is a text"},
+        {"text" : "this is another text"}
+      ]
+    }
 }
 ~~~
 
@@ -355,10 +424,13 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "ns":[{
-        "host" : "ns1.example.com.",
-        "ttl" : 360
-    }]
+    "ns":{
+        "ttl" : 360,
+        "records":[
+          {"host" : "ns1.example.com."},
+          {"host" : "ns2.example.com."}
+        ]
+    }
 }
 ~~~
 
@@ -366,11 +438,19 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "mx":[{
-        "host" : "mx1.example.com.",
-        "preference" : 10,
-        "ttl" : 360
-    }]
+    "mx":{
+        "ttl" : 360,
+        "records":[
+            {
+              "host" : "mx1.example.com.",
+              "preference" : 10
+            },
+            {
+              "host" : "mx2.example.com.",
+              "preference" : 20
+            }
+        ]
+    }
 }
 ~~~
 
@@ -378,19 +458,24 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
 
 ~~~json
 {
-    "srv":[{
-        "target" : "sip.example.com.",
-        "port" : 555,
-        "priority" : 10,
-        "weight" : 100,
-        "ttl" : 360
-    }]
+    "srv":{
+      "ttl" : 360,
+      "records":[
+        {
+          "target" : "sip.example.com.",
+          "port" : 555,
+          "priority" : 10,
+          "weight" : 100
+        }
+      ]
+    }
 }
 ~~~
 
-#### SOA
+#### config
 
 ~~~json
+"@config":
 {
     "soa":{
         "ttl" : 100,
@@ -399,46 +484,14 @@ dns RRs are stored in redis as json strings inside a hash map using address as f
         "refresh" : 44,
         "retry" : 55,
         "expire" : 66
-    }
+    },
+    "cname_flattening": true,
+    "dnssec": true
 }
 ~~~
 
-#### config
-
-~~~json
-{
-    "config":{
-        "ip_filter_mode":{
-            "count": "multi",
-            "order": "none",
-            "geo_filter": "none"
-        },
-        "health_check":{
-            "enable":true,
-            "uri": "/hc/test.html",
-            "port": 8080,
-            "protocol": "https",
-            "up_count":3,
-            "down_count":-3,
-            "timeout":1000
-        }
-    }
-}
-~~~
-
-`ip-filter_mode` : filtering mode:
-* count : return single or multiple results. values : "multi", "single"
-* order : order of result. values : "none" - saved order, "weighted" - weighted shuffle, "rr" - uniform shuffle
-* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination, "none"
-
-`health_check` : health check configuration
-* enable : enable/disable healthcheck for this host:ip
-* uri : uri to use in healthcheck request
-* port : port to use in healthcheck request
-* protocol : protocol to use in healthcheck request, can be http or https
-* up_count : number of successful healthcheck requests to consider an ip valid
-* down_count : number of unsuccessful healthcheck requests to consider an ip invalid
-* timeout time : to wait for a healthcheck response
+`cname_flattening`: enable/disable cname flattening, default: false
+`dnssec`: enable/disable dnssec, default: false
 
 ### zone example
 
@@ -462,18 +515,18 @@ above zone data should be stored at redis as follow:
 ~~~
 redis-cli> hgetall example.net.
  1) "_ssh._tcp.host1"
- 2) "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}"
+ 2) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
  3) "*"
- 4) "{\"txt\":[{\"ttl\":300, \"text\":\"this is a wildcard\"}],\"mx\":[{\"ttl\":300, \"host\":\"host1.example.net.\",\"preference\": 10}]}"
+ 4) "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"this is a wildcard\"}]},\"mx\":{\"ttl\":300, \"records\":[{\"host\":\"host1.example.net.\",\"preference\": 10}]}}"
  5) "host1"
- 6) "{\"a\":[{\"ttl\":300, \"ip\":\"5.5.5.5\"}]}"
+ 6) "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"5.5.5.5\"}]}}"
  7) "sub.*"
- 8) "{\"txt\":[{\"ttl\":300, \"text\":\"this is not a wildcard\"}]}"
+ 8) "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"this is not a wildcard\"}]}}"
  9) "_ssh._tcp.host2"
-10) "{\"srv\":[{\"ttl\":300, \"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}"
+10) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
 11) "subdel"
-12) "{\"ns\":[{\"ttl\":300, \"host\":\"ns1.subdel.example.net.\"},{\"ttl\":300, \"host\":\"ns2.subdel.example.net.\"}]}"
-13) "@"
+12) "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.subdel.example.net.\"},{\"host\":\"ns2.subdel.example.net.\"}]}"
+13) "@config"
 14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
 redis-cli> 
 ~~~
