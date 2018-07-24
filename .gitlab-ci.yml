@@ -1,7 +1,7 @@
 variables:
   DOCKER_DRIVER: overlay
 services:
-    - labreg.arvancloud.com:5000/docker:dind
+    - labreg.arvan.me/docker:dind
 before_script:
     - ls
     - pwd
@@ -11,12 +11,14 @@ before_script:
     - ln -sf `pwd` $GOPATH/src/arvancloud/redins
 
 stages:
-    - test
-    - deploy
+    - test-lab
+    - test-production
+    - deploy-lab
+    - deploy-production
 
-test:
-    stage: test
-    image: labreg.arvancloud.com:5000/shared_runner:latest
+test-lab:
+    stage: test-lab
+    image: labreg.arvan.me/shared_runner:latest
     script:
         - echo test
         - redis-server &
@@ -30,16 +32,49 @@ test:
     only:
         - dev
 
-deploy:
-    stage: deploy
-    image: labreg.arvancloud.com:5000/docker:latest
-    dependencies:
-    - test
+test-production:
+    stage: test-production
+    image: labreg.arvan.me/shared_runner:latest
     script:
-        - echo deploy
-        - BUILD_VERSION=`cat VERSION`
-        - docker login labreg.arvancloud.com:5000 -u $REPO_USR -p $REPO_PWD
-        - docker build . -t labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
-        - docker push labreg.arvancloud.com:5000/arvan_redins:$BUILD_VERSION
+        - echo test
+        - redis-server &
+        - cd $GOPATH/src/arvancloud/redins
+        - go get
+        - go build
+        - go test ./...
+    artifacts:
+        paths:
+        - ./redins
+    only:
+        - master
+    only:
+        - tags
+
+deploy-lab:
+    stage: deploy-lab
+    image: labreg.arvan.me/docker:latest
+    dependencies:
+    - test-lab
+    script:
+        - echo deploy-lab
+        - docker login labreg.arvan.me -u $REPO_USR -p $REPO_PWD
+        - docker build . -t labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID -t labreg.arvan.me/arvan_redins:latest
+        - docker push labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID 
+        - docker push labreg.arvan.me/arvan_redins:latest
     only:
         - dev
+
+deploy-production:
+    stage: deploy-production
+    image: labreg.arvan.me/docker:latest
+    dependencies:
+    - test-production
+    script:
+        - echo deploy-production
+        - docker login reg.arvan.me -u $PROD_REPO_USR -p $PROD_REPO_PWD
+        - docker build . -t reg.arvan.me/arvan_redins:${CI_COMMIT_TAG}-production 
+        - docker push reg.arvan.me/arvan_redins:${CI_COMMIT_TAG}-production 
+    only:
+        - master
+    only:
+        - tags
