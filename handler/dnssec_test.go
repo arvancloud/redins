@@ -2,7 +2,6 @@ package handler
 
 import (
     "testing"
-    "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
     "log"
     "github.com/coredns/coredns/plugin/test"
@@ -11,6 +10,9 @@ import (
     "github.com/coredns/coredns/request"
     "sort"
     "fmt"
+    "arvancloud/redins/upstream"
+    "arvancloud/redins/redis"
+    "arvancloud/redins/geoip"
 )
 
 var dnssecZone = string("dnssec_test.com.")
@@ -213,11 +215,41 @@ var dnssecTestCases = []test.Case{
     },
 }
 
-func TestDNSSEC(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+var dnssecTestConfig = HandlerConfig {
+    MaxTtl: 300,
+    CacheTimeout: 60,
+    ZoneReload: 600,
+    Redis: redis.RedisConfig {
+        Ip: "127.0.0.1",
+        Port: 6379,
+        Password: "",
+        Prefix: "test_",
+        Suffix: "_test",
+        ConnectTimeout: 0,
+        ReadTimeout: 0,
+    },
+    Log: eventlog.LogConfig {
+        Enable: false,
+    },
+    Upstream: []upstream.UpstreamConfig  {
+        {
+            Ip: "1.1.1.1",
+            Port: 53,
+            Protocol: "udp",
+            Timeout: 1000,
+        },
+    },
+    GeoIp: geoip.GeoIpConfig {
+        Enable: true,
+        Db: "../geoCity.mmdb",
+    },
+}
 
-    h := NewHandler(cfg)
+func TestDNSSEC(t *testing.T) {
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+
+    h := NewHandler(&dnssecTestConfig)
+
     h.Redis.Del(dnssecZone)
     for _, cmd := range dnssecEntries {
         err := h.Redis.HSet(dnssecZone, cmd[0], cmd[1])

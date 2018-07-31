@@ -3,15 +3,35 @@ package eventlog
 import (
     "os"
     "github.com/sirupsen/logrus"
-    "arvancloud/redins/config"
     logrus_syslog "github.com/sirupsen/logrus/hooks/syslog"
     "log/syslog"
     "github.com/getsentry/raven-go"
     "github.com/evalphobia/logrus_sentry"
 )
 
+type LogConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    Target string `json:"target,omitempty"`
+    Level string `json:"level,omitempty"`
+    Path string `json:"path,omitempty"`
+    Format string `json:"format,omitempty"`
+    Sentry SentryConfig `json:"sentry,omitempty"`
+    Syslog SyslogConfig `json:"syslog, omitempty"`
+}
+
+type SentryConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    DSN string `json:"dsn,omitempty"`
+}
+
+type SyslogConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    Protocol string `json:"protocol,omitempty"`
+    Address string `json:"address,omitempty"`
+}
+
 type EventLogger struct {
-    config *config.LogConfig
+    config *LogConfig
     file   *os.File
     log    *logrus.Logger
     sentryClient *raven.Client
@@ -19,7 +39,7 @@ type EventLogger struct {
 
 var Logger *EventLogger
 
-func NewLogger(config *config.LogConfig) *EventLogger {
+func NewLogger(config *LogConfig) *EventLogger {
     logger := &EventLogger {
         config: config,
         log:    logrus.New(),

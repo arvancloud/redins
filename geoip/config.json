@@ -1,6 +1,0 @@
-{
-    "geoip": {
-        "enable": true,
-        "db": "../geoCity.mmdb"
-    }
-}

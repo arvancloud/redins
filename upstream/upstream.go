@@ -6,7 +6,6 @@ import (
 
     "github.com/miekg/dns"
     "github.com/patrickmn/go-cache"
-    "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
 )
 
@@ -20,11 +19,18 @@ type Upstream struct {
     cache         *cache.Cache
 }
 
-func NewUpstream(config *config.RedinsConfig) *Upstream {
+type UpstreamConfig struct {
+    Ip       string `json:"ip,omitempty"`
+    Port     int `json:"port,omitempty"`
+    Protocol string `json:"protocol,omitempty"`
+    Timeout  int `json:"timeout,omitempty"`
+}
+
+func NewUpstream(config []UpstreamConfig) *Upstream {
     u := &Upstream{}
 
     u.cache = cache.New(time.Second * time.Duration(defaultCacheTtl), time.Second * time.Duration(defaultCacheTtl) * 10)
-    for _, upstreamConfig := range config.Upstream {
+    for _, upstreamConfig := range config {
         client := &dns.Client {
             Net: upstreamConfig.Protocol,
             Timeout: time.Duration(upstreamConfig.Timeout) * time.Millisecond,

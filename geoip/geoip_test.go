@@ -5,7 +5,6 @@ import (
     "net"
     "log"
 
-    "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
 )
@@ -52,10 +51,13 @@ func TestGeoIpAutomatic(t *testing.T) {
         {"37.148.176.54", "BE"},
     }
 
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    cfg := GeoIpConfig {
+        Enable: true,
+        Db: "../geoCity.mmdb",
+    }
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
-    g := NewGeoIp(cfg)
+    g := NewGeoIp(&cfg)
 
     for i,_ := range sip {
         dest := new(dns_types.IP_RRSet)
@@ -86,10 +88,13 @@ func TestGeoIpManual(t *testing.T) {
         {"127.0.0.1", "", "3.4.5.6"},
     }
 
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    cfg := GeoIpConfig {
+        Enable: true,
+        Db: "../geoCity.mmdb",
+    }
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
-    g := NewGeoIp(cfg)
+    g := NewGeoIp(&cfg)
 
 
     for i, _ := range sip {

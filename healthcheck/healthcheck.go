@@ -12,7 +12,6 @@ import (
     "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
-    "arvancloud/redins/config"
 )
 
 type HealthCheckItem struct {
@@ -162,24 +161,31 @@ func (w Worker) Stop() {
     }()
 }
 
+type HealthcheckConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    MaxRequests int `json:"max_requests,omitempty"`
+    UpdateInterval int `json:"update_interval,omitempty"`
+    CheckInterval int `json:"check_interval,omitempty"`
+    RedisStatusServer redis.RedisConfig `json:"redis_status_server,omitempty"`
+    Log eventlog.LogConfig `json:"log,omitempty"`
+}
 
-
-func NewHealthcheck(config *config.RedinsConfig) *Healthcheck {
+func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *redis.Redis) *Healthcheck {
     h := &Healthcheck {
-        Enable: config.HealthCheck.Enable,
-        maxRequests: config.HealthCheck.MaxRequests,
-        updateInterval: time.Duration(config.HealthCheck.UpdateInterval) * time.Second,
-        checkInterval: time.Duration(config.HealthCheck.CheckInterval) * time.Second,
+        Enable: config.Enable,
+        maxRequests: config.MaxRequests,
+        updateInterval: time.Duration(config.UpdateInterval) * time.Second,
+        checkInterval: time.Duration(config.CheckInterval) * time.Second,
     }
 
     if h.Enable {
 
-        h.redisConfigServer = redis.NewRedis(&config.Handler.Redis)
-        h.redisStatusServer = redis.NewRedis(&config.HealthCheck.Redis)
-        h.cachedItems = cache.New(time.Second * time.Duration(config.HealthCheck.CheckInterval), time.Duration(config.HealthCheck.CheckInterval) * time.Second * 10)
+        h.redisConfigServer = redisConfigServer
+        h.redisStatusServer = redis.NewRedis(&config.RedisStatusServer)
+        h.cachedItems = cache.New(time.Second * time.Duration(config.CheckInterval), time.Duration(config.CheckInterval) * time.Second * 10)
         h.transferItems()
-        h.dispatcher = NewDispatcher(config.HealthCheck.MaxRequests)
-        h.logger = eventlog.NewLogger(&config.HealthCheck.Log)
+        h.dispatcher = NewDispatcher(config.MaxRequests)
+        h.logger = eventlog.NewLogger(&config.Log)
     }
 
     return h

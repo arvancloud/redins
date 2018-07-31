@@ -9,15 +9,14 @@ import (
     "net"
 
     "github.com/miekg/dns"
-    "arvancloud/redins/redis"
     "github.com/patrickmn/go-cache"
-    "arvancloud/redins/config"
+    "github.com/coredns/coredns/request"
+    "arvancloud/redins/redis"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/dns_types"
     "arvancloud/redins/upstream"
     "arvancloud/redins/geoip"
     "arvancloud/redins/healthcheck"
-    "github.com/coredns/coredns/request"
 )
 
 type DnsRequestHandler struct {
@@ -38,21 +37,34 @@ type DnsRequestHandler struct {
 
 }
 
-func NewHandler(config *config.RedinsConfig) *DnsRequestHandler {
+type HandlerConfig struct {
+    Upstream []upstream.UpstreamConfig `json:"upstream,omitempty"`
+    GeoIp geoip.GeoIpConfig `json:"geoip,omitempty"`
+    HealthCheck healthcheck.HealthcheckConfig `json:"healthcheck,omitempty"`
+    MaxTtl int `json:"max_ttl,omitempty"`
+    CacheTimeout int `json:"cache_timeout,omitempty"`
+    ZoneReload int `json:"zone_reload,omitempty"`
+    LogSourceLocation bool `json:"log_source_location,omitempty"`
+    UpstreamFallback bool `json:"upstream_fallback,omitempty"`
+    Redis redis.RedisConfig `json:"redis,omitempty"`
+    Log eventlog.LogConfig `json:"log,omitempty"`
+}
+
+func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h := &DnsRequestHandler {
-        MaxTtl: config.Handler.MaxTtl,
-        ZoneReload: config.Handler.ZoneReload,
-        CacheTimeout: config.Handler.CacheTimeout,
-        LogSourceLocation: config.Handler.LogSourceLocation,
-        UpstreamFallback: config.Handler.UpstreamFallback,
+        MaxTtl: config.MaxTtl,
+        ZoneReload: config.ZoneReload,
+        CacheTimeout: config.CacheTimeout,
+        LogSourceLocation: config.LogSourceLocation,
+        UpstreamFallback: config.UpstreamFallback,
         zoneLock: sync.RWMutex{},
     }
 
-    h.Redis = redis.NewRedis(&config.Handler.Redis)
-    h.Logger = eventlog.NewLogger(&config.Handler.Log)
-    h.geoip = geoip.NewGeoIp(config)
-    h.healthcheck = healthcheck.NewHealthcheck(config)
-    h.upstream = upstream.NewUpstream(config)
+    h.Redis = redis.NewRedis(&config.Redis)
+    h.Logger = eventlog.NewLogger(&config.Log)
+    h.geoip = geoip.NewGeoIp(&config.GeoIp)
+    h.healthcheck = healthcheck.NewHealthcheck(&config.HealthCheck, h.Redis)
+    h.upstream = upstream.NewUpstream(config.Upstream)
 
     h.LoadZones()
 

@@ -9,9 +9,11 @@ import (
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
+    "arvancloud/redins/redis"
+    "arvancloud/redins/geoip"
+    "arvancloud/redins/upstream"
 )
 
 var lookupZones = []string {
@@ -258,11 +260,40 @@ var lookupTestCases = [][]test.Case{
     },
 }
 
-func TestLookup(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+var handlerTestConfig = HandlerConfig {
+    MaxTtl: 300,
+    CacheTimeout: 60,
+    ZoneReload: 600,
+    Redis: redis.RedisConfig {
+        Ip: "127.0.0.1",
+        Port: 6379,
+        Password: "",
+        Prefix: "test_",
+        Suffix: "_test",
+        ConnectTimeout: 0,
+        ReadTimeout: 0,
+    },
+    Log: eventlog.LogConfig {
+        Enable: false,
+    },
+    Upstream: []upstream.UpstreamConfig  {
+        {
+            Ip: "1.1.1.1",
+            Port: 53,
+            Protocol: "udp",
+            Timeout: 1000,
+        },
+    },
+    GeoIp: geoip.GeoIpConfig {
+        Enable: true,
+        Db: "../geoCity.mmdb",
+    },
+}
 
-    h := NewHandler(cfg)
+func TestLookup(t *testing.T) {
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+
+    h := NewHandler(&handlerTestConfig)
     for i, zone := range lookupZones {
         h.Redis.Del(zone)
         for _, cmd := range lookupEntries[i] {
@@ -289,8 +320,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestWeight(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     // distribution
     ips := []dns_types.IP_RR {
@@ -386,10 +416,9 @@ var anameEntries = [][]string{
 
 func TestANAME(t *testing.T) {
     zone := "arvancloud.com."
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
-    h := NewHandler(cfg)
+    h := NewHandler(&handlerTestConfig)
     h.Redis.Del(zone)
     for _, cmd := range anameEntries {
         err := h.Redis.HSet(zone, cmd[0], cmd[1])
@@ -487,11 +516,10 @@ var filterGeoTestCases = []test.Case{
 }
 
 func TestGeoFilter(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     zone := "filtergeo.com."
-    h := NewHandler(cfg)
+    h := NewHandler(&handlerTestConfig)
     h.Redis.Del(zone)
     for _, cmd := range filterGeoEntries {
         err := h.Redis.HSet(zone, cmd[0], cmd[1])
@@ -573,11 +601,10 @@ var filterMultiTestCases = []test.Case{
 }
 
 func TestMultiFilter(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     zone := "filtermulti.com."
-    h := NewHandler(cfg)
+    h := NewHandler(&handlerTestConfig)
     h.Redis.Del(zone)
     for _, cmd := range filterMultiEntries {
         err := h.Redis.HSet(zone, cmd[0], cmd[1])
@@ -728,11 +755,10 @@ var filterSingleTestCases = []test.Case{
 }
 
 func TestSingleFilter(t *testing.T) {
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     zone := "filtersingle.com."
-    h := NewHandler(cfg)
+    h := NewHandler(&handlerTestConfig)
     h.Redis.Del(zone)
     for _, cmd := range filterSingleEntries {
         err := h.Redis.HSet(zone, cmd[0], cmd[1])

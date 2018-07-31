@@ -5,7 +5,6 @@ import (
     "github.com/sirupsen/logrus"
     "os"
     "sync"
-    "arvancloud/redins/config"
 )
 
 
@@ -38,12 +37,12 @@ func TestAsyncLog(t *testing.T) {
 }
 
 func TestSentry(t *testing.T) {
-    cfg := &config.LogConfig {
+    cfg := &LogConfig {
         Enable: true,
         Level: "debug",
         Target: "stdout",
         Format: "json",
-        Sentry: config.SentryConfig {
+        Sentry: SentryConfig {
             Enable: true,
             DSN: "https://7275419def7e4730aef88bd2c87d1ee7:860a3fd7794a48ee8232c1fb08f66b8e@error-tracking.arvancloud.com/4",
         },

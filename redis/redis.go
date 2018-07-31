@@ -7,17 +7,26 @@ import (
     "errors"
 
     redisCon "github.com/gomodule/redigo/redis"
-    "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
 )
 
 type Redis struct {
-    Config       *config.RedisConfig
+    Config       *RedisConfig
     Pool         *redisCon.Pool
     RedisAddress string
 }
 
-func NewRedis(config *config.RedisConfig) *Redis {
+type RedisConfig struct {
+    Ip string `json:"ip,omitempty"`
+    Port int `json:"port,omitempty"`
+    Password string `json:"password,omitempty"`
+    Prefix string `json:"prefix,omitempty"`
+    Suffix string `json:"suffix,omitempty"`
+    ConnectTimeout int `json:"connect_timeout,omitempty"`
+    ReadTimeout int `json:"read_timeout,omitempty"`
+}
+
+func NewRedis(config *RedisConfig) *Redis {
     r := &Redis {
         Config:         config,
         RedisAddress:   config.Ip + ":" + strconv.Itoa(config.Port),

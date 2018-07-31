@@ -6,7 +6,6 @@ import (
 
     "github.com/oschwald/maxminddb-golang"
     "arvancloud/redins/dns_types"
-    "arvancloud/redins/config"
     "arvancloud/redins/eventlog"
 )
 
@@ -15,13 +14,18 @@ type GeoIp struct {
     db     *maxminddb.Reader
 }
 
-func NewGeoIp(config *config.RedinsConfig) *GeoIp {
+type GeoIpConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    Db string `json:"db,omitempty"`
+}
+
+func NewGeoIp(config *GeoIpConfig) *GeoIp {
     g := &GeoIp {
-        Enable: config.GeoIp.Enable,
+        Enable: config.Enable,
     }
     var err error
     if g.Enable {
-        g.db, err = maxminddb.Open(config.GeoIp.Db)
+        g.db, err = maxminddb.Open(config.Db)
         if err != nil {
             eventlog.Logger.Errorf("cannot open maxminddb file %s", err)
             g.Enable = false

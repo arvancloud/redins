@@ -31,42 +31,42 @@
       "target": "file",
       "level": "info",
       "path": "/tmp/redins.log"
-    }
-  },
-  "upstream": [{
-    "ip": "1.1.1.1",
-    "port": 53,
-    "protocol": "udp",
-    "timeout": 400
-  },{
-    "ip": "8.8.8.8",
-    "port": 53,
-    "protocol": "udp",
-    "timeout": 400
-  }],
-  "geoip": {
-    "enable": true,
-    "db": "geoCity.mmdb"
-  },
-  "healthcheck": {
-    "enable": true,
-    "max_requests": 10,
-    "update_interval": 600,
-    "check_interval": 600,
-    "redis": {
-      "ip": "127.0.0.1",
-      "port": 6379,
-      "password": "",
-      "prefix": "healthcheck_",
-      "suffix": "_healthcheck",
-      "connect_timeout": 0,
-      "read_timeout": 0
     },
-    "log": {
+    "upstream": [{
+      "ip": "1.1.1.1",
+      "port": 53,
+      "protocol": "udp",
+      "timeout": 400
+    },{
+      "ip": "8.8.8.8",
+      "port": 53,
+      "protocol": "udp",
+      "timeout": 400
+    }],
+    "geoip": {
       "enable": true,
-      "target": "file",
-      "level": "info",
-      "path": "/tmp/healthcheck.log"
+      "db": "geoCity.mmdb"
+    },
+    "healthcheck": {
+      "enable": true,
+      "max_requests": 10,
+      "update_interval": 600,
+      "check_interval": 600,
+      "redis": {
+        "ip": "127.0.0.1",
+        "port": 6379,
+        "password": "",
+        "prefix": "healthcheck_",
+        "suffix": "_healthcheck",
+        "connect_timeout": 0,
+        "read_timeout": 0
+      },
+      "log": {
+        "enable": true,
+        "target": "file",
+        "level": "info",
+        "path": "/tmp/healthcheck.log"
+      }
     }
   },
   "error_log": {

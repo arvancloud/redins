@@ -9,9 +9,9 @@ import (
     "time"
     "fmt"
 
-    "arvancloud/redins/config"
     "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
+    "arvancloud/redins/redis"
 )
 
 var healthcheckGetEntries = [][]string {
@@ -74,11 +74,31 @@ var healthCheckTransferResults = [][]string {
     {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri3\",\"port\":80, \"status\":0, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}"},
 }
 
+var config = HealthcheckConfig {
+    Enable: true,
+    MaxRequests: 10,
+    UpdateInterval: 600,
+    CheckInterval: 600,
+    RedisStatusServer: redis.RedisConfig {
+        Ip: "127.0.0.1",
+        Port: 6379,
+        Password: "",
+        Prefix: "healthcheck_",
+        Suffix: "_healthcheck",
+        ConnectTimeout: 0,
+        ReadTimeout: 0,
+    },
+    Log: eventlog.LogConfig {
+        Enable: true,
+        Path: "/tmp/healthcheck.log",
+    },
+}
+
 func TestGet(t *testing.T) {
     log.Println("TestGet")
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
-    h := NewHealthcheck(cfg)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    h := NewHealthcheck(&config, configRedis)
 
     h.redisStatusServer.Del("*")
     for _, entry := range healthcheckGetEntries {
@@ -99,9 +119,9 @@ func TestGet(t *testing.T) {
 
 func TestFilter(t *testing.T) {
     log.Println("TestFilter")
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
-    h := NewHealthcheck(cfg)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    h := NewHealthcheck(&config, configRedis)
 
     for _, entry := range healthcheckGetEntries {
         h.redisStatusServer.Set(entry[0], entry[1])
@@ -233,9 +253,9 @@ func TestFilter(t *testing.T) {
 
 func TestSet(t *testing.T) {
     log.Println("TestSet")
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
-    h := NewHealthcheck(cfg)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")
@@ -260,9 +280,9 @@ func TestSet(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
     log.Printf("TestTransfer")
-    cfg := config.LoadConfig("config.json")
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
-    h := NewHealthcheck(cfg)
+    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")

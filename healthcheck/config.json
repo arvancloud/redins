@@ -15,25 +15,25 @@
     "log": {
       "enable": true,
       "path": "/tmp/redins.log"
-    }
-  },
-  "healthcheck": {
-    "enable": true,
-    "max_requests": 10,
-    "update_interval": 600,
-    "check_interval": 600,
-    "redis": {
-      "ip": "127.0.0.1",
-      "port": 6379,
-      "password": "",
-      "prefix": "healthcheck_",
-      "suffix": "_healthcheck",
-      "connect_timeout": 0,
-      "read_timeout": 0
     },
-    "log": {
+    "healthcheck": {
       "enable": true,
-      "path": "/tmp/healthcheck.log"
+      "max_requests": 10,
+      "update_interval": 600,
+      "check_interval": 600,
+      "redis": {
+        "ip": "127.0.0.1",
+        "port": 6379,
+        "password": "",
+        "prefix": "healthcheck_",
+        "suffix": "_healthcheck",
+        "connect_timeout": 0,
+        "read_timeout": 0
+      },
+      "log": {
+        "enable": true,
+        "path": "/tmp/healthcheck.log"
+      }
     }
   }
 }
