@@ -59,6 +59,19 @@ type LogConfig struct {
     Level string `json:"level,omitempty"`
     Path string `json:"path,omitempty"`
     Format string `json:"format,omitempty"`
+    Sentry SentryConfig `json:"sentry,omitempty"`
+    Syslog SyslogConfig `json:"syslog, omitempty"`
+}
+
+type SentryConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    DSN string `json:"dsn,omitempty"`
+}
+
+type SyslogConfig struct {
+    Enable bool `json:"enable,omitempty"`
+    Protocol string `json:"protocol,omitempty"`
+    Address string `json:"address,omitempty"`
 }
 
 type RedinsConfig struct {
@@ -69,7 +82,6 @@ type RedinsConfig struct {
     HealthCheck HealthcheckConfig `json:"healthcheck,omitempty"`
     ErrorLog LogConfig `json:"error_log,omitempty"`
 }
-
 
 func LoadConfig(path string) *RedinsConfig {
     config := &RedinsConfig {
@@ -101,6 +113,12 @@ func LoadConfig(path string) *RedinsConfig {
                 Level: "info",
                 Path: "/tmp/redins.log",
                 Format: "json",
+                Sentry: SentryConfig {
+                    Enable: false,
+                },
+                Syslog: SyslogConfig {
+                    Enable: false,
+                },
             },
         },
         Upstream: []UpstreamConfig {
@@ -135,6 +153,12 @@ func LoadConfig(path string) *RedinsConfig {
                 Level: "info",
                 Path: "/tmp/healthcheck.log",
                 Format: "json",
+                Sentry: SentryConfig {
+                    Enable: false,
+                },
+                Syslog: SyslogConfig {
+                    Enable: false,
+                },
             },
         },
         ErrorLog: LogConfig {
@@ -142,6 +166,12 @@ func LoadConfig(path string) *RedinsConfig {
             Target: "stdout",
             Level: "info",
             Format: "text",
+            Sentry: SentryConfig {
+                Enable: false,
+            },
+            Syslog: SyslogConfig {
+                Enable: false,
+            },
         },
     }
     raw, err := ioutil.ReadFile(path)

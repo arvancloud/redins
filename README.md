@@ -190,7 +190,16 @@ log configuration
   "level": "info",
   "target": "file",
   "format": "json",
-  "path": "/tmp/redins.log"
+  "path": "/tmp/redins.log",
+  "sentry": {
+    "enable": false,
+    "dsn": ""
+  },
+  "syslog": {
+    "enable": false,
+    "protocol": "udp",
+    "address": "localhost:514"
+  }
 }
 ~~~
 
@@ -198,7 +207,9 @@ log configuration
 * level : log level, can be debug, info, warning, error, default: info
 * target : log target, can be stdout, stderr, file, default: stdout
 * format : log format, can be text, json, default: text
-* path : log output file path, default: 
+* path : log output file path
+* sentry : sentry hook configurations
+* syslog : syslog hook configurations
 
 ### example
 sample config:

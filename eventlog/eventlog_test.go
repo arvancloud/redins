@@ -5,6 +5,7 @@ import (
     "github.com/sirupsen/logrus"
     "os"
     "sync"
+    "arvancloud/redins/config"
 )
 
 
@@ -34,4 +35,20 @@ func TestAsyncLog(t *testing.T) {
     go run(log1, "log1")
     go run(log2, "log2")
     wg.Wait()
+}
+
+func TestSentry(t *testing.T) {
+    cfg := &config.LogConfig {
+        Enable: true,
+        Level: "debug",
+        Target: "stdout",
+        Format: "json",
+        Sentry: config.SentryConfig {
+            Enable: true,
+            DSN: "https://7275419def7e4730aef88bd2c87d1ee7:860a3fd7794a48ee8232c1fb08f66b8e@error-tracking.arvancloud.com/4",
+        },
+    }
+
+    logger := NewLogger(cfg)
+    logger.Errorf("error error")
 }
