@@ -11,8 +11,7 @@ import (
 )
 
 var (
-    NSecTypesNone = []uint16 { dns.TypeRRSIG, dns.TypeNSEC}
-    NSecTypesCNAME = []uint16 {dns.TypeCNAME, dns.TypeRRSIG, dns.TypeNSEC}
+    NSecTypes = []uint16 { dns.TypeRRSIG, dns.TypeNSEC}
 )
 
 func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
@@ -69,7 +68,7 @@ func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
         if rrsig, err := Sign(cname, record.Name, record.Zone, record.CNAME.Ttl); err == nil {
             record.CNAME.RRSig = rrsig
         } else {
-            eventlog.Logger.Errorf("cannot sign cname record set for %s : %s", record.Name+"'"+record.Zone.Name, err)
+            eventlog.Logger.Errorf("cannot sign cname record set for %s : %s", record.Name+"."+record.Zone.Name, err)
         }
     }
 }
@@ -103,11 +102,11 @@ func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRS
     return rrsig, nil
 }
 
-func NSec(name string, zone *dns_types.Zone, nxTypes []uint16) ([]dns.RR, error) {
+func NSec(name string, zone *dns_types.Zone) ([]dns.RR, error) {
     nsec := &dns.NSEC{
         Hdr: dns.RR_Header{name, dns.TypeNSEC, dns.ClassINET, zone.Config.SOA.MinTtl, 0},
         NextDomain: "\\000." + name,
-        TypeBitMap: nxTypes,
+        TypeBitMap: NSecTypes,
     }
     sigs, err := Sign([]dns.RR{nsec}, name, zone, zone.Config.SOA.MinTtl)
     if err != nil {

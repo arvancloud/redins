@@ -192,14 +192,6 @@ var dnssecTestCases = []test.Case{
         Extra: []dns.RR{
             test.OPT(4096, true),
         },
-        Ns: []dns.RR{
-            test.NSEC("c1.dnssec_test.com.	100	IN	NSEC	\\000.c1.dnssec_test.com. CNAME NSEC RRSIG"),
-            test.RRSIG("c1.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. GKj8gVYO7eZdeyBvrfu4yaN3oz3Hj5pBTdm3DAPb32E3gkJBtPtnxZaJL05dfu58IfVTzg5e8YDZ4P54oJmxgo8Qu49b0mGiOosPlDaA4U32+jLWpxzYSjOjvafmc+Dx"),
-            test.NSEC("c2.dnssec_test.com.	100	IN	NSEC	\\000.c2.dnssec_test.com. CNAME NSEC RRSIG"),
-            test.RRSIG("c2.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. UPSJvvx+zn3XwXxn455ABOxxn3cH1veAid8MqqA+EXPpiXuTCydQ0GtIDpc3x4hruwXGxnURDV31ZS+zI7HLWCCg0WVIcSE92nvrovfr79VnaKefac+rSq6S4u0MrnF0"),
-            test.NSEC("c3.dnssec_test.com.	100	IN	NSEC	\\000.c3.dnssec_test.com. CNAME NSEC RRSIG"),
-            test.RRSIG("c3.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180731130835 20180723100835 22548 dnssec_test.com. RmXEzTvRPka+U6pxm7S61Q9EU8EhUTQldT4fMlR7Gj1lPp8/ScSPmvdVSraacQH4CAEkFhV4BNBpJIHeyZJgGIol9fcEO/DypEqisinN+Aqhpl+/SAvitiAuliEUanXK"),
-        },
     },
     // CNAME flattening + wildcard Test
     {
@@ -217,14 +209,6 @@ var dnssecTestCases = []test.Case{
         Do: true,
         Extra: []dns.RR{
             test.OPT(4096, true),
-        },
-        Ns: []dns.RR{
-            test.NSEC("w.a.dnssec_test.com.	100	IN	NSEC	\\000.w.a.dnssec_test.com. CNAME RRSIG NSEC"),
-            test.RRSIG("w.a.dnssec_test.com.	100	IN	RRSIG	NSEC 5 4 100 20180801064612 20180724034612 22548 dnssec_test.com. SwDu6ZjOObzPcu9me12150KNmKXBj34TDI5m/83pM4cX3CbqMZFwDJuQUb17Ry3Ymts0QVW6uu0yN8dGPsvNVjCCeRtzz5E+6LtGEBkYboJap9RnU06dQ9sATGgSR49S"),
-            test.NSEC("w.b.dnssec_test.com.	100	IN	NSEC	\\000.w.b.dnssec_test.com. CNAME RRSIG NSEC"),
-            test.RRSIG("w.b.dnssec_test.com.	100	IN	RRSIG	NSEC 5 4 100 20180801064612 20180724034612 22548 dnssec_test.com. UzFt4VYpuIxeIaqYAiUxyhkgZbzKOurSpvsxQcoehy77f/8fPfFHc42+aR0+tBuQliVQKo7dpltsSS5qk0jRaUKOwC4fnMXWkY/WphdHtGJBBbKnxWBD9AfNybxYvwwS"),
-            test.NSEC("w.dnssec_test.com.	100	IN	NSEC	\\000.w.dnssec_test.com. CNAME RRSIG NSEC"),
-            test.RRSIG("w.dnssec_test.com.	100	IN	RRSIG	NSEC 5 3 100 20180801064612 20180724034612 22548 dnssec_test.com. JlbwIhYN3DRztKChDNtCDe/ruUnGO7qUM3amBvA4XpAnlEhBd0LvReIcStot31h/7ZMYW4gpKGziHFMCeAiHT1+QGYiEV09n7Er1Fl7ewNg8xFtoE01mTlYxRwzhQopp"),
         },
     },
 }

@@ -110,7 +110,6 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 break
             }
             answers, authority = AppendRR(answers, authority, h.CNAME(qname, record), qname, record, secured, record.CNAME.RRSig)
-            authority = AppendNSEC(authority, record.Zone, qname, NSecTypesCNAME, secured)
             qname = record.CNAME.Host
             record, localRes = h.FetchRecord(qname, logData)
         }
@@ -130,7 +129,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 } else {
                     answers = []dns.RR{}
                     authority = AppendSOA(authority, originalRecord.Zone, secured)
-                    authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                    authority = AppendNSEC(authority, record.Zone, qname, secured)
                 }
             } else {
                 ips := h.Filter(state, &record.A, logData)
@@ -147,7 +146,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 } else {
                     answers = []dns.RR{}
                     authority = AppendSOA(authority, originalRecord.Zone, secured)
-                    authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                    authority = AppendNSEC(authority, record.Zone, qname, secured)
                 }
             } else {
                 ips := h.Filter(state, &record.AAAA, logData)
@@ -157,7 +156,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if record.CNAME == nil {
                 answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
-                authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
                 answers, authority = AppendRR(answers, authority, h.CNAME(qname, record), qname, record, secured, record.CNAME.RRSig)
             }
@@ -165,7 +164,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if len(record.TXT.Data) == 0 {
                 answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
-                authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
                 answers, authority = AppendRR(answers, authority, h.TXT(qname, record), qname, record, secured, record.TXT.RRSig)
             }
@@ -173,7 +172,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if len(record.NS.Data) == 0 {
                 answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
-                authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
                 answers, authority = AppendRR(answers, authority, h.NS(qname, record), qname, record, secured, record.NS.RRSig)
             }
@@ -181,7 +180,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if len(record.MX.Data) == 0 {
                 answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
-                authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
                 answers, authority = AppendRR(answers, authority, h.MX(qname, record), qname, record, secured, record.MX.RRSig)
             }
@@ -189,7 +188,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if len(record.SRV.Data) == 0 {
                 answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
-                authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+                authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
                 answers, authority = AppendRR(answers, authority, h.SRV(qname, record), qname, record, secured, record.SRV.RRSig)
             }
@@ -211,7 +210,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         answers = []dns.RR{}
         authority = AppendSOA(authority, originalRecord.Zone, secured)
         if secured {
-            authority = AppendNSEC(authority, record.Zone, qname, NSecTypesNone, secured)
+            authority = AppendNSEC(authority, record.Zone, qname, secured)
             res = dns.RcodeSuccess
         }
     } else if localRes == dns.RcodeNotAuth && h.UpstreamFallback {
@@ -620,7 +619,6 @@ func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
             z.Config.DnsSec = false
             return z
         }
-        eventlog.Logger.Error(privStr)
         if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
             z.PrivateKey = pk
         } else {
@@ -776,11 +774,11 @@ func AppendSOA(target []dns.RR, zone *dns_types.Zone, secured bool) []dns.RR {
     return target
 }
 
-func AppendNSEC(target []dns.RR, zone *dns_types.Zone, qname string, xTypes []uint16, secured bool) []dns.RR {
+func AppendNSEC(target []dns.RR, zone *dns_types.Zone, qname string, secured bool) []dns.RR {
     if !secured {
         return target
     }
-    if nsec, err := NSec(qname, zone, xTypes); err == nil {
+    if nsec, err := NSec(qname, zone); err == nil {
         target = append(target, nsec...)
     }
     return target
