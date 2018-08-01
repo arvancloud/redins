@@ -1,4 +1,4 @@
-package healthcheck
+package handler
 
 import (
     "testing"
@@ -9,7 +9,6 @@ import (
     "time"
     "fmt"
 
-    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/redis"
 )
@@ -105,7 +104,7 @@ func TestGet(t *testing.T) {
         h.redisStatusServer.Set(entry[0], entry[1])
     }
 
-    for i,_ := range healthcheckGetEntries {
+    for i := range healthcheckGetEntries {
         hostIp := strings.Split(healthcheckGetEntries[i][0], ":")
         stat := h.getStatus(hostIp[0], net.ParseIP(hostIp[1]))
         log.Println("[DEBUG]", stat, " ", stats[i])
@@ -127,23 +126,23 @@ func TestFilter(t *testing.T) {
         h.redisStatusServer.Set(entry[0], entry[1])
     }
 
-    w := []dns_types.Record {
+    w := []Record {
         {
-            RRSets: dns_types.RRSets {
-                A: dns_types.IP_RRSet{
-                    Data: []dns_types.IP_RR {
+            RRSets: RRSets {
+                A: IP_RRSet{
+                    Data: []IP_RR {
                         {Ip: net.ParseIP("1.2.3.4")},
                         {Ip: net.ParseIP("2.3.4.5")},
                         {Ip: net.ParseIP("3.4.5.6")},
                         {Ip: net.ParseIP("4.5.6.7")},
                         {Ip: net.ParseIP("5.6.7.8")},
                     },
-                    FilterConfig: dns_types.IpFilterConfig {
+                    FilterConfig: IpFilterConfig {
                         Count: "multi",
                         Order: "none",
                         GeoFilter: "none",
                     },
-                    HealthCheckConfig: dns_types.IpHealthCheckConfig {
+                    HealthCheckConfig: IpHealthCheckConfig {
                         Enable: true,
                         DownCount: -3,
                         UpCount: 3,
@@ -153,20 +152,20 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            RRSets: dns_types.RRSets {
-                A: dns_types.IP_RRSet{
-                    Data: []dns_types.IP_RR {
+            RRSets: RRSets {
+                A: IP_RRSet{
+                    Data: []IP_RR {
                         {Ip: net.ParseIP("2.3.4.5")},
                         {Ip: net.ParseIP("3.4.5.6")},
                         {Ip: net.ParseIP("4.5.6.7")},
                         {Ip: net.ParseIP("5.6.7.8")},
                     },
-                    FilterConfig: dns_types.IpFilterConfig {
+                    FilterConfig: IpFilterConfig {
                         Count: "multi",
                         Order: "none",
                         GeoFilter: "none",
                     },
-                    HealthCheckConfig: dns_types.IpHealthCheckConfig {
+                    HealthCheckConfig: IpHealthCheckConfig {
                         Enable: true,
                         DownCount: -3,
                         UpCount: 3,
@@ -176,19 +175,19 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            RRSets: dns_types.RRSets {
-                A: dns_types.IP_RRSet{
-                    Data: []dns_types.IP_RR {
+            RRSets: RRSets {
+                A: IP_RRSet{
+                    Data: []IP_RR {
                         {Ip: net.ParseIP("3.4.5.6")},
                         {Ip: net.ParseIP("4.5.6.7")},
                         {Ip: net.ParseIP("5.6.7.8")},
                     },
-                    FilterConfig: dns_types.IpFilterConfig {
+                    FilterConfig: IpFilterConfig {
                         Count: "multi",
                         Order: "none",
                         GeoFilter: "none",
                     },
-                    HealthCheckConfig: dns_types.IpHealthCheckConfig {
+                    HealthCheckConfig: IpHealthCheckConfig {
                         Enable: true,
                         DownCount: -3,
                         UpCount: 3,
@@ -198,18 +197,18 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            RRSets: dns_types.RRSets {
-                A: dns_types.IP_RRSet{
-                    Data: []dns_types.IP_RR {
+            RRSets: RRSets {
+                A: IP_RRSet{
+                    Data: []IP_RR {
                         {Ip: net.ParseIP("4.5.6.7")},
                         {Ip: net.ParseIP("5.6.7.8")},
                     },
-                    FilterConfig: dns_types.IpFilterConfig {
+                    FilterConfig: IpFilterConfig {
                         Count: "multi",
                         Order: "none",
                         GeoFilter: "none",
                     },
-                    HealthCheckConfig: dns_types.IpHealthCheckConfig {
+                    HealthCheckConfig: IpHealthCheckConfig {
                         Enable: true,
                         DownCount: -3,
                         UpCount: 3,
@@ -219,17 +218,17 @@ func TestFilter(t *testing.T) {
             },
         },
         {
-            RRSets: dns_types.RRSets {
-                A: dns_types.IP_RRSet{
-                    Data: []dns_types.IP_RR {
+            RRSets: RRSets {
+                A: IP_RRSet{
+                    Data: []IP_RR {
                         {Ip: net.ParseIP("5.6.7.8")},
                     },
-                    FilterConfig: dns_types.IpFilterConfig {
+                    FilterConfig: IpFilterConfig {
                         Count: "multi",
                         Order: "none",
                         GeoFilter: "none",
                     },
-                    HealthCheckConfig: dns_types.IpHealthCheckConfig {
+                    HealthCheckConfig: IpHealthCheckConfig {
                         Enable: true,
                         DownCount: -3,
                         UpCount: 3,
@@ -239,7 +238,7 @@ func TestFilter(t *testing.T) {
             },
         },
     }
-    for i, _ := range w {
+    for i := range w {
         log.Println("[DEBUG]", w[i])
         ips := h.FilterHealthcheck("w" + strconv.Itoa(i) + ".healthcheck.com.", &w[i].A)
         log.Println("[DEBUG]", w[i])

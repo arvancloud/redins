@@ -13,10 +13,6 @@ import (
     "github.com/coredns/coredns/request"
     "arvancloud/redins/redis"
     "arvancloud/redins/eventlog"
-    "arvancloud/redins/dns_types"
-    "arvancloud/redins/upstream"
-    "arvancloud/redins/geoip"
-    "arvancloud/redins/healthcheck"
 )
 
 type DnsRequestHandler struct {
@@ -31,16 +27,16 @@ type DnsRequestHandler struct {
     Redis             *redis.Redis
     Logger            *eventlog.EventLogger
     cache             *cache.Cache
-    geoip             *geoip.GeoIp
-    healthcheck       *healthcheck.Healthcheck
-    upstream          *upstream.Upstream
+    geoip             *GeoIp
+    healthcheck       *Healthcheck
+    upstream          *Upstream
 
 }
 
 type HandlerConfig struct {
-    Upstream []upstream.UpstreamConfig `json:"upstream,omitempty"`
-    GeoIp geoip.GeoIpConfig `json:"geoip,omitempty"`
-    HealthCheck healthcheck.HealthcheckConfig `json:"healthcheck,omitempty"`
+    Upstream []UpstreamConfig `json:"upstream,omitempty"`
+    GeoIp GeoIpConfig `json:"geoip,omitempty"`
+    HealthCheck HealthcheckConfig `json:"healthcheck,omitempty"`
     MaxTtl int `json:"max_ttl,omitempty"`
     CacheTimeout int `json:"cache_timeout,omitempty"`
     ZoneReload int `json:"zone_reload,omitempty"`
@@ -62,9 +58,9 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
     h.Redis = redis.NewRedis(&config.Redis)
     h.Logger = eventlog.NewLogger(&config.Log)
-    h.geoip = geoip.NewGeoIp(&config.GeoIp)
-    h.healthcheck = healthcheck.NewHealthcheck(&config.HealthCheck, h.Redis)
-    h.upstream = upstream.NewUpstream(config.Upstream)
+    h.geoip = NewGeoIp(&config.GeoIp)
+    h.healthcheck = NewHealthcheck(&config.HealthCheck, h.Redis)
+    h.upstream = NewUpstream(config.Upstream)
 
     h.LoadZones()
 
@@ -105,7 +101,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 
     auth := true
 
-    var record *dns_types.Record
+    var record *Record
     var localRes int
     var res int
     var answers []dns.RR
@@ -205,10 +201,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 answers, authority = AppendRR(answers, authority, h.SRV(qname, record), qname, record, secured, record.SRV.RRSig)
             }
         case dns.TypeSOA:
-            answers = []dns.RR{record.Zone.Config.SOA.Data}
-            if secured {
-                answers = append(answers, record.Zone.Config.SOA.RRSig)
-            }
+            answers = AppendSOA(answers, record.Zone, secured)
         case dns.TypeDNSKEY:
             if secured {
                 answers = []dns.RR{record.Zone.DnsKey, record.Zone.DnsKeySig}
@@ -247,7 +240,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     state.W.WriteMsg(m)
 }
 
-func (h *DnsRequestHandler) Filter(request *request.Request, rrset *dns_types.IP_RRSet, logData map[string]interface{}) []dns_types.IP_RR {
+func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, logData map[string]interface{}) []IP_RR {
     ips := h.healthcheck.FilterHealthcheck(request.Name(), rrset)
     switch rrset.FilterConfig.GeoFilter {
     case "country":
@@ -273,7 +266,7 @@ func (h *DnsRequestHandler) Filter(request *request.Request, rrset *dns_types.IP
         }
         logData["DestinationIp"] = ips[index].Ip.String()
         logData["DestinationCountry"] = ips[index].Country
-        return []dns_types.IP_RR{ips[index]}
+        return []IP_RR{ips[index]}
 
     case "multi":
         fallthrough
@@ -314,23 +307,23 @@ func (h *DnsRequestHandler) LoadZones() {
     h.zoneLock.Unlock()
 }
 
-func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*dns_types.Record, int) {
+func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*Record, int) {
     cachedRecord, found := h.cache.Get(qname)
     if found {
         eventlog.Logger.Debug("cached")
         logData["Cache"] = "HIT"
-        return cachedRecord.(*dns_types.Record), dns.RcodeSuccess
+        return cachedRecord.(*Record), dns.RcodeSuccess
     } else {
         logData["Cache"] = "MISS"
         record, res := h.GetRecord(qname)
-        if record != nil {
+        if res == dns.RcodeSuccess {
             h.cache.Set(qname, record, time.Duration(h.CacheTimeout)*time.Second)
         }
         return record, res
     }
 }
 
-func (h *DnsRequestHandler) A(name string, record *dns_types.Record, ips []dns_types.IP_RR) (answers []dns.RR) {
+func (h *DnsRequestHandler) A(name string, record *Record, ips []IP_RR) (answers []dns.RR) {
     for _, ip := range ips {
         if ip.Ip == nil {
             continue
@@ -344,7 +337,7 @@ func (h *DnsRequestHandler) A(name string, record *dns_types.Record, ips []dns_t
     return
 }
 
-func (h *DnsRequestHandler) AAAA(name string, record *dns_types.Record, ips []dns_types.IP_RR) (answers []dns.RR) {
+func (h *DnsRequestHandler) AAAA(name string, record *Record, ips []IP_RR) (answers []dns.RR) {
     for _, ip := range ips {
         if ip.Ip == nil {
             continue
@@ -358,7 +351,7 @@ func (h *DnsRequestHandler) AAAA(name string, record *dns_types.Record, ips []dn
     return
 }
 
-func (h *DnsRequestHandler) CNAME(name string, record *dns_types.Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) CNAME(name string, record *Record) (answers []dns.RR) {
     if record.CNAME == nil {
         return
     }
@@ -370,7 +363,7 @@ func (h *DnsRequestHandler) CNAME(name string, record *dns_types.Record) (answer
     return
 }
 
-func (h *DnsRequestHandler) TXT(name string, record *dns_types.Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) TXT(name string, record *Record) (answers []dns.RR) {
     for _, txt := range record.TXT.Data {
         if len(txt.Text) == 0 {
             continue
@@ -384,7 +377,7 @@ func (h *DnsRequestHandler) TXT(name string, record *dns_types.Record) (answers 
     return
 }
 
-func (h *DnsRequestHandler) NS(name string, record *dns_types.Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) NS(name string, record *Record) (answers []dns.RR) {
     for _, ns := range record.NS.Data {
         if len(ns.Host) == 0 {
             continue
@@ -398,7 +391,7 @@ func (h *DnsRequestHandler) NS(name string, record *dns_types.Record) (answers [
     return
 }
 
-func (h *DnsRequestHandler) MX(name string, record *dns_types.Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) MX(name string, record *Record) (answers []dns.RR) {
     for _, mx := range record.MX.Data {
         if len(mx.Host) == 0 {
             continue
@@ -413,7 +406,7 @@ func (h *DnsRequestHandler) MX(name string, record *dns_types.Record) (answers [
     return
 }
 
-func (h *DnsRequestHandler) SRV(name string, record *dns_types.Record) (answers []dns.RR) {
+func (h *DnsRequestHandler) SRV(name string, record *Record) (answers []dns.RR) {
     for _, srv := range record.SRV.Data {
         if len(srv.Target) == 0 {
             continue
@@ -444,7 +437,7 @@ func (h *DnsRequestHandler) getTtl(ttl uint32) uint32 {
     return ttl
 }
 
-func (h *DnsRequestHandler) findLocation(query string, z *dns_types.Zone) string {
+func (h *DnsRequestHandler) findLocation(query string, z *Zone) string {
     var (
         ok                bool
         closestEncloser   string
@@ -479,12 +472,12 @@ func (h *DnsRequestHandler) findLocation(query string, z *dns_types.Zone) string
     return ""
 }
 
-func keyExists(key string, z *dns_types.Zone) bool {
+func keyExists(key string, z *Zone) bool {
     _, ok := z.Locations[key]
     return ok
 }
 
-func keyMatches(key string, z *dns_types.Zone) bool {
+func keyMatches(key string, z *Zone) bool {
     for value := range z.Locations {
         if strings.HasSuffix(value, key) {
             return true
@@ -549,7 +542,7 @@ func (h *DnsRequestHandler) Matches(qname string) string {
     return zone
 }
 
-func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, rcode int) {
+func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
     eventlog.Logger.Debug("GetRecord")
 
     eventlog.Logger.Debugf("%v", h.Zones)
@@ -574,7 +567,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, r
 
     location := h.findLocation(qname, z)
     if len(location) == 0 { // empty, no results
-        return &dns_types.Record{Name:qname, Zone: z}, dns.RcodeNameError
+        return &Record{Name:qname, Zone: z}, dns.RcodeNameError
     }
     eventlog.Logger.Debugf("location : %s", location)
 
@@ -586,8 +579,8 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *dns_types.Record, r
     return record, dns.RcodeSuccess
 }
 
-func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
-    z := new(dns_types.Zone)
+func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
+    z := new(Zone)
     z.Name = zone
     vals := h.Redis.GetHKeys(zone)
     z.Locations = make(map[string]struct{})
@@ -595,10 +588,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
         z.Locations[val] = struct{}{}
     }
 
-    z.Config = dns_types.ZoneConfig {
+    z.Config = ZoneConfig {
         DnsSec: false,
         CnameFlattening: false,
-        SOA: &dns_types.SOA_RRSet {
+        SOA: &SOA_RRSet {
             Ns: "ns1." + z.Name,
             MinTtl: 300,
             Refresh: 86400,
@@ -666,7 +659,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *dns_types.Zone {
 }
 
 
-func (h *DnsRequestHandler) LoadLocation(location string, z *dns_types.Zone) *dns_types.Record {
+func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
     var label, name string
     if location == z.Name {
         name = z.Name
@@ -675,14 +668,14 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *dns_types.Zone) *dn
         name = location + "." + z.Name
         label = location
     }
-    r := new(dns_types.Record)
-    r.A = dns_types.IP_RRSet{
-        FilterConfig: dns_types.IpFilterConfig {
+    r := new(Record)
+    r.A = IP_RRSet{
+        FilterConfig: IpFilterConfig {
             Count: "multi",
             Order: "none",
             GeoFilter: "none",
         },
-        HealthCheckConfig: dns_types.IpHealthCheckConfig {
+        HealthCheckConfig: IpHealthCheckConfig {
             Enable: false,
         },
     }
@@ -707,7 +700,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *dns_types.Zone) *dn
     return r
 }
 
-func (h *DnsRequestHandler) SetLocation(location string, z *dns_types.Zone, val *dns_types.Record) {
+func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
     jsonValue, err := json.Marshal(val)
     if err != nil {
         eventlog.Logger.Errorf("cannot encode to json : %s", err)
@@ -722,7 +715,7 @@ func (h *DnsRequestHandler) SetLocation(location string, z *dns_types.Zone, val 
     h.Redis.HSet(z.Name, label, string(jsonValue))
 }
 
-func ChooseIp(ips []dns_types.IP_RR, weighted bool) int {
+func ChooseIp(ips []IP_RR, weighted bool) int {
     sum := 0
 
     if weighted == false {
@@ -754,7 +747,7 @@ func ChooseIp(ips []dns_types.IP_RR, weighted bool) int {
     return index
 }
 
-func AppendRR(answers, authority []dns.RR, rrs []dns.RR, qname string, record *dns_types.Record, secured bool, rrsig dns.RR) ([]dns.RR, []dns.RR) {
+func AppendRR(answers, authority []dns.RR, rrs []dns.RR, qname string, record *Record, secured bool, rrsig dns.RR) ([]dns.RR, []dns.RR) {
     if len(rrs) == 0 {
         return answers, authority
     }
@@ -778,7 +771,7 @@ func AppendRR(answers, authority []dns.RR, rrs []dns.RR, qname string, record *d
     return answers, authority
 }
 
-func AppendSOA(target []dns.RR, zone *dns_types.Zone, secured bool) []dns.RR {
+func AppendSOA(target []dns.RR, zone *Zone, secured bool) []dns.RR {
     target = append(target, zone.Config.SOA.Data)
     if secured {
         target = append(target, zone.Config.SOA.RRSig)
@@ -786,7 +779,7 @@ func AppendSOA(target []dns.RR, zone *dns_types.Zone, secured bool) []dns.RR {
     return target
 }
 
-func AppendNSEC(target []dns.RR, zone *dns_types.Zone, qname string, secured bool) []dns.RR {
+func AppendNSEC(target []dns.RR, zone *Zone, qname string, secured bool) []dns.RR {
     if !secured {
         return target
     }

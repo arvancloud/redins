@@ -1,4 +1,4 @@
-package dns_types
+package handler
 
 import (
     "net"

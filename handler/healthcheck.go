@@ -1,4 +1,4 @@
-package healthcheck
+package handler
 
 import (
     "crypto/tls"
@@ -9,7 +9,6 @@ import (
     "net/http"
 
     "arvancloud/redins/redis"
-    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
 )
@@ -256,8 +255,8 @@ func (h *Healthcheck) transferItems() {
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
             recordStr := h.redisConfigServer.HGet(zone, subDomain)
-            record := new(dns_types.Record)
-            record.A.HealthCheckConfig = dns_types.IpHealthCheckConfig {
+            record := new(Record)
+            record.A.HealthCheckConfig = IpHealthCheckConfig {
                 Timeout: 1000,
                 Port: 80,
                 UpCount: 3,
@@ -278,7 +277,7 @@ func (h *Healthcheck) transferItems() {
             } else {
                 host = subDomain + "." + zone
             }
-            for _, rrset := range []*dns_types.IP_RRSet{&record.A, &record.AAAA} {
+            for _, rrset := range []*IP_RRSet{&record.A, &record.AAAA} {
                 for i := range rrset.Data {
                     key := host + ":" + rrset.Data[i].Ip.String()
                     newItem := &HealthCheckItem{
@@ -370,8 +369,8 @@ func statusUp(item *HealthCheckItem) {
     }
 }
 
-func (h *Healthcheck) FilterHealthcheck(qname string, rrset *dns_types.IP_RRSet) []dns_types.IP_RR {
-    var newIps []dns_types.IP_RR
+func (h *Healthcheck) FilterHealthcheck(qname string, rrset *IP_RRSet) []IP_RR {
+    var newIps []IP_RR
     if h.Enable == false {
         newIps = append(newIps, rrset.Data...)
         return newIps

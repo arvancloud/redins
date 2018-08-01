@@ -1,11 +1,10 @@
-package geoip
+package handler
 
 import (
     "testing"
     "net"
     "log"
 
-    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
 )
 
@@ -60,13 +59,13 @@ func TestGeoIpAutomatic(t *testing.T) {
     g := NewGeoIp(&cfg)
 
     for i,_ := range sip {
-        dest := new(dns_types.IP_RRSet)
+        dest := new(IP_RRSet)
         for i,_ := range dip {
             _, _, cc, _ := g.GetGeoLocation(net.ParseIP(dip[i][0]))
             if cc != dip[i][1] {
                 t.Fail()
             }
-            r := dns_types.IP_RR {
+            r := IP_RR {
                 Ip:  net.ParseIP(dip[i][0]),
             }
             dest.Data = append(dest.Data, r)
@@ -98,8 +97,8 @@ func TestGeoIpManual(t *testing.T) {
 
 
     for i, _ := range sip {
-        var dest dns_types.IP_RRSet
-        dest.Data = []dns_types.IP_RR {
+        var dest IP_RRSet
+        dest.Data = []IP_RR {
             { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
             { Ip: net.ParseIP("2.3.4.5"), Country: "FR"},
             { Ip: net.ParseIP("3.4.5.6"), Country: ""},

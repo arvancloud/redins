@@ -2,17 +2,15 @@ package handler
 
 import (
     "testing"
-    "arvancloud/redins/eventlog"
+    "sort"
+    "fmt"
     "log"
     "github.com/coredns/coredns/plugin/test"
     "github.com/miekg/dns"
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
-    "sort"
-    "fmt"
-    "arvancloud/redins/upstream"
+    "arvancloud/redins/eventlog"
     "arvancloud/redins/redis"
-    "arvancloud/redins/geoip"
 )
 
 var dnssecZone = string("dnssec_test.com.")
@@ -165,6 +163,32 @@ var dnssecTestCases = []test.Case{
             test.OPT(4096, true),
         },
     },
+    // SOA Test
+    {
+        Qname: "dnssec_test.com.", Qtype: dns.TypeSOA,
+        Answer: []dns.RR{
+            test.SOA("dnssec_test.com.	300	IN	SOA	ns1.dnssec_test.com. hostmaster.dnssec_test.com. 1533107401 44 55 66 100"),
+            test.RRSIG("dnssec_test.com.	300	IN	RRSIG	SOA 5 2 300 20180809071001 20180801041001 22548 dnssec_test.com. O4+6kPz9sr26RDZLy9MUoQRFweEzVZJ8JvQAJ+3mcZ/xO8z4KKNRb3Gpf7sWyoQk6Bd476VkZHbkbEf9SRptDqDHPV5MxMDUa3AtbdwUkRaVDidL95B4KDcno5FOU55I"),
+        },
+        Do: true,
+        Extra: []dns.RR{
+            test.OPT(4096, true),
+        },
+    },
+    // NXDomain Test
+    {
+        Qname: "nxdomain.x.dnssec_test.com.", Qtype: dns.TypeAAAA,
+        Ns: []dns.RR{
+            test.SOA("dnssec_test.com.	300	IN	SOA	ns1.dnssec_test.com. hostmaster.dnssec_test.com. 1533107621 44 55 66 100"),
+            test.RRSIG("dnssec_test.com.	300	IN	RRSIG	SOA 5 2 300 20180809071341 20180801041341 22548 dnssec_test.com. hJ6GxQo46z5hxBV48hs5Ab1tdfCJ1S7wxIIoI3cksCtf+dqv/eLmlxGH0KuEabAPWhp9VqyjjQYxvSP/0gH0Z/BwYxoghxrROuqHqiIbkbM8wvgLHBwNv+vA4xXUN/Ej"),
+            test.NSEC("nxdomain.x.dnssec_test.com.	100	IN	NSEC	\\000.nxdomain.x.dnssec_test.com. RRSIG NSEC"),
+            test.RRSIG("nxdomain.x.dnssec_test.com.	100	IN	RRSIG	NSEC 5 4 100 20180809115341 20180801085341 22548 dnssec_test.com. cHqIhWUalUAib9cpVd+4XLLzxrm6zKiQKLWs1/2T4dNhaS/CAkIXY6so0YDpsm0wgS2McpVd/GL+2fPDEb0MXJYyTfX8mzn5i49riQjEiHbmlL7oZfXCUKxKTRYczxjf"),
+        },
+        Do: true,
+        Extra: []dns.RR{
+            test.OPT(4096, true),
+        },
+    },
     // wildcard Test
     {
         Qname: "z.dnssec_test.com.", Qtype: dns.TypeTXT,
@@ -231,7 +255,7 @@ var dnssecTestConfig = HandlerConfig {
     Log: eventlog.LogConfig {
         Enable: false,
     },
-    Upstream: []upstream.UpstreamConfig  {
+    Upstream: []UpstreamConfig  {
         {
             Ip: "1.1.1.1",
             Port: 53,
@@ -239,7 +263,7 @@ var dnssecTestConfig = HandlerConfig {
             Timeout: 1000,
         },
     },
-    GeoIp: geoip.GeoIpConfig {
+    GeoIp: GeoIpConfig {
         Enable: true,
         Db: "../geoCity.mmdb",
     },

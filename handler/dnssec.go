@@ -6,7 +6,6 @@ import (
     "errors"
 
     "github.com/miekg/dns"
-    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
 )
 
@@ -14,7 +13,7 @@ var (
     NSecTypes = []uint16 { dns.TypeRRSIG, dns.TypeNSEC}
 )
 
-func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
+func (h *DnsRequestHandler) SignLocation(record *Record) {
     if len(record.A.Data) > 0 {
         a := h.A(record.Name, record, record.A.Data)
         if rrsig, err := Sign(a, record.Name, record.Zone, record.A.Ttl); err == nil {
@@ -73,7 +72,7 @@ func (h *DnsRequestHandler) SignLocation(record *dns_types.Record) {
     }
 }
 
-func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRSIG, error) {
+func Sign(rrs []dns.RR, name string, zone *Zone, ttl uint32) (*dns.RRSIG, error) {
     rrsig := &dns.RRSIG {
         Hdr: dns.RR_Header { name, dns.TypeRRSIG, dns.ClassINET,ttl, 0},
         Inception:zone.KeyInception,
@@ -102,7 +101,7 @@ func Sign(rrs []dns.RR, name string, zone *dns_types.Zone, ttl uint32) (*dns.RRS
     return rrsig, nil
 }
 
-func NSec(name string, zone *dns_types.Zone) ([]dns.RR, error) {
+func NSec(name string, zone *Zone) ([]dns.RR, error) {
     nsec := &dns.NSEC{
         Hdr: dns.RR_Header{name, dns.TypeNSEC, dns.ClassINET, zone.Config.SOA.MinTtl, 0},
         NextDomain: "\\000." + name,

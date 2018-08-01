@@ -10,13 +10,9 @@ import (
 
     "github.com/miekg/dns"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/handler"
-    "arvancloud/redins/server"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/redis"
-    "arvancloud/redins/upstream"
-    "arvancloud/redins/geoip"
-    "arvancloud/redins/healthcheck"
+    "arvancloud/redins/handler"
 )
 
 var (
@@ -32,14 +28,14 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 type RedinsConfig struct {
-    Server []server.ServerConfig `json:"server,omitempty"`
+    Server []handler.ServerConfig `json:"server,omitempty"`
     ErrorLog eventlog.LogConfig `json:"error_log,omitempty"`
     Handler handler.HandlerConfig `json:"handler,omitempty"`
 }
 
 func LoadConfig(path string) *RedinsConfig {
     config := &RedinsConfig {
-        Server: []server.ServerConfig {
+        Server: []handler.ServerConfig {
             {
                 Ip:       "127.0.0.1",
                 Port:     1053,
@@ -47,7 +43,7 @@ func LoadConfig(path string) *RedinsConfig {
             },
         },
         Handler: handler.HandlerConfig {
-            Upstream: []upstream.UpstreamConfig {
+            Upstream: []handler.UpstreamConfig {
                 {
                     Ip:       "1.1.1.1",
                     Port:     53,
@@ -55,11 +51,11 @@ func LoadConfig(path string) *RedinsConfig {
                     Timeout:  400,
                 },
             },
-            GeoIp: geoip.GeoIpConfig {
+            GeoIp: handler.GeoIpConfig {
                 Enable: false,
                 Db: "geoCity.mmdb",
             },
-            HealthCheck: healthcheck.HealthcheckConfig {
+            HealthCheck: handler.HealthcheckConfig {
                 Enable: false,
                 MaxRequests: 10,
                 UpdateInterval: 600,
@@ -152,7 +148,7 @@ func main() {
 
     eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
 
-    s = server.NewServer(cfg.Server)
+    s = handler.NewServer(cfg.Server)
 
     h = handler.NewHandler(&cfg.Handler)
 

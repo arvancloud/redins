@@ -9,15 +9,12 @@ import (
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/dns_types"
     "arvancloud/redins/eventlog"
     "arvancloud/redins/redis"
-    "arvancloud/redins/geoip"
-    "arvancloud/redins/upstream"
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.",
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",
 }
 
 var lookupEntries = [][][]string {
@@ -101,6 +98,25 @@ var lookupEntries = [][][]string {
             "{\"cname\":{\"ttl\":300, \"host\":\"y.example.aaa.\"}}",
         },
     },
+    {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.bbb.\",\"ns\":\"ns1.example.bbb.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"cname_flattening\":false}",
+        },
+        {"x",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\"}]}}",
+        },
+        {"y",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}}",
+        },
+    },
+    {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.ccc.\",\"ns\":\"ns1.example.ccc.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"cname_flattening\":false}",
+        },
+        {"x",
+            "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}}",
+        },
+    },
 }
 
 var lookupTestCases = [][]test.Case{
@@ -173,6 +189,11 @@ var lookupTestCases = [][]test.Case{
             Answer: []dns.RR{
                 test.SOA("example.com. 300 IN SOA ns1.example.com. hostmaster.example.com. 1460498836 44 55 66 100"),
             },
+        },
+        // not implemented
+        {
+            Qname: "example.com.", Qtype: dns.TypeUNSPEC,
+            Rcode: dns.RcodeNotImplemented,
         },
         // Empty non-terminal Test
         // FIXME: should return NOERROR instead of NXDOMAIN
@@ -258,6 +279,67 @@ var lookupTestCases = [][]test.Case{
             },
         },
     },
+    // empty values tests
+    {
+        // empty A test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeA,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty AAAA test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeAAAA,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty TXT test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeTXT,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty NS test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeNS,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty MX test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeMX,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty SRV test
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeSRV,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty CNAME test
+        {
+            Qname: "x.example.bbb.", Qtype: dns.TypeCNAME,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+    },
+    // long text
+    {
+        {
+            Qname: "x.example.ccc.", Qtype: dns.TypeTXT,
+            Answer: []dns.RR{
+                test.TXT("x.example.ccc. 300 IN TXT \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""),
+            },
+        },
+    },
 }
 
 var handlerTestConfig = HandlerConfig {
@@ -276,7 +358,7 @@ var handlerTestConfig = HandlerConfig {
     Log: eventlog.LogConfig {
         Enable: false,
     },
-    Upstream: []upstream.UpstreamConfig  {
+    Upstream: []UpstreamConfig  {
         {
             Ip: "1.1.1.1",
             Port: 53,
@@ -284,7 +366,7 @@ var handlerTestConfig = HandlerConfig {
             Timeout: 1000,
         },
     },
-    GeoIp: geoip.GeoIpConfig {
+    GeoIp: GeoIpConfig {
         Enable: true,
         Db: "../geoCity.mmdb",
     },
@@ -323,7 +405,7 @@ func TestWeight(t *testing.T) {
     eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     // distribution
-    ips := []dns_types.IP_RR {
+    ips := []IP_RR {
         { Ip:net.ParseIP("1.2.3.4"), Weight: 4},
         { Ip:net.ParseIP("2.3.4.5"), Weight: 1},
         { Ip:net.ParseIP("3.4.5.6"), Weight: 5},
@@ -406,11 +488,20 @@ var anameEntries = [][]string{
         "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
     },
     {"@",
-        "{\"aname\":{\"location\":\"arvancloud.com.\"}}",
+        "{\"aname\":{\"location\":\"google.com.\"}}",
     },
     {"www",
         "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
             "\"aname\":{\"location\":\"www.arvancloud.com.\"}}",
+    },
+}
+
+var anameTestCases = []test.Case {
+    {
+        Qname: "arvancloud.com.", Qtype: dns.TypeA,
+    },
+    {
+        Qname: "arvancloud.com.", Qtype: dns.TypeAAAA,
     },
 }
 
@@ -428,24 +519,25 @@ func TestANAME(t *testing.T) {
         }
     }
     h.LoadZones()
-    z := h.LoadZone(zone)
-    record := h.LoadLocation(zone, z)
-    answers, res := h.upstream.Query(record.ANAME.Location, dns.TypeA)
-    log.Println(res)
-    if res != dns.RcodeSuccess {
-        t.Fail()
-    }
-    for _, a := range answers {
-        log.Printf("%s\n", a.String())
-    }
-    record = h.LoadLocation("www", z)
-    answers, res = h.upstream.Query(record.ANAME.Location, dns.TypeA)
-    log.Println(res)
-    if res != dns.RcodeSuccess {
-        t.Fail()
-    }
-    for _, a := range answers {
-        log.Printf("%s\n", a.String())
+
+    for _, tc := range anameTestCases {
+
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        if resp.Rcode != dns.RcodeSuccess {
+            t.Fail()
+        }
+        if len(resp.Answer) == 0 {
+            t.Fail()
+        }
+        if resp.Answer[0].Header().Rrtype != tc.Qtype {
+            t.Fail()
+        }
     }
 }
 
