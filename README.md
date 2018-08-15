@@ -55,13 +55,13 @@ dns query handler configuration
     "log_source_location": false,
     "upstream_fallback": false,
     "redis": {
-      "ip": "127.0.0.1",
-      "port": 6379,
-      "password": "",
-      "prefix": "test_",
-      "suffix": "_test",
-      "connect_timeout": 0,
-      "read_timeout": 0
+        "ip": "127.0.0.1",
+        "port": 6379,
+        "password": "",
+        "prefix": "test_",
+        "suffix": "_test",
+        "connect_timeout": 0,
+        "read_timeout": 0
     },
     "log": {
     "enable": true,
@@ -69,7 +69,39 @@ dns query handler configuration
     "target": "file",
     "format": "json",
     "path": "/tmp/redins.log"
-    }
+    },
+    "healthcheck": {
+        "enable": true,
+        "max_requests": 10,
+        "update_interval": 600,
+        "check_interval": 600,
+        "redis": {
+            "ip": "127.0.0.1",
+            "port": 6379,
+            "password": "",
+            "prefix": "healthcheck_",
+            "suffix": "_healthcheck",
+            "connect_timeout": 0,
+            "read_timeout": 0
+        },
+        "log": {
+            "enable": true,
+            "level": "info",
+            "target": "file",
+            "format": "json",
+            "path": "/tmp/healthcheck.log"
+        }
+    },
+    "geoip": {
+        "enable": true,
+        "db": "geoCity.mmdb"
+    },
+    "upstream": [{
+        "ip": "1.1.1.1",
+        "port": 53,
+        "protocol": "udp",
+        "timeout": 400
+    }]
 }
 ~~~
 
@@ -132,12 +164,12 @@ geoip configuration
 ### upstream
 
 ~~~json
-"upstream": {
+"upstream": [{
     "ip": "1.1.1.1",
     "port": 53,
     "protocol": "udp",
     "timeout": 400
-},
+}],
 ~~~
 
 * ip : upstream ip address, default: 1.1.1.1
@@ -242,37 +274,37 @@ sample config:
       "target": "file",
       "format": "json",
       "path": "/tmp/redins.log"
-    }
-  },
-  "upstream": {
-    "ip": "1.1.1.1",
-    "port": 53,
-    "protocol": "udp"
-  },
-  "geoip": {
-    "enable": true,
-    "db": "geoCity.mmdb"
-  },
-  "healthcheck": {
-    "enable": true,
-    "max_requests": 10,
-    "update_interval": 600,
-    "check_interval": 600,
-    "redis": {
-      "ip": "127.0.0.1",
-      "port": 6379,
-      "password": "",
-      "prefix": "healthcheck_",
-      "suffix": "_healthcheck",
-      "connect_timeout": 0,
-      "read_timeout": 0
     },
-    "log": {
+    "upstream": {
+      "ip": "1.1.1.1",
+      "port": 53,
+      "protocol": "udp"
+    },
+    "geoip": {
       "enable": true,
-      "level": "info",
-      "target": "file",
-      "format": "json",
-      "path": "/tmp/healthcheck.log"
+      "db": "geoCity.mmdb"
+    },
+    "healthcheck": {
+      "enable": true,
+      "max_requests": 10,
+      "update_interval": 600,
+      "check_interval": 600,
+      "redis": {
+        "ip": "127.0.0.1",
+        "port": 6379,
+        "password": "",
+        "prefix": "healthcheck_",
+        "suffix": "_healthcheck",
+        "connect_timeout": 0,
+        "read_timeout": 0
+      },
+      "log": {
+        "enable": true,
+        "level": "info",
+        "target": "file",
+        "format": "json",
+        "path": "/tmp/healthcheck.log"
+      }
     }
   },
   "error_log": {
