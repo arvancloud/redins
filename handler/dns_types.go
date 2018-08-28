@@ -46,13 +46,8 @@ type Zone struct {
     KeyExpiration uint32
 }
 
-type Base_RRSet struct {
-    Ttl   uint32 `json:"ttl,omitempty"`
-    RRSig dns.RR `json:"-"`
-}
-
 type IP_RRSet struct {
-    Base_RRSet
+    Ttl               uint32              `json:"ttl,omitempty"`
     Data              []IP_RR             `json:"records,omitempty"`
     HealthCheckConfig IpHealthCheckConfig `json:"health_check,omitempty"`
     FilterConfig      IpFilterConfig      `json:"filter,omitempty"`
@@ -81,12 +76,12 @@ type IpFilterConfig struct {
 }
 
 type CNAME_RRSet struct {
-    Base_RRSet
+    Ttl  uint32 `json:"ttl,omitempty"`
     Host string `json:"host"`
 }
 
 type TXT_RRSet struct {
-    Base_RRSet
+    Ttl  uint32   `json:"ttl,omitempty"`
     Data []TXT_RR `json:"records,omitempty"`
 }
 
@@ -95,7 +90,7 @@ type TXT_RR struct {
 }
 
 type NS_RRSet struct {
-    Base_RRSet
+    Ttl  uint32  `json:"ttl,omitempty"`
     Data []NS_RR `json:"records,omitempty"`
 }
 
@@ -104,7 +99,7 @@ type NS_RR struct {
 }
 
 type MX_RRSet struct {
-    Base_RRSet
+    Ttl  uint32  `json:"ttl,omitempty"`
     Data []MX_RR `json:"records,omitempty"`
 }
 
@@ -114,7 +109,7 @@ type MX_RR struct {
 }
 
 type SRV_RRSet struct {
-    Base_RRSet
+    Ttl  uint32   `json:"ttl,omitempty"`
     Data []SRV_RR `json:"records,omitempty"`
 }
 
@@ -126,14 +121,14 @@ type SRV_RR struct {
 }
 
 type SOA_RRSet struct {
-    Base_RRSet
-    Data *dns.SOA `json:"-"`
-    Ns      string `json:"ns"`
-    MBox    string `json:"MBox"`
-    Refresh uint32 `json:"refresh"`
-    Retry   uint32 `json:"retry"`
-    Expire  uint32 `json:"expire"`
-    MinTtl  uint32 `json:"minttl"`
+    Ttl     uint32   `json:"ttl,omitempty"`
+    Data    *dns.SOA `json:"-"`
+    Ns      string   `json:"ns"`
+    MBox    string   `json:"MBox"`
+    Refresh uint32   `json:"refresh"`
+    Retry   uint32   `json:"retry"`
+    Expire  uint32   `json:"expire"`
+    MinTtl  uint32   `json:"minttl"`
 }
 
 type ANAME_Record struct {
