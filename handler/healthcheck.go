@@ -210,14 +210,15 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
 }
 
 func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
-    HostIp := strings.Split(key, ":")
-    if len(HostIp) != 2 {
+    splits := strings.SplitAfterN(key, ":", 2)
+    // eventlog.Logger.Error(splits)
+    if len(splits) != 2 {
         eventlog.Logger.Errorf("invalid key: %s", key)
         return nil
     }
     item := new(HealthCheckItem)
-    item.Host = HostIp[0]
-    item.Ip = HostIp[1]
+    item.Host = splits[0]
+    item.Ip = splits[1]
     itemStr := h.redisStatusServer.Get(key)
     if itemStr == "" {
         return nil
@@ -251,6 +252,7 @@ func (h *Healthcheck) transferItems() {
     }
     var newItems []*HealthCheckItem
     zones := h.redisConfigServer.GetKeys()
+    eventlog.Logger.Error(zones)
     for _, zone := range zones {
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
