@@ -14,7 +14,7 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.caa.",
 }
 
 var lookupEntries = [][][]string {
@@ -46,7 +46,7 @@ var lookupEntries = [][][]string {
         },
         {"sip",
             "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"7.7.7.7\"}]}," +
-            "{\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}}",
+            "\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}}",
         },
         {"t.u.v.w",
             "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"9.9.9.9\"}]}}",
@@ -115,6 +115,26 @@ var lookupEntries = [][][]string {
         },
         {"x",
             "{\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}}",
+        },
+    },
+    {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.caa.\",\"ns\":\"ns1.example.caa.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"cname_flattening\":false}",
+        },
+        {"@",
+            "{\"caa\":{\"ttl\":300, \"records\":[{\"tag\":\"issue\", \"value\":\"godaddy.com\", \"flag\":0}]}}",
+        },
+        {"a.b.c.d",
+            "{\"cname\":{\"ttl\":300, \"host\":\"b.c.d.example.caa.\"}}",
+        },
+        {"b.c.d",
+            "{\"cname\":{\"ttl\":300, \"host\":\"c.d.example.caa.\"}}",
+        },
+        {"c.d",
+            "{\"cname\":{\"ttl\":300, \"host\":\"d.example.caa.\"}}",
+        },
+        {"d",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.y.z.example.caa.\"}}",
         },
     },
 }
@@ -337,6 +357,21 @@ var lookupTestCases = [][]test.Case{
             Qname: "x.example.ccc.", Qtype: dns.TypeTXT,
             Answer: []dns.RR{
                 test.TXT("x.example.ccc. 300 IN TXT \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""),
+            },
+        },
+    },
+    // CAA Test
+    {
+        {
+            Qname: "example.caa.", Qtype: dns.TypeCAA,
+            Answer: []dns.RR{
+                test.CAA("example.caa.	300	IN	CAA	0 issue \"godaddy.com;\""),
+            },
+        },
+        {
+            Qname: "a.b.c.d.example.caa", Qtype: dns.TypeCAA,
+            Answer: []dns.RR{
+                test.CAA("a.b.c.d.example.caa 300 IN CAA 0 issue \"godaddy.com\""),
             },
         },
     },

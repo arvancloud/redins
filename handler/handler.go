@@ -200,6 +200,15 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             } else {
                 answers = AppendRR(answers, h.SRV(qname, record), qname, record, secured)
             }
+        case dns.TypeCAA:
+            caaRecord := h.FindCAA(record)
+            if caaRecord == nil {
+                answers = []dns.RR{}
+                authority = AppendSOA(authority, originalRecord.Zone, secured)
+                authority = AppendNSEC(authority, originalRecord.Zone, qname, secured)
+            } else {
+                answers = AppendRR(answers, h.CAA(qname, caaRecord), qname, caaRecord, secured)
+            }
         case dns.TypeSOA:
             answers = AppendSOA(answers, record.Zone, secured)
         case dns.TypeDNSKEY:
@@ -418,6 +427,19 @@ func (h *DnsRequestHandler) SRV(name string, record *Record) (answers []dns.RR) 
         r.Weight = srv.Weight
         r.Port = srv.Port
         r.Priority = srv.Priority
+        answers = append(answers, r)
+    }
+    return
+}
+
+func (h *DnsRequestHandler) CAA(name string, record *Record) (answers []dns.RR) {
+    for _, caa := range record.CAA.Data {
+        r := new(dns.CAA)
+        r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeCAA,
+            Class: dns.ClassINET, Ttl: h.getTtl(record.CAA.Ttl)}
+        r.Value = caa.Value
+        r.Flag = caa.Flag
+        r.Tag = caa.Tag
         answers = append(answers, r)
     }
     return
@@ -769,4 +791,29 @@ func AppendNSEC(target []dns.RR, zone *Zone, qname string, secured bool) []dns.R
         target = append(target, nsec...)
     }
     return target
+}
+
+func (h *DnsRequestHandler) FindCAA(record *Record) *Record {
+    zone := record.Zone
+    currentRecord := record
+    for currentRecord != nil && strings.HasSuffix(currentRecord.Name, zone.Name) {
+        for {
+            if currentRecord == nil {
+                return nil
+            }
+            if currentRecord.CNAME == nil {
+                break
+            }
+            currentRecord, _ = h.FetchRecord(currentRecord.CNAME.Host, map[string]interface{}{})
+        }
+        if len(currentRecord.CAA.Data) != 0 {
+            return currentRecord
+        }
+        splits := strings.SplitAfterN(currentRecord.Name, ".", 2)
+        if len(splits) != 2 {
+            return nil
+        }
+        currentRecord, _ = h.FetchRecord(splits[1], map[string]interface{}{})
+    }
+    return nil
 }

@@ -14,6 +14,7 @@ type RRSets struct {
     NS           NS_RRSet      `json:"ns,omitempty"`
     MX           MX_RRSet      `json:"mx,omitempty"`
     SRV          SRV_RRSet     `json:"srv,omitempty"`
+    CAA          CAA_RRSet     `json:"caa,omitempty"`
     ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
@@ -118,6 +119,17 @@ type SRV_RR struct {
     Weight   uint16 `json:"weight"`
     Port     uint16 `json:"port"`
     Target   string `json:"target"`
+}
+
+type CAA_RRSet struct {
+    Ttl  uint32   `json:"ttl,omitempty"`
+    Data []CAA_RR `json:"records,omitempty"`
+}
+
+type CAA_RR struct {
+    Tag   string `json:"tag"`
+    Value string `json:"value"`
+    Flag  uint8  `json:"flag"`
 }
 
 type SOA_RRSet struct {
