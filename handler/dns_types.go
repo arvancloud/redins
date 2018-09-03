@@ -34,6 +34,7 @@ type ZoneConfig struct {
     SOA             *SOA_RRSet `json:"soa,omitempty"`
     DnsSec          bool       `json:"dnssec,omitempty"`
     CnameFlattening bool       `json:"cname_flattening,omitempty"`
+    DomainId        string     `json:"domain_id,omitempty"`
 }
 
 type Zone struct {

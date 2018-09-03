@@ -106,7 +106,10 @@ var lookupEntries = [][][]string {
             "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\"}]}}",
         },
         {"y",
-            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.aaa.\"}}",
+            "{\"cname\":{\"ttl\":300, \"host\":\"x.example.bbb.\"}}",
+        },
+        {"z",
+            "{}",
         },
     },
     {
@@ -303,42 +306,42 @@ var lookupTestCases = [][]test.Case{
     {
         // empty A test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeA,
+            Qname: "z.example.bbb.", Qtype: dns.TypeA,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty AAAA test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeAAAA,
+            Qname: "z.example.bbb.", Qtype: dns.TypeAAAA,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty TXT test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeTXT,
+            Qname: "z.example.bbb.", Qtype: dns.TypeTXT,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty NS test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeNS,
+            Qname: "z.example.bbb.", Qtype: dns.TypeNS,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty MX test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeMX,
+            Qname: "z.example.bbb.", Qtype: dns.TypeMX,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty SRV test
         {
-            Qname: "y.example.bbb.", Qtype: dns.TypeSRV,
+            Qname: "z.example.bbb.", Qtype: dns.TypeSRV,
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
@@ -346,6 +349,66 @@ var lookupTestCases = [][]test.Case{
         // empty CNAME test
         {
             Qname: "x.example.bbb.", Qtype: dns.TypeCNAME,
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty A test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeA,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty AAAA test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeAAAA,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty TXT test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeTXT,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty NS test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeNS,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty MX test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeMX,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
+            Ns: []dns.RR{
+                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
+            },
+        },
+        // empty SRV test with cname
+        {
+            Qname: "y.example.bbb.", Qtype: dns.TypeSRV,
+            Answer: []dns.RR{
+                test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
+            },
             Ns: []dns.RR{
                 test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },

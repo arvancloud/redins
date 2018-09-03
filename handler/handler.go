@@ -109,17 +109,20 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     record, localRes = h.FetchRecord(qname, logData)
     originalRecord := record
     secured := state.Do() && record != nil && record.Zone.Config.DnsSec
-    if record != nil && record.Zone.Config.CnameFlattening && qtype != dns.TypeCNAME {
-        for {
-            if localRes != dns.RcodeSuccess {
-                break
+    if record != nil {
+        logData["DomainId"] = record.Zone.Config.DomainId
+        if record.Zone.Config.CnameFlattening && qtype != dns.TypeCNAME {
+            for {
+                if localRes != dns.RcodeSuccess {
+                    break
+                }
+                if record.CNAME == nil {
+                    break
+                }
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
+                qname = record.CNAME.Host
+                record, localRes = h.FetchRecord(qname, logData)
             }
-            if record.CNAME == nil {
-                break
-            }
-            answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
-            qname = record.CNAME.Host
-            record, localRes = h.FetchRecord(qname, logData)
         }
     }
 
@@ -135,7 +138,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                     }
                     res = upstreamRes
                 } else {
-                    answers = []dns.RR{}
+                    answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                     authority = AppendSOA(authority, originalRecord.Zone, secured)
                     authority = AppendNSEC(authority, record.Zone, qname, secured)
                 }
@@ -152,7 +155,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                     }
                     res = upstreamRes
                 } else {
-                    answers = []dns.RR{}
+                    answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                     authority = AppendSOA(authority, originalRecord.Zone, secured)
                     authority = AppendNSEC(authority, record.Zone, qname, secured)
                 }
@@ -162,7 +165,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeCNAME:
             if record.CNAME == nil {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
@@ -170,7 +173,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeTXT:
             if len(record.TXT.Data) == 0 {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
@@ -178,7 +181,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeNS:
             if len(record.NS.Data) == 0 {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
@@ -186,7 +189,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeMX:
             if len(record.MX.Data) == 0 {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
@@ -194,7 +197,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeSRV:
             if len(record.SRV.Data) == 0 {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
@@ -203,7 +206,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         case dns.TypeCAA:
             caaRecord := h.FindCAA(record)
             if caaRecord == nil {
-                answers = []dns.RR{}
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, originalRecord.Zone, qname, secured)
             } else {
