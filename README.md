@@ -21,6 +21,7 @@
         - [NS](#ns)
         - [MX](#mx)
         - [SRV](#srv)
+        - [CAA](#caa)
         - [SOA](#soa)
     - [example](#zone-example)
     
@@ -515,6 +516,23 @@ redis-cli>HGETALL example.com.
 }
 ~~~
 
+#### CAA
+
+~~~json
+{
+  "caa":{
+    "ttl": 360,
+    "records":[
+      {
+        "tag": "issuewild;",
+        "value": "godaddy.com",
+        "flag": 0
+      }
+    ]
+  }
+}
+~~~
+
 #### config
 
 ~~~json
@@ -529,12 +547,14 @@ redis-cli>HGETALL example.com.
         "expire" : 66
     },
     "cname_flattening": true,
-    "dnssec": true
+    "dnssec": true,
+    "domain_id": "123456789"
 }
 ~~~
 
 `cname_flattening`: enable/disable cname flattening, default: false
 `dnssec`: enable/disable dnssec, default: false
+`domain_id`: unique domain id for logging, optional
 
 ### zone example
 
