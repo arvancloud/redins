@@ -70,6 +70,7 @@ func (redis *Redis) Get(key string) string {
 
     reply, err = conn.Do("GET", redis.Config.Prefix + key + redis.Config.Suffix)
     if err != nil {
+        eventlog.Logger.Errorf("redis error : GET %s : %s", key, err)
         return ""
     }
     val, err = redisCon.String(reply, nil)
@@ -89,7 +90,7 @@ func (redis *Redis) Set(key string, value string) error {
 
     _, err := conn.Do("SET", redis.Config.Prefix + key + redis.Config.Suffix, value)
     if err != nil {
-        eventlog.Logger.Errorf("redis error : %s", err)
+        eventlog.Logger.Errorf("redis error : SET %s : %s", key, err)
         return err
     }
     return nil
@@ -103,7 +104,10 @@ func (redis *Redis) Del(pattern string) {
     }
     defer conn.Close()
 
-    conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.Config.Prefix + pattern + redis.Config.Suffix)
+    _, err := conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.Config.Prefix + pattern + redis.Config.Suffix)
+    if err != nil {
+        eventlog.Logger.Errorf("error in redis : DEL : ", pattern)
+    }
 }
 
 func (redis *Redis) GetKeys() []string {
@@ -123,6 +127,7 @@ func (redis *Redis) GetKeys() []string {
     // TODO: use SCAN
     reply, err = conn.Do("KEYS", redis.Config.Prefix + "*" + redis.Config.Suffix)
     if err != nil {
+        eventlog.Logger.Errorf("redis error : KEYS : %s", err)
         return nil
     }
     keys, err = redisCon.Strings(reply, nil)
@@ -149,7 +154,7 @@ func (redis *Redis) GetHKeys(key string) []string {
 
     reply, err = conn.Do("HKEYS", redis.Config.Prefix + key + redis.Config.Suffix)
     if err != nil {
-        eventlog.Logger.Errorf("error in redis command : %s", err)
+        eventlog.Logger.Errorf("error in redis command : HKEYS %s : %s", key, err)
         return nil
     }
     vals, err = redisCon.Strings(reply, nil)
@@ -174,6 +179,7 @@ func (redis *Redis) HGet(key string, hkey string) string {
 
     reply, err = conn.Do("HGET", redis.Config.Prefix + key + redis.Config.Suffix, hkey)
     if err != nil {
+        eventlog.Logger.Errorf("redis error : HGET %s : %s", key, err)
         return ""
     }
     val, err = redisCon.String(reply, nil)
@@ -194,7 +200,7 @@ func (redis *Redis) HSet(key string, hkey string, value string) error {
     // log.Printf("[DEBUG] HSET : %s %s %s", redis.config.prefix + key + redis.config.suffix, hkey, value)
     _, err := conn.Do("HSET", redis.Config.Prefix + key + redis.Config.Suffix, hkey, value)
     if err != nil {
-        eventlog.Logger.Errorf("redis error : %s", err)
+        eventlog.Logger.Errorf("redis error : HSET %s : %s", key, err)
         return err
     }
     return nil
