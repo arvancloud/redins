@@ -61,6 +61,13 @@ deploy-lab:
         - docker build . -t labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID -t labreg.arvan.me/arvan_redins:latest
         - docker push labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID 
         - docker push labreg.arvan.me/arvan_redins:latest
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+        - echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
+        - chmod 600 ~/.ssh/id_rsa
+        - ssh -p 65422 gitlab-deploy@148.251.239.9 sudo salt-call state.apply
+
     only:
         - dev
 
