@@ -50,8 +50,8 @@ test-production:
     only:
         - tags
 
-deploy-lab:
-    stage: deploy-lab
+image-build:
+    stage: lab-deploy
     image: labreg.arvan.me/docker:latest
     dependencies:
     - test-lab
@@ -61,13 +61,21 @@ deploy-lab:
         - docker build . -t labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID -t labreg.arvan.me/arvan_redins:latest
         - docker push labreg.arvan.me/arvan_redins:$CI_PIPELINE_ID 
         - docker push labreg.arvan.me/arvan_redins:latest
+    only:
+        - dev
+
+salt-apply:
+    image: labreg.arvan.me/ssh-client
+    stage: lab-deploy
+    dependencies:
+      - image-build
+    script:
         - mkdir -p ~/.ssh
         - chmod 700 ~/.ssh
         - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
         - echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
         - chmod 600 ~/.ssh/id_rsa
         - ssh -p 65422 gitlab-deploy@148.251.239.12 sudo salt-call state.apply docker/redins
-
     only:
         - dev
 
