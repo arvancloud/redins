@@ -66,7 +66,7 @@ deploy-lab:
         - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
         - echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
         - chmod 600 ~/.ssh/id_rsa
-        - ssh -p 65422 gitlab-deploy@148.251.239.9 sudo salt-call state.apply
+        - ssh -p 65422 gitlab-deploy@148.251.239.12 sudo salt-call state.apply docker/redins
 
     only:
         - dev
