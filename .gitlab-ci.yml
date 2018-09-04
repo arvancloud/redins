@@ -67,8 +67,6 @@ image-build:
 salt-apply:
     image: labreg.arvan.me/ssh-client
     stage: lab-deploy
-    dependencies:
-      - image-build
     script:
         - mkdir -p ~/.ssh
         - chmod 700 ~/.ssh
