@@ -165,7 +165,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypeCNAME:
             if record.CNAME == nil {
-                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
+                answers = []dns.RR{}
                 authority = AppendSOA(authority, originalRecord.Zone, secured)
                 authority = AppendNSEC(authority, record.Zone, qname, secured)
             } else {
