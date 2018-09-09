@@ -1,10 +1,10 @@
 package redis
 
 import (
-    "strings"
     "time"
     "strconv"
     "errors"
+    "strings"
 
     redisCon "github.com/gomodule/redigo/redis"
     "arvancloud/redins/eventlog"
@@ -106,7 +106,7 @@ func (redis *Redis) Del(pattern string) {
 
     _, err := conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.Config.Prefix + pattern + redis.Config.Suffix)
     if err != nil {
-        eventlog.Logger.Errorf("error in redis : DEL : ", pattern)
+        eventlog.Logger.Errorf("error in redis : DEL : %s : %s", pattern, err)
     }
 }
 
@@ -124,16 +124,43 @@ func (redis *Redis) GetKeys() []string {
     }
     defer conn.Close()
 
-    // TODO: use SCAN
-    reply, err = conn.Do("KEYS", redis.Config.Prefix + "*" + redis.Config.Suffix)
-    if err != nil {
-        eventlog.Logger.Errorf("redis error : KEYS : %s", err)
-        return nil
+    keySet := make(map[string]interface{})
+
+    for {
+        cursor := "0"
+        reply, err = conn.Do("SCAN", cursor, "MATCH", redis.Config.Prefix+"*"+redis.Config.Suffix, "COUNT", 100)
+        if err != nil {
+            eventlog.Logger.Errorf("redis command failed : SCAN : %s", err)
+            return nil
+        }
+        var values []interface{}
+        values, err = redisCon.Values(reply, nil)
+        if err != nil {
+            eventlog.Logger.Error("cannot get values from reply : ", reply, " : ", err)
+            return nil
+        }
+        cursor, err = redisCon.String(values[0], nil)
+        if err != nil {
+            eventlog.Logger.Error("cannot convert ", values[0], " to cursor")
+            return nil
+        }
+        keys, err = redisCon.Strings(values[1], nil)
+        if err != nil {
+            eventlog.Logger.Error("cannot get keys from ", values[1])
+            return nil
+        }
+        for _, key := range keys {
+            keySet[key] = nil
+        }
+        if cursor == "0" {
+            break
+        }
     }
-    keys, err = redisCon.Strings(reply, nil)
-    for i, _ := range keys {
-        keys[i] = strings.TrimPrefix(keys[i], redis.Config.Prefix)
-        keys[i] = strings.TrimSuffix(keys[i], redis.Config.Suffix)
+    keys = nil
+    for key := range keySet {
+        key = strings.TrimPrefix(key, redis.Config.Prefix)
+        key = strings.TrimSuffix(key, redis.Config.Suffix)
+        keys = append(keys, key)
     }
     return keys
 }
