@@ -126,7 +126,7 @@ var lookupEntries = [][][]string {
             "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.caa.\",\"ns\":\"ns1.example.caa.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"cname_flattening\":false}",
         },
         {"@",
-            "{\"caa\":{\"ttl\":300, \"records\":[{\"tag\":\"issue\", \"value\":\"godaddy.com\", \"flag\":0}]}}",
+            "{\"caa\":{\"ttl\":300, \"records\":[{\"tag\":\"issue\", \"value\":\"godaddy.com;\", \"flag\":0}]}}",
         },
         {"a.b.c.d",
             "{\"cname\":{\"ttl\":300, \"host\":\"b.c.d.example.caa.\"}}",
@@ -219,6 +219,9 @@ var lookupTestCases = [][]test.Case{
         {
             Qname: "example.com.", Qtype: dns.TypeUNSPEC,
             Rcode: dns.RcodeNotImplemented,
+            Ns: []dns.RR{
+                test.SOA("example.com. 300 IN SOA ns1.example.com. hostmaster.example.com. 1460498836 44 55 66 100"),
+            },
         },
         // Empty non-terminal Test
         // FIXME: should return NOERROR instead of NXDOMAIN
@@ -361,18 +364,12 @@ var lookupTestCases = [][]test.Case{
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
             },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
-            },
         },
         // empty AAAA test with cname
         {
             Qname: "y.example.bbb.", Qtype: dns.TypeAAAA,
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
-            },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty TXT test with cname
@@ -381,18 +378,12 @@ var lookupTestCases = [][]test.Case{
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
             },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
-            },
         },
         // empty NS test with cname
         {
             Qname: "y.example.bbb.", Qtype: dns.TypeNS,
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
-            },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
         // empty MX test with cname
@@ -401,18 +392,12 @@ var lookupTestCases = [][]test.Case{
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
             },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
-            },
         },
         // empty SRV test with cname
         {
             Qname: "y.example.bbb.", Qtype: dns.TypeSRV,
             Answer: []dns.RR{
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
-            },
-            Ns: []dns.RR{
-                test.SOA("example.bbb. 300 IN SOA ns1.example.bbb. hostmaster.example.bbb. 1460498836 44 55 66 100"),
             },
         },
     },
@@ -437,7 +422,7 @@ var lookupTestCases = [][]test.Case{
         {
             Qname: "a.b.c.d.example.caa", Qtype: dns.TypeCAA,
             Answer: []dns.RR{
-                test.CAA("a.b.c.d.example.caa 300 IN CAA 0 issue \"godaddy.com\""),
+                test.CAA("a.b.c.d.example.caa 300 IN CAA 0 issue \"godaddy.com;\""),
             },
         },
     },
