@@ -67,8 +67,21 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h.cache = cache.New(time.Second * time.Duration(h.CacheTimeout), time.Duration(h.CacheTimeout) * time.Second * 10)
 
     go h.healthcheck.Start()
+    go h.UpdateZones()
 
     return h
+}
+
+func (h *DnsRequestHandler) UpdateZones() {
+    for {
+        eventlog.Logger.Debugf("%v", h.Zones)
+        if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload)*time.Second {
+            eventlog.Logger.Debug("loading zones")
+            h.LoadZones()
+        }
+        eventlog.Logger.Debugf("%v", h.Zones)
+        time.Sleep(time.Duration(h.ZoneReload) * time.Second)
+    }
 }
 
 func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
@@ -535,13 +548,6 @@ func (h *DnsRequestHandler) Matches(qname string) string {
 
 func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
     eventlog.Logger.Debug("GetRecord")
-
-    eventlog.Logger.Debugf("%v", h.Zones)
-    if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload) * time.Second {
-        eventlog.Logger.Debug("loading zones")
-        h.LoadZones()
-    }
-    eventlog.Logger.Debugf("%v", h.Zones)
 
     zone := h.Matches(qname)
     eventlog.Logger.Debugf("zone : %s", zone)
