@@ -49,9 +49,9 @@
     },
     "healthcheck": {
       "enable": true,
-      "max_requests": 10,
-      "update_interval": 600,
-      "check_interval": 600,
+      "max_requests": 5,
+      "update_interval": 601,
+      "check_interval": 601,
       "redis": {
         "ip": "127.0.0.1",
         "port": 6379,
