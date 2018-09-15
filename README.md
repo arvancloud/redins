@@ -9,6 +9,7 @@
     - [error log](#error_log)
     - [redis](#redis)
     - [log](#log)
+    - [rate limit](#rate-limit)
     - [example](#example)
 - [Zone format in redis](#zone-format-in-redis-db)
     - [zones](#zones)
@@ -243,6 +244,27 @@ log configuration
 * path : log output file path
 * sentry : sentry hook configurations
 * syslog : syslog hook configurations
+
+### rate limit 
+rate limit connfiguration
+
+~~~json
+{
+  "ratelimit": {
+    "enable": true,
+    "rate": 60,
+    "burst": 10,
+    "blacklist": ["10.10.10.1"],
+    "whitelist": ["127.0.0.1"]
+  }
+}
+~~~
+
+* enable : enable/disable rate limit
+* rate : maximum allowed request per minute
+* burst : number of burst requests
+* blacklist : list of ips to refuse all request
+* whitelist : list of ips to bypass rate limit
 
 ### example
 sample config:

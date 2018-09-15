@@ -75,5 +75,12 @@
     "level": "debug",
     "path": "/tmp/error.log",
     "format": "text"
+  },
+  "ratelimit": {
+    "enable": true,
+    "rate": 60,
+    "burst": 10,
+    "blacklist":[],
+    "whitelist": []
   }
 }

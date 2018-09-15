@@ -18,19 +18,26 @@ import (
 var (
     s []dns.Server
     h *handler.DnsRequestHandler
+    l *handler.RateLimiter
 )
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     // log.Printf("[DEBUG] handle request")
     state := request.Request{W: w, Req: r}
 
-    h.HandleRequest(&state)
+    if l.CanHandle(state.IP()) {
+        h.HandleRequest(&state)
+    } else {
+        msg := state.ErrorMessage(dns.RcodeRefused)
+        state.W.WriteMsg(msg)
+    }
 }
 
 type RedinsConfig struct {
-    Server []handler.ServerConfig `json:"server,omitempty"`
-    ErrorLog eventlog.LogConfig `json:"error_log,omitempty"`
-    Handler handler.HandlerConfig `json:"handler,omitempty"`
+    Server    []handler.ServerConfig    `json:"server,omitempty"`
+    ErrorLog  eventlog.LogConfig        `json:"error_log,omitempty"`
+    Handler   handler.HandlerConfig     `json:"handler,omitempty"`
+    RateLimit handler.RateLimiterConfig `json:"ratelimit,omitempty"`
 }
 
 func LoadConfig(path string) *RedinsConfig {
@@ -123,6 +130,13 @@ func LoadConfig(path string) *RedinsConfig {
                 Enable: false,
             },
         },
+        RateLimit: handler.RateLimiterConfig {
+            Enable: false,
+            Rate: 60,
+            Burst: 10,
+            BlackList: []string{},
+            WhiteList: []string{},
+        },
     }
     raw, err := ioutil.ReadFile(path)
     if err != nil {
@@ -151,6 +165,8 @@ func main() {
     s = handler.NewServer(cfg.Server)
 
     h = handler.NewHandler(&cfg.Handler)
+
+    l = handler.NewRateLimiter(&cfg.RateLimit)
 
     dns.HandleFunc(".", handleRequest)
 
