@@ -292,7 +292,7 @@ func GetSourceIp(request *request.Request) net.IP {
 
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
-    newZones := h.Redis.GetKeys()
+    newZones := h.Redis.GetKeys("*")
     h.zoneLock.Lock()
     h.Zones = newZones
     h.zoneLock.Unlock()

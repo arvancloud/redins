@@ -17,13 +17,13 @@ type Redis struct {
 }
 
 type RedisConfig struct {
-    Ip string `json:"ip,omitempty"`
-    Port int `json:"port,omitempty"`
-    Password string `json:"password,omitempty"`
-    Prefix string `json:"prefix,omitempty"`
-    Suffix string `json:"suffix,omitempty"`
-    ConnectTimeout int `json:"connect_timeout,omitempty"`
-    ReadTimeout int `json:"read_timeout,omitempty"`
+    Ip             string `json:"ip,omitempty"`
+    Port           int    `json:"port,omitempty"`
+    Password       string `json:"password,omitempty"`
+    Prefix         string `json:"prefix,omitempty"`
+    Suffix         string `json:"suffix,omitempty"`
+    ConnectTimeout int    `json:"connect_timeout,omitempty"`
+    ReadTimeout    int    `json:"read_timeout,omitempty"`
 }
 
 func NewRedis(config *RedisConfig) *Redis {
@@ -104,13 +104,22 @@ func (redis *Redis) Del(pattern string) {
     }
     defer conn.Close()
 
-    _, err := conn.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, redis.Config.Prefix + pattern + redis.Config.Suffix)
+    keys := redis.GetKeys(pattern)
+    if keys == nil || len(keys) == 0 {
+        eventlog.Logger.Debug("nothing to delete")
+        return
+    }
+    var arg []interface{}
+    for i := range keys {
+        arg = append(arg, redis.Config.Prefix + keys[i] + redis.Config.Suffix)
+    }
+    _, err := conn.Do("DEL", arg...)
     if err != nil {
         eventlog.Logger.Errorf("error in redis : DEL : %s : %s", pattern, err)
     }
 }
 
-func (redis *Redis) GetKeys() []string {
+func (redis *Redis) GetKeys(pattern string) []string {
     var (
         reply interface{}
         err   error
@@ -128,7 +137,7 @@ func (redis *Redis) GetKeys() []string {
 
     for {
         cursor := "0"
-        reply, err = conn.Do("SCAN", cursor, "MATCH", redis.Config.Prefix+"*"+redis.Config.Suffix, "COUNT", 100)
+        reply, err = conn.Do("SCAN", cursor, "MATCH", redis.Config.Prefix + pattern + redis.Config.Suffix, "COUNT", 100)
         if err != nil {
             eventlog.Logger.Errorf("redis command failed : SCAN : %s", err)
             return nil
@@ -156,7 +165,7 @@ func (redis *Redis) GetKeys() []string {
             break
         }
     }
-    keys = nil
+    keys = []string{}
     for key := range keySet {
         key = strings.TrimPrefix(key, redis.Config.Prefix)
         key = strings.TrimSuffix(key, redis.Config.Suffix)

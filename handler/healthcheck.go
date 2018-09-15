@@ -251,7 +251,7 @@ func (h *Healthcheck) transferItems() {
         return true
     }
     var newItems []*HealthCheckItem
-    zones := h.redisConfigServer.GetKeys()
+    zones := h.redisConfigServer.GetKeys("*")
     eventlog.Logger.Error(zones)
     for _, zone := range zones {
         subDomains := h.redisConfigServer.GetHKeys(zone)
@@ -317,7 +317,7 @@ func (h *Healthcheck) Start() {
 
     for {
         startTime := time.Now()
-        keys := h.redisStatusServer.GetKeys()
+        keys := h.redisStatusServer.GetKeys("*")
         for _, key := range keys {
             item := h.loadItem(key)
             if item == nil || item.Enable == false {
