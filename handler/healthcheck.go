@@ -165,7 +165,7 @@ type HealthcheckConfig struct {
     MaxRequests int `json:"max_requests,omitempty"`
     UpdateInterval int `json:"update_interval,omitempty"`
     CheckInterval int `json:"check_interval,omitempty"`
-    RedisStatusServer redis.RedisConfig `json:"redis_status_server,omitempty"`
+    RedisStatusServer redis.RedisConfig `json:"redis,omitempty"`
     Log eventlog.LogConfig `json:"log,omitempty"`
 }
 
