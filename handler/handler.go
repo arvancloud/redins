@@ -30,6 +30,8 @@ type DnsRequestHandler struct {
     geoip             *GeoIp
     healthcheck       *Healthcheck
     upstream          *Upstream
+    quit              chan struct{}
+    quitWG            sync.WaitGroup
 
 }
 
@@ -65,6 +67,7 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h.LoadZones()
 
     h.cache = cache.New(time.Second * time.Duration(h.CacheTimeout), time.Duration(h.CacheTimeout) * time.Second * 10)
+    h.quit = make(chan struct{}, 1)
 
     go h.healthcheck.Start()
     go h.UpdateZones()
@@ -72,15 +75,24 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     return h
 }
 
+func (h *DnsRequestHandler) ShutDown() {
+    h.quitWG.Add(1)
+    close(h.quit)
+    h.quitWG.Wait()
+}
+
 func (h *DnsRequestHandler) UpdateZones() {
     for {
-        eventlog.Logger.Debugf("%v", h.Zones)
-        if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload)*time.Second {
+        select {
+        case <-h.quit:
+            h.quitWG.Done()
+            return
+        case <-time.After(time.Duration(h.ZoneReload) * time.Second):
+            eventlog.Logger.Debugf("%v", h.Zones)
             eventlog.Logger.Debug("loading zones")
             h.LoadZones()
+            eventlog.Logger.Debugf("%v", h.Zones)
         }
-        eventlog.Logger.Debugf("%v", h.Zones)
-        time.Sleep(time.Duration(h.ZoneReload) * time.Second)
     }
 }
 
