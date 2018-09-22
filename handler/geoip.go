@@ -44,7 +44,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
         eventlog.Logger.Error("getSameCountry failed")
         return ips
     }
-    logData["SourceCountry"] = sourceCountry
+    logData["Source_country"] = sourceCountry
 
     var result []IP_RR
     for _, ip := range ips {

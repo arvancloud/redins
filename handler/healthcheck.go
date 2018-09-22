@@ -23,6 +23,7 @@ type HealthCheckItem struct {
     UpCount   int       `json:"up_count,omitempty"`
     DownCount int       `json:"down_count,omitempty"`
     Enable    bool      `json:"enable,omitempty"`
+    DomainId  string    `json:"domain_uuid, omitempty"`
     Host      string    `json:"-"`
     Ip        string    `json:"-"`
 }
@@ -217,7 +218,7 @@ func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
         return nil
     }
     item := new(HealthCheckItem)
-    item.Host = splits[0]
+    item.Host = strings.TrimSuffix(splits[0], ":")
     item.Ip = splits[1]
     itemStr := h.redisStatusServer.Get(key)
     if itemStr == "" {
@@ -241,6 +242,18 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
     h.redisStatusServer.Set(key, string(itemStr))
 }
 
+func (h *Healthcheck) getDomainId(zone string) string {
+    var cfg ZoneConfig
+    val := h.redisConfigServer.HGet(zone, "@config")
+    if len(val) > 0 {
+        err := json.Unmarshal([]byte(val), &cfg)
+        if err != nil {
+            eventlog.Logger.Errorf("cannot parse zone config : %s", err)
+        }
+    }
+    return cfg.DomainId
+}
+
 func (h *Healthcheck) transferItems() {
     itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
         if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
@@ -254,8 +267,12 @@ func (h *Healthcheck) transferItems() {
     zones := h.redisConfigServer.GetKeys("*")
     eventlog.Logger.Error(zones)
     for _, zone := range zones {
+        domainId := h.getDomainId(zone)
         subDomains := h.redisConfigServer.GetHKeys(zone)
         for _, subDomain := range subDomains {
+            if subDomain == "@config" {
+                continue
+            }
             recordStr := h.redisConfigServer.HGet(zone, subDomain)
             record := new(Record)
             record.A.HealthCheckConfig = IpHealthCheckConfig {
@@ -292,6 +309,7 @@ func (h *Healthcheck) transferItems() {
                         Timeout:   rrset.HealthCheckConfig.Timeout,
                         Uri:       rrset.HealthCheckConfig.Uri,
                         Protocol:  rrset.HealthCheckConfig.Protocol,
+                        DomainId:  domainId,
                     }
                     oldItem := h.loadItem(key)
                     if oldItem != nil && itemsEqual(oldItem, newItem) {
@@ -339,11 +357,12 @@ func (h *Healthcheck) Start() {
 
 func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
     data := map[string]interface{} {
-        "Ip":     item.Ip,
-        "Port":   item.Port,
-        "Host":   item.Host,
-        "Uri":    item.Uri,
-        "Status": item.Status,
+        "ip":          item.Ip,
+        "port":        item.Port,
+        "domain_name": item.Host,
+        "domain_uuid": item.DomainId,
+        "uri":         item.Uri,
+        "status":      item.Status,
     }
 
     h.logger.Log(data,"ar_dns_healthcheck")
