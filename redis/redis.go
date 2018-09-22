@@ -135,8 +135,8 @@ func (redis *Redis) GetKeys(pattern string) []string {
 
     keySet := make(map[string]interface{})
 
+    cursor := "0"
     for {
-        cursor := "0"
         reply, err = conn.Do("SCAN", cursor, "MATCH", redis.Config.Prefix + pattern + redis.Config.Suffix, "COUNT", 100)
         if err != nil {
             eventlog.Logger.Errorf("redis command failed : SCAN : %s", err)
