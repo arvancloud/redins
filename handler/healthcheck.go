@@ -7,6 +7,7 @@ import (
     "strings"
     "net"
     "net/http"
+    "sync"
 
     "arvancloud/redins/redis"
     "arvancloud/redins/eventlog"
@@ -38,14 +39,19 @@ type Healthcheck struct {
     cachedItems       *cache.Cache
     lastUpdate        time.Time
     dispatcher        *Dispatcher
+    quit              chan struct{}
+    quitWG            sync.WaitGroup
 }
 
 type Job *HealthCheckItem
 
 type Dispatcher struct {
     WorkerPool chan chan Job
+    Workers []*Worker
     MaxWorkers int
     JobQueue chan Job
+    quit chan struct{}
+    quitWG sync.WaitGroup
 }
 
 func NewDispatcher(maxWorkers int) *Dispatcher {
@@ -54,12 +60,14 @@ func NewDispatcher(maxWorkers int) *Dispatcher {
         WorkerPool: pool,
         MaxWorkers: maxWorkers,
         JobQueue: make(chan Job, 100),
+        quit: make(chan struct{}, 1),
     }
 }
 
 func (d *Dispatcher) Run(healthcheck *Healthcheck) {
     for i := 0; i < d.MaxWorkers; i++ {
-        worker := NewWorker(d.WorkerPool, healthcheck, i)
+        worker := d.NewWorker(d.WorkerPool, healthcheck, i)
+        d.Workers = append(d.Workers, worker)
         worker.Start()
     }
 
@@ -74,6 +82,15 @@ func (d *Dispatcher) dispatch() {
                 jobChannel := <- d.WorkerPool
                 jobChannel <- job
             }(job)
+        case <- d.quit:
+            for _, w := range d.Workers {
+                w.quitWG.Add(1)
+                close(w.quit)
+                w.quitWG.Wait()
+            }
+            d.quitWG.Done()
+            // fmt.Println("dispatcher : quit")
+            return
         }
     }
 }
@@ -84,10 +101,11 @@ type Worker struct {
     healthcheck *Healthcheck
     WorkerPool chan chan Job
     JobChannel chan Job
-    quit chan bool
+    quit chan struct{}
+    quitWG sync.WaitGroup
 }
 
-func NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) Worker {
+func (d *Dispatcher) NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) *Worker {
     tr := &http.Transport {
         MaxIdleConnsPerHost: 1024,
         TLSHandshakeTimeout: 0 * time.Second,
@@ -101,17 +119,25 @@ func NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) Worke
 
     }
 
-    return Worker {
+    return &Worker {
         Id:          id,
         Client:      client,
         healthcheck: healthcheck,
         WorkerPool:  workerPool,
         JobChannel:  make(chan Job),
-        quit:        make(chan bool),
+        quit:        make(chan struct{}, 1),
     }
 }
 
-func (w Worker) Start() {
+func (d *Dispatcher) ShutDown() {
+    // fmt.Println("dispatcher : stopping")
+    d.quitWG.Add(1)
+    close(d.quit)
+    d.quitWG.Wait()
+    // fmt.Println("dispatcher : stopped")
+}
+
+func (w *Worker) Start() {
     go func() {
         eventlog.Logger.Debugf("Worker: worker %d started", w.Id)
         for {
@@ -148,15 +174,11 @@ func (w Worker) Start() {
                 w.healthcheck.logHealthcheck(item)
 
             case <- w.quit:
+                // fmt.Println("worker : ", w.Id, " quit")
+                w.quitWG.Done()
                 return
             }
         }
-    }()
-}
-
-func (w Worker) Stop() {
-    go func() {
-        w.quit <- true
     }()
 }
 
@@ -185,9 +207,19 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *redis.Redis) *
         h.transferItems()
         h.dispatcher = NewDispatcher(config.MaxRequests)
         h.logger = eventlog.NewLogger(&config.Log)
+        h.quit = make(chan struct{}, 1)
     }
 
     return h
+}
+
+func (h *Healthcheck) ShutDown() {
+    // fmt.Println("healthcheck : stopping")
+    h.dispatcher.ShutDown()
+    h.quitWG.Add(1)
+    close(h.quit)
+    h.quitWG.Wait()
+    // fmt.Println("healthcheck : stopped")
 }
 
 func (h *Healthcheck) getStatus(host string, ip net.IP) int {
@@ -316,23 +348,25 @@ func (h *Healthcheck) Start() {
     h.dispatcher.Run(h)
 
     for {
-        startTime := time.Now()
-        keys := h.redisStatusServer.GetKeys("*")
-        for _, key := range keys {
-            item := h.loadItem(key)
-            if item == nil || item.Enable == false {
-                continue
+        select {
+        case <-h.quit:
+            // fmt.Println("healthcheck : quit")
+            h.quitWG.Done()
+            return
+        case <-time.After(h.checkInterval):
+            keys := h.redisStatusServer.GetKeys("*")
+            for _, key := range keys {
+                item := h.loadItem(key)
+                if item == nil || item.Enable == false {
+                    continue
+                }
+                if time.Since(item.LastCheck) > h.checkInterval {
+                    eventlog.Logger.Debugf("item %v added", item)
+                    h.dispatcher.JobQueue <- item
+                }
             }
-            if time.Since(item.LastCheck) > h.checkInterval {
-                eventlog.Logger.Debugf("item %v added", item)
-                h.dispatcher.JobQueue <- item
-            }
-        }
-        if time.Since(h.lastUpdate) > h.updateInterval {
+        case <-time.After(h.updateInterval):
             h.transferItems()
-        }
-        if time.Since(startTime) < h.checkInterval {
-            time.Sleep(h.checkInterval - time.Since(startTime))
         }
     }
 }

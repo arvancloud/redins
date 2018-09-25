@@ -76,15 +76,19 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 }
 
 func (h *DnsRequestHandler) ShutDown() {
+    // fmt.Println("handler : stopping")
+    h.healthcheck.ShutDown()
     h.quitWG.Add(1)
     close(h.quit)
     h.quitWG.Wait()
+    // fmt.Println("handler : stopped")
 }
 
 func (h *DnsRequestHandler) UpdateZones() {
     for {
         select {
         case <-h.quit:
+            // fmt.Println("updateZone : quit")
             h.quitWG.Done()
             return
         case <-time.After(time.Duration(h.ZoneReload) * time.Second):
