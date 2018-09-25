@@ -135,7 +135,7 @@ func (l *EventLogger) Debugf(format string, args ...interface{}) {
 
 func (l *EventLogger) Debug(args ...interface{}) {
     if l.config.Enable {
-        l.log.Debug(args)
+        l.log.Debug(args...)
     }
 }
 
@@ -147,7 +147,7 @@ func (l *EventLogger) Infof(format string, args ...interface{}) {
 
 func (l *EventLogger) Info(args ...interface{}) {
     if l.config.Enable {
-        l.log.Info(args)
+        l.log.Info(args...)
     }
 }
 
@@ -159,7 +159,7 @@ func (l *EventLogger) Warningf(format string, args ...interface{}) {
 
 func (l *EventLogger) Warning(args ...interface{}) {
     if l.config.Enable {
-        l.log.Warn(args)
+        l.log.Warn(args...)
     }
 }
 
@@ -171,7 +171,7 @@ func (l *EventLogger) Errorf(format string, args ...interface{}) {
 
 func (l *EventLogger) Error(args ...interface{}) {
     if l.config.Enable {
-        l.log.Error(args)
+        l.log.Error(args...)
     }
 }
 

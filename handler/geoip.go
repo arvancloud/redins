@@ -113,7 +113,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
         math.Cos(slat)*math.Cos(dlat)* math.Sin(deltaLong/2.0)*math.Sin(deltaLong/2.0)
     c := 2.0 * math.Atan2(math.Sqrt(a), math.Sqrt(1.0-a))
 
-    eventlog.Logger.Debugf("distance = ", c)
+    eventlog.Logger.Debugf("distance = %f", c)
 
     return c, nil
 }
