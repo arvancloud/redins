@@ -18,7 +18,7 @@
     "log_source_location": false,
     "upstream_fallback": false,
     "redis": {
-      "ip": "127.0.0.1",
+      "ip": "redis",
       "port": 6379,
       "password": "",
       "prefix": "test_",
@@ -53,7 +53,7 @@
       "update_interval": 601,
       "check_interval": 601,
       "redis": {
-        "ip": "127.0.0.1",
+        "ip": "redis",
         "port": 6379,
         "password": "",
         "prefix": "healthcheck_",

@@ -79,7 +79,7 @@ var config = HealthcheckConfig {
     UpdateInterval: 600,
     CheckInterval: 600,
     RedisStatusServer: redis.RedisConfig {
-        Ip: "127.0.0.1",
+        Ip: "redis",
         Port: 6379,
         Password: "",
         Prefix: "healthcheck_",

@@ -18,10 +18,12 @@ stages:
 
 test-lab:
     stage: test-lab
-    image: labreg.arvan.me/shared_runner:latest
+    image: golang:latest
+    services:
+        - name: redis:latest
+          alias: redis
     script:
         - echo test
-        - redis-server &
         - cd $GOPATH/src/arvancloud/redins
         - go get
         - go build
@@ -34,10 +36,12 @@ test-lab:
 
 test-production:
     stage: test-production
-    image: labreg.arvan.me/shared_runner:latest
+    image: golang:latest
+    services:
+        - name: redis:latest
+          alias: redis
     script:
         - echo test
-        - redis-server &
         - cd $GOPATH/src/arvancloud/redins
         - go get
         - go build
@@ -52,7 +56,7 @@ test-production:
 
 image-build:
     stage: lab-deploy
-    image: labreg.arvan.me/docker:latest
+    image: docker:latest
     dependencies:
     - test-lab
     script:
@@ -79,7 +83,7 @@ salt-apply:
 
 deploy-production:
     stage: deploy-production
-    image: labreg.arvan.me/docker:latest
+    image: docker:latest
     dependencies:
     - test-production
     script:

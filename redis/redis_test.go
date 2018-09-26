@@ -10,7 +10,7 @@ func TestRedis(t *testing.T) {
         Suffix: "_redistest",
         Prefix: "redistest_",
         Port: 6379,
-        Ip: "127.0.0.1",
+        Ip: "redis",
     }
     r := NewRedis(&cfg)
 
