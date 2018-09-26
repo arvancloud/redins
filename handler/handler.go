@@ -145,11 +145,23 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         case dns.TypeA:
             if len(record.A.Data) == 0 {
                 if record.ANAME != nil {
-                    upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
-                    if upstreamRes == dns.RcodeSuccess {
-                        answers = append(answers, upstreamAnswers...)
+                    anameAnswer, anameRes := h.FetchRecord(record.ANAME.Location, logData)
+                    if anameRes == dns.RcodeSuccess {
+                        answers = AppendRR(answers, h.A(qname, anameAnswer, anameAnswer.A.Data), qname, record, secured)
+                    } else {
+                        upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
+                        if upstreamRes == dns.RcodeSuccess {
+                            var anameRecord []dns.RR
+                            for _, r := range upstreamAnswers {
+                                if r.Header().Name == record.ANAME.Location && r.Header().Rrtype == dns.TypeA {
+                                    a := r.(*dns.A)
+                                    anameRecord = append(anameRecord, &dns.A{A:a.A, Hdr:dns.RR_Header{Rrtype:dns.TypeA, Name:qname,Ttl:a.Hdr.Ttl,Class:dns.ClassINET, Rdlength:0}})
+                                }
+                                answers = AppendRR(answers, anameRecord, qname, record, secured)
+                            }
+                        }
+                        res = upstreamRes
                     }
-                    res = upstreamRes
                 }
             } else {
                 ips := h.Filter(state, &record.A, logData)
@@ -158,11 +170,23 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         case dns.TypeAAAA:
             if len(record.AAAA.Data) == 0 {
                 if record.ANAME != nil {
-                    upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
-                    if upstreamRes == dns.RcodeSuccess {
-                        answers = append(answers, upstreamAnswers...)
+                    anameAnswer, anameRes := h.FetchRecord(record.ANAME.Location, logData)
+                    if anameRes == dns.RcodeSuccess {
+                        answers = AppendRR(answers, h.AAAA(qname, anameAnswer, anameAnswer.AAAA.Data), qname, record, secured)
+                    } else {
+                        upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
+                        if upstreamRes == dns.RcodeSuccess {
+                            var anameRecord []dns.RR
+                            for _, r := range upstreamAnswers {
+                                if r.Header().Name == record.ANAME.Location && r.Header().Rrtype == dns.TypeAAAA {
+                                    a := r.(*dns.AAAA)
+                                    anameRecord = append(anameRecord, &dns.AAAA{AAAA:a.AAAA, Hdr:dns.RR_Header{Rrtype:dns.TypeAAAA, Name:qname,Ttl:a.Hdr.Ttl,Class:dns.ClassINET, Rdlength:0}})
+                                }
+                                answers = AppendRR(answers, anameRecord, qname, record, secured)
+                            }
+                        }
+                        res = upstreamRes
                     }
-                    res = upstreamRes
                 }
             } else {
                 ips := h.Filter(state, &record.AAAA, logData)

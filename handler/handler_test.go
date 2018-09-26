@@ -570,39 +570,56 @@ func TestWeight(t *testing.T) {
     }
 }
 
-var anameEntries = [][]string{
-    {"@config",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+var anameEntries = [][][]string{
+    {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvancloud.com.\",\"ns\":\"ns1.arvancloud.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+        },
+        {"@",
+            "{\"aname\":{\"location\":\"aname.arvan.an.\"}}",
+        },
+        {"upstream",
+            "{\"aname\":{\"location\":\"google.com.\"}}",
+        },
     },
-    {"@",
-        "{\"aname\":{\"location\":\"google.com.\"}}",
-    },
-    {"www",
-        "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
-            "\"aname\":{\"location\":\"www.arvancloud.com.\"}}",
+    {
+        {"@config",
+            "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.arvan.an.\",\"ns\":\"ns1.arvan.an.\",\"refresh\":44,\"retry\":55,\"expire\":66}}",
+        },
+        {"aname",
+            "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"6.5.6.5\"}]}, \"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}}",
+        },
     },
 }
 
 var anameTestCases = []test.Case {
     {
         Qname: "arvancloud.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR {
+            test.A("arvancloud.com. 300 IN A 6.5.6.5"),
+        },
     },
     {
         Qname: "arvancloud.com.", Qtype: dns.TypeAAAA,
+        Answer: []dns.RR {
+            test.AAAA("arvancloud.com. 300 IN AAAA ::1"),
+        },
     },
 }
 
 func TestANAME(t *testing.T) {
-    zone := "arvancloud.com."
+    zones := []string{"arvancloud.com.", "arvan.an."}
     eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
-    h.Redis.Del(zone)
-    for _, cmd := range anameEntries {
-        err := h.Redis.HSet(zone, cmd[0], cmd[1])
-        if err != nil {
-            log.Printf("[ERROR] cannot connect to redis: %s", err)
-            t.Fail()
+    for i, zone := range zones {
+        h.Redis.Del(zone)
+        for _, cmd := range anameEntries[i] {
+            err := h.Redis.HSet(zone, cmd[0], cmd[1])
+            if err != nil {
+                log.Printf("[ERROR] cannot connect to redis: %s", err)
+                t.Fail()
+            }
         }
     }
     h.LoadZones()
@@ -616,15 +633,7 @@ func TestANAME(t *testing.T) {
 
         resp := w.Msg
 
-        if resp.Rcode != dns.RcodeSuccess {
-            t.Fail()
-        }
-        if len(resp.Answer) == 0 {
-            t.Fail()
-        }
-        if resp.Answer[0].Header().Rrtype != tc.Qtype {
-            t.Fail()
-        }
+        test.SortAndCheck(t, resp, tc)
     }
 }
 
