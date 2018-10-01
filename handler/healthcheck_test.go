@@ -14,25 +14,25 @@ import (
 )
 
 var healthcheckGetEntries = [][]string {
-    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":3}"},
-    {"w0.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":1}"},
-    {"w0.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
-    {"w0.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
-    {"w0.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
+    {"w0.healthcheck.com.:1.2.3.4", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":3}`},
+    {"w0.healthcheck.com.:2.3.4.5", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":1}`},
+    {"w0.healthcheck.com.:3.4.5.6", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":0}`},
+    {"w0.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-1}`},
+    {"w0.healthcheck.com.:5.6.7.8", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-3}`},
 
-    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":1}"},
-    {"w1.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
-    {"w1.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
-    {"w1.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
+    {"w1.healthcheck.com.:2.3.4.5", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":1}`},
+    {"w1.healthcheck.com.:3.4.5.6", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":0}`},
+    {"w1.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-1}`},
+    {"w1.healthcheck.com.:5.6.7.8", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-3}`},
 
-    {"w2.healthcheck.com.:3.4.5.6", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":0}"},
-    {"w2.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
-    {"w2.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
+    {"w2.healthcheck.com.:3.4.5.6", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":0}`},
+    {"w2.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-1}`},
+    {"w2.healthcheck.com.:5.6.7.8", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-3}`},
 
-    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-1}"},
-    {"w3.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
+    {"w3.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-1}`},
+    {"w3.healthcheck.com.:5.6.7.8", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-3}`},
 
-    {"w4.healthcheck.com.:5.6.7.8", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/\",\"port\":80, \"status\":-3}"},
+    {"w4.healthcheck.com.:5.6.7.8", `{"enable":true,"protocol":"http","uri":"/","port":80, "status":-3}`},
 }
 
 var stats = []int { 3, 1, 0, -1, -3, 1, 0, -1, -3, 0, -1, -3, -1, -3, -3}
@@ -41,36 +41,36 @@ var filterResult = []int { 1, 3, 2, 1, 1}
 
 var healthCheckSetEntries = [][]string {
     {"@", "185.143.233.2",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"timeout\": 1000}",
+        `{"enable":true,"protocol":"http","uri":"","port":80, "timeout": 1000}`,
     },
     {"www", "185.143.234.50",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"\",\"port\":80, \"timeout\": 1000}",
+        `{"enable":true,"protocol":"http","uri":"","port":80, "timeout": 1000}`,
     },
 }
 
 var healthcheckTransferItems = [][]string{
     {"w0", "1.2.3.4",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":3, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":2, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
+        `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
+        `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":2, "up_count": 3, "down_count": -3, "timeout":1000}`,
     },
     {"w1", "2.3.4.5",
-        "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"/uri111\",\"port\":8081, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri1\",\"port\":80, \"status\":3, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
+        `{"enable":false,"protocol":"https","uri":"/uri111","port":8081, "up_count": 3, "down_count": -3, "timeout":1000}`,
+        `{"enable":true,"protocol":"http","uri":"/uri1","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
     },
     {"w2", "3.4.5.6",
         "",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri2\",\"port\":80, \"status\":3, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
+        `{"enable":true,"protocol":"http","uri":"/uri2","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
     },
     {"w3", "4.5.6.7",
-        "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri3\",\"port\":80, \"status\":3, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}",
-        "",
+        `{"enable":true,"protocol":"http","uri":"/uri3","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
+        ``,
     },
 }
 
 var healthCheckTransferResults = [][]string {
-    {"w0.healthcheck.com.:1.2.3.4", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri0\",\"port\":80, \"status\":2, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}"},
-    {"w1.healthcheck.com.:2.3.4.5", "{\"enable\":false,\"protocol\":\"https\",\"uri\":\"/uri111\",\"port\":8081, \"status\":0, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}"},
-    {"w3.healthcheck.com.:4.5.6.7", "{\"enable\":true,\"protocol\":\"http\",\"uri\":\"/uri3\",\"port\":80, \"status\":0, \"up_count\": 3, \"down_count\": -3, \"timeout\":1000}"},
+    {"w0.healthcheck.com.:1.2.3.4", `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":2, "up_count": 3, "down_count": -3, "timeout":1000}`},
+    {"w1.healthcheck.com.:2.3.4.5", `{"enable":false,"protocol":"https","uri":"/uri111","port":8081, "status":0, "up_count": 3, "down_count": -3, "timeout":1000}`},
+    {"w3.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/uri3","port":80, "status":0, "up_count": 3, "down_count": -3, "timeout":1000}`},
 }
 
 var config = HealthcheckConfig {

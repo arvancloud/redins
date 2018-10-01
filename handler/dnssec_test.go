@@ -17,51 +17,51 @@ var dnssecZone = string("dnssec_test.com.")
 
 var dnssecEntries = [][]string {
     {"@config",
-        "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.dnssec_test.com.\",\"ns\":\"ns1.dnssec_test.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}," +
-        "\"dnssec\": true, \"cname_flattening\": true}",
+        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.dnssec_test.com.","ns":"ns1.dnssec_test.com.","refresh":44,"retry":55,"expire":66},
+        "dnssec": true, "cname_flattening": true}`,
     },
     {"@",
-        "{\"ns\":{\"ttl\":300,\"records\":[{\"host\":\"a.dnssec_test.com.\"}]}}",
+        `{"ns":{"ttl":300,"records":[{"host":"a.dnssec_test.com."}]}}`,
     },
     {"x",
-        "{" +
-            "\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"1.2.3.4\", \"country\":\"ES\"},{\"ip\":\"5.6.7.8\", \"country\":\"\"}]}," +
-            "\"aaaa\":{\"ttl\":300, \"records\":[{\"ip\":\"::1\"}]}," +
-            "\"txt\":{\"ttl\":300, \"records\":[{\"text\":\"foo\"},{\"text\":\"bar\"}]}," +
-            "\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.dnssec_test.com.\"},{\"host\":\"ns2.dnssec_test.com.\"}]}," +
-            "\"mx\":{\"ttl\":300, \"records\":[{\"host\":\"mx1.dnssec_test.com.\", \"preference\":10},{\"host\":\"mx2.dnssec_test.com.\", \"preference\":10}]}," +
-            "\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"sip.dnssec_test.com.\",\"port\":555,\"priority\":10,\"weight\":100}]}" +
-            "}",
+        `{
+            "a":{"ttl":300, "records":[{"ip":"1.2.3.4", "country":"ES"},{"ip":"5.6.7.8", "country":""}]},
+            "aaaa":{"ttl":300, "records":[{"ip":"::1"}]},
+            "txt":{"ttl":300, "records":[{"text":"foo"},{"text":"bar"}]},
+            "ns":{"ttl":300, "records":[{"host":"ns1.dnssec_test.com."},{"host":"ns2.dnssec_test.com."}]},
+            "mx":{"ttl":300, "records":[{"host":"mx1.dnssec_test.com.", "preference":10},{"host":"mx2.dnssec_test.com.", "preference":10}]},
+            "srv":{"ttl":300, "records":[{"target":"sip.dnssec_test.com.","port":555,"priority":10,"weight":100}]}
+            }`,
     },
     {"*",
-        "{\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"wildcard text\"}]}}",
+        `{"txt":{"ttl":300,"records":[{"text":"wildcard text"}]}}`,
     },
     {"a",
-        "{\"a\":{\"ttl\":300,\"records\":[{\"ip\":\"129.0.2.1\"}]},\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"a text\"}]}}",
+        `{"a":{"ttl":300,"records":[{"ip":"129.0.2.1"}]},"txt":{"ttl":300,"records":[{"text":"a text"}]}}`,
     },
     {"d",
-        "{\"a\":{\"ttl\":300,\"records\":[{\"ip\":\"129.0.2.1\"}]},\"txt\":{\"ttl\":300,\"records\":[{\"text\":\"d text\"}]}}",
+        `{"a":{"ttl":300,"records":[{"ip":"129.0.2.1"}]},"txt":{"ttl":300,"records":[{"text":"d text"}]}}`,
     },
     {"c1",
-        "{\"cname\":{\"ttl\":300, \"host\":\"c2.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"c2.dnssec_test.com."}}`,
     },
     {"c2",
-        "{\"cname\":{\"ttl\":300, \"host\":\"c3.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"c3.dnssec_test.com."}}`,
     },
     {"c3",
-        "{\"cname\":{\"ttl\":300, \"host\":\"a.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"a.dnssec_test.com."}}`,
     },
     {"w",
-        "{\"cname\":{\"ttl\":300, \"host\":\"w.a.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"w.a.dnssec_test.com."}}`,
     },
     {"*.a",
-        "{\"cname\":{\"ttl\":300, \"host\":\"w.b.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"w.b.dnssec_test.com."}}`,
     },
     {"*.b",
-        "{\"cname\":{\"ttl\":300, \"host\":\"w.c.dnssec_test.com.\"}}",
+        `{"cname":{"ttl":300, "host":"w.c.dnssec_test.com."}}`,
     },
     {"*.c",
-        "{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"129.0.2.1\"}]}}",
+        `{"a":{"ttl":300, "records":[{"ip":"129.0.2.1"}]}}`,
     },
 }
 
