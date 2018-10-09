@@ -224,6 +224,7 @@ log configuration
   "level": "info",
   "target": "file",
   "format": "json",
+  "time_format": "2006-01-02T15:04:05.999999-07:00",
   "path": "/tmp/redins.log",
   "sentry": {
     "enable": false,
@@ -241,6 +242,7 @@ log configuration
 * level : log level, can be debug, info, warning, error, default: info
 * target : log target, can be stdout, stderr, file, default: stdout
 * format : log format, can be text, json, default: text
+* time_format : timestamp format using example-based layout, reference time is Mon Jan 2 15:04:05 MST 2006
 * path : log output file path
 * sentry : sentry hook configurations
 * syslog : syslog hook configurations

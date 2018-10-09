@@ -265,7 +265,6 @@ func (h *Healthcheck) transferItems() {
     }
     var newItems []*HealthCheckItem
     zones := h.redisConfigServer.GetKeys("*")
-    eventlog.Logger.Error(zones)
     for _, zone := range zones {
         domainId := h.getDomainId(zone)
         subDomains := h.redisConfigServer.GetHKeys(zone)
