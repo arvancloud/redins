@@ -15,8 +15,9 @@ type LogConfig struct {
     Level string `json:"level,omitempty"`
     Path string `json:"path,omitempty"`
     Format string `json:"format,omitempty"`
+    TimeFormat string `json:"time_format,omitempty"`
     Sentry SentryConfig `json:"sentry,omitempty"`
-    Syslog SyslogConfig `json:"syslog, omitempty"`
+    Syslog SyslogConfig `json:"syslog,omitempty"`
 }
 
 type SentryConfig struct {
@@ -76,11 +77,11 @@ func NewLogger(config *LogConfig) *EventLogger {
         }
         switch config.Format {
         case "json":
-            logger.log.Formatter = &logrus.JSONFormatter{}
+            logger.log.Formatter = &logrus.JSONFormatter{TimestampFormat:config.TimeFormat}
         case "text":
-            logger.log.Formatter = &logrus.TextFormatter{}
+            logger.log.Formatter = &logrus.TextFormatter{TimestampFormat:config.TimeFormat}
         default:
-            logger.log.Formatter = &logrus.TextFormatter{}
+            logger.log.Formatter = &logrus.TextFormatter{TimestampFormat:config.TimeFormat}
         }
         if config.Sentry.Enable {
             if client, err := raven.New(config.Sentry.DSN); err == nil {

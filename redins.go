@@ -82,6 +82,7 @@ func LoadConfig(path string) *RedinsConfig {
                     Level: "info",
                     Path: "/tmp/healthcheck.log",
                     Format: "json",
+                    TimeFormat: time.RFC3339,
                     Sentry: eventlog.SentryConfig {
                         Enable: false,
                     },
@@ -110,6 +111,7 @@ func LoadConfig(path string) *RedinsConfig {
                 Level: "info",
                 Path: "/tmp/redins.log",
                 Format: "json",
+                TimeFormat: time.RFC3339,
                 Sentry: eventlog.SentryConfig {
                     Enable: false,
                 },
@@ -123,6 +125,7 @@ func LoadConfig(path string) *RedinsConfig {
             Target: "stdout",
             Level: "info",
             Format: "text",
+            TimeFormat: time.RFC3339,
             Sentry: eventlog.SentryConfig {
                 Enable: false,
             },

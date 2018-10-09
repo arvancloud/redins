@@ -30,7 +30,8 @@
       "enable": true,
       "target": "file",
       "level": "info",
-      "path": "/tmp/redins.log"
+      "path": "/tmp/redins.log",
+      "time_format": "2006-01-02 15:04:05"
     },
     "upstream": [{
       "ip": "1.1.1.1",
@@ -65,7 +66,8 @@
         "enable": true,
         "target": "file",
         "level": "info",
-        "path": "/tmp/healthcheck.log"
+        "path": "/tmp/healthcheck.log",
+        "time_format": "2006-01-02 15:04:05"
       }
     }
   },
@@ -74,7 +76,8 @@
     "target": "file",
     "level": "debug",
     "path": "/tmp/error.log",
-    "format": "text"
+    "format": "text",
+    "time_format": "2006-01-02 15:04:05"
   },
   "ratelimit": {
     "enable": true,
