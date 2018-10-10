@@ -11,6 +11,8 @@ import (
     "arvancloud/redins/redis"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
+    "github.com/pkg/errors"
+    "fmt"
 )
 
 type HealthCheckItem struct {
@@ -26,6 +28,7 @@ type HealthCheckItem struct {
     DomainId  string    `json:"domain_uuid, omitempty"`
     Host      string    `json:"-"`
     Ip        string    `json:"-"`
+    Error     error     `json:"-"`
 }
 
 type Healthcheck struct {
@@ -123,26 +126,12 @@ func (w Worker) Start() {
                 eventlog.Logger.Debugf("item %v received", item)
                 w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
                 url := item.Protocol + "://" + item.Ip + item.Uri
-                // log.Println("[DEBUG]", url)
-                req, err := http.NewRequest("HEAD", url, nil)
-                if err != nil {
-                    eventlog.Logger.Errorf("invalid request : %s", err)
-                    statusDown(item)
+                err := w.httpCheck(url, item.Host)
+                item.Error = err
+                if err == nil {
+                    statusUp(item)
                 } else {
-                    req.Host = strings.TrimRight(item.Host, ".")
-                    resp, err := w.Client.Do(req)
-                    if err != nil {
-                        eventlog.Logger.Errorf("request failed : %s", err)
-                        statusDown(item)
-                    } else {
-                        // log.Printf("[INFO] http response : ", resp.Status)
-                        switch resp.StatusCode {
-                        case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
-                            statusUp(item)
-                        default:
-                            statusDown(item)
-                        }
-                    }
+                    statusDown(item)
                 }
                 item.LastCheck = time.Now()
                 w.healthcheck.storeItem(item)
@@ -153,6 +142,26 @@ func (w Worker) Start() {
             }
         }
     }()
+}
+
+func (w Worker) httpCheck(url string,host string) error {
+    req, err := http.NewRequest("HEAD", url, nil)
+    if err != nil {
+        eventlog.Logger.Errorf("invalid request : %s", err)
+        return err
+    }
+    req.Host = strings.TrimRight(host, ".")
+    resp, err := w.Client.Do(req)
+    if err != nil {
+        eventlog.Logger.Errorf("request failed : %s", err)
+        return err
+    }
+    switch resp.StatusCode {
+    case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
+        return nil
+    default:
+        return errors.New(fmt.Sprintf("invalid http status code : %d", resp.StatusCode))
+    }
 }
 
 func (w Worker) Stop() {
@@ -362,6 +371,11 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
         "domain_uuid": item.DomainId,
         "uri":         item.Uri,
         "status":      item.Status,
+    }
+    if item.Error == nil {
+        data["error"] = ""
+    } else {
+        data["error"] = item.Error.Error()
     }
 
     h.logger.Log(data,"ar_dns_healthcheck")
