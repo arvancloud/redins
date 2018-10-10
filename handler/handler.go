@@ -147,7 +147,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 if record.ANAME != nil {
                     anameAnswer, anameRes := h.FetchRecord(record.ANAME.Location, logData)
                     if anameRes == dns.RcodeSuccess {
-                        answers = AppendRR(answers, h.A(qname, anameAnswer, anameAnswer.A.Data), qname, record, secured)
+                        ips := h.Filter(state, &anameAnswer.A, logData)
+                        answers = AppendRR(answers, h.A(qname, anameAnswer, ips), qname, record, secured)
                     } else {
                         upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeA)
                         if upstreamRes == dns.RcodeSuccess {
@@ -172,7 +173,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 if record.ANAME != nil {
                     anameAnswer, anameRes := h.FetchRecord(record.ANAME.Location, logData)
                     if anameRes == dns.RcodeSuccess {
-                        answers = AppendRR(answers, h.AAAA(qname, anameAnswer, anameAnswer.AAAA.Data), qname, record, secured)
+                        ips := h.Filter(state, &anameAnswer.AAAA, logData)
+                        answers = AppendRR(answers, h.AAAA(qname, anameAnswer, ips), qname, record, secured)
                     } else {
                         upstreamAnswers, upstreamRes := h.upstream.Query(record.ANAME.Location, dns.TypeAAAA)
                         if upstreamRes == dns.RcodeSuccess {
