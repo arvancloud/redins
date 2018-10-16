@@ -319,3 +319,80 @@ func TestTransfer(t *testing.T) {
         }
     }
 }
+
+func TestPing(t *testing.T) {
+    if err := pingCheck("4.2.2.4"); err != nil {
+        t.Fail()
+    }
+}
+
+var healthcheckConfig = HealthcheckConfig {
+    Enable: true,
+    Log: eventlog.LogConfig {
+        Enable: true,
+        Target: "file",
+        Level: "info",
+        Path: "/tmp/hctest.log",
+        TimeFormat: "2006-01-02 15:04:05",
+    },
+    RedisStatusServer: redis.RedisConfig {
+        Ip: "redis",
+        Port: 6379,
+        Password: "",
+        Prefix: "hcstattest_",
+        Suffix: "_hcstattest",
+        ConnectTimeout: 0,
+        ReadTimeout: 0,
+    },
+    CheckInterval: 1,
+    UpdateInterval: 200,
+    MaxRequests: 20,
+}
+
+var healthcheckRedisStatusConfig = redis.RedisConfig {
+    Ip: "redis",
+    Port: 6379,
+    Password: "",
+    Prefix: "hctest_",
+    Suffix: "_hctest",
+    ConnectTimeout: 0,
+    ReadTimeout: 0,
+}
+
+var hcEntries = [][]string {
+    {"@config",
+        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66},"cname_flattening":false}`,
+    },
+    {"www",
+        `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"172.217.17.238"}]}}`,
+    },
+    {"y",
+        `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"4.2.2.4"}]}}`,
+    },
+    {"ddd",
+        `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"/uri2","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"3.3.3.3"}]}}`,
+    },
+}
+
+func TestHealthCheck(t *testing.T) {
+    configRedis := redis.NewRedis(&healthcheckRedisStatusConfig)
+    for _, entry := range hcEntries {
+        configRedis.HSet("google.com.", entry[0], entry[1])
+    }
+    hc := NewHealthcheck(&healthcheckConfig, configRedis)
+    go hc.Start()
+    time.Sleep(10 * time.Second)
+    h1 := hc.getStatus("www.google.com.", net.ParseIP("172.217.17.238"))
+    h2 := hc.getStatus("y.google.com.", net.ParseIP("4.2.2.4"))
+    h3 := hc.getStatus("ddd.google.com.", net.ParseIP("3.3.3.3"))
+    log.Println(h1, " ", h2, " ", h3)
+    if h1 != 3 {
+        t.Fail()
+    }
+    if h2 != 3 {
+        t.Fail()
+    }
+    if h3 != -3 {
+        t.Fail()
+    }
+}

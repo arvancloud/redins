@@ -52,7 +52,7 @@
       "enable": true,
       "max_requests": 5,
       "update_interval": 601,
-      "check_interval": 601,
+      "check_interval": 10,
       "redis": {
         "ip": "redis",
         "port": 6379,
@@ -74,7 +74,7 @@
   "error_log": {
     "enable": true,
     "target": "file",
-    "level": "debug",
+    "level": "error",
     "path": "/tmp/error.log",
     "format": "text",
     "time_format": "2006-01-02 15:04:05"

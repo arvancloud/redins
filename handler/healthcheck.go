@@ -1,18 +1,21 @@
 package handler
 
 import (
+    "fmt"
     "crypto/tls"
     "time"
     "encoding/json"
     "strings"
     "net"
     "net/http"
+    "os"
 
     "arvancloud/redins/redis"
     "arvancloud/redins/eventlog"
     "github.com/patrickmn/go-cache"
     "github.com/pkg/errors"
-    "fmt"
+    "golang.org/x/net/icmp"
+    "golang.org/x/net/ipv4"
 )
 
 type HealthCheckItem struct {
@@ -124,9 +127,18 @@ func (w Worker) Start() {
             select {
             case item := <- w.JobChannel:
                 eventlog.Logger.Debugf("item %v received", item)
-                w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
-                url := item.Protocol + "://" + item.Ip + item.Uri
-                err := w.httpCheck(url, item.Host)
+                var err error = nil
+                switch item.Protocol {
+                case "http", "https":
+                    w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
+                    url := item.Protocol + "://" + item.Ip + item.Uri
+                    err = w.httpCheck(url, item.Host)
+                case "ping", "icmp":
+                    err = pingCheck(item.Ip)
+                default:
+                    err = errors.New(fmt.Sprintf("invalid protocol : %s used for %s:%d", item.Protocol, item.Ip, item.Port))
+                    eventlog.Logger.Error(err)
+                }
                 item.Error = err
                 if err == nil {
                     statusUp(item)
@@ -161,6 +173,45 @@ func (w Worker) httpCheck(url string,host string) error {
         return nil
     default:
         return errors.New(fmt.Sprintf("invalid http status code : %d", resp.StatusCode))
+    }
+}
+
+func pingCheck(ip string) error {
+    c, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
+    if err != nil {
+        return err
+    }
+    defer c.Close()
+
+    wm := icmp.Message{
+        Type: ipv4.ICMPTypeEcho, Code: 0,
+        Body: &icmp.Echo{
+            ID: os.Getpid() & 0xffff, Seq: 1,
+            Data: []byte("HELLO-R-U-THERE"),
+        },
+    }
+    wb, err := wm.Marshal(nil)
+    if err != nil {
+        return err
+    }
+    if _, err := c.WriteTo(wb, &net.IPAddr{IP: net.ParseIP(ip)}); err != nil {
+        return err
+    }
+
+    rb := make([]byte, 1500)
+    n, _, err := c.ReadFrom(rb)
+    if err != nil {
+        return err
+    }
+    rm, err := icmp.ParseMessage(ipv4.ICMPTypeEcho.Protocol(), rb[:n])
+    if err != nil {
+        return err
+    }
+    switch rm.Type {
+    case ipv4.ICMPTypeEchoReply:
+        return nil
+    default:
+        return errors.New(fmt.Sprintf("got %+v; want echo reply", rm))
     }
 }
 
