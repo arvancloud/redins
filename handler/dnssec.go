@@ -6,7 +6,7 @@ import (
     "errors"
 
     "github.com/miekg/dns"
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
 )
 
 var (
@@ -25,12 +25,12 @@ func Sign(rrs []dns.RR, name string, zone *Zone, ttl uint32) (*dns.RRSIG, error)
     switch rrsig.Algorithm {
     case dns.RSAMD5, dns.RSASHA1, dns.RSASHA1NSEC3SHA1, dns.RSASHA256, dns.RSASHA512:
         if err := rrsig.Sign(zone.PrivateKey.(*rsa.PrivateKey), rrs); err != nil {
-            eventlog.Logger.Errorf("sign failed : %s", err)
+            logger.Default.Errorf("sign failed : %s", err)
             return nil, err
         }
     case dns.ECDSAP256SHA256, dns.ECDSAP384SHA384:
         if err := rrsig.Sign(zone.PrivateKey.(*ecdsa.PrivateKey), rrs); err != nil {
-            eventlog.Logger.Errorf("sign failed : %s", err)
+            logger.Default.Errorf("sign failed : %s", err)
             return nil, err
         }
     case dns.DSA, dns.DSANSEC3SHA1:

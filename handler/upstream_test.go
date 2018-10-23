@@ -5,11 +5,11 @@ import (
     "log"
 
     "github.com/miekg/dns"
-    "arvancloud/redins/eventlog"
-    "arvancloud/redins/redis"
     "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
+    "github.com/hawell/uperdis"
+    "github.com/hawell/logger"
 )
 
 var upstreamTestConfig = HandlerConfig {
@@ -17,7 +17,7 @@ var upstreamTestConfig = HandlerConfig {
     CacheTimeout: 60,
     ZoneReload: 600,
     UpstreamFallback: true,
-    Redis: redis.RedisConfig {
+    Redis: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
         Password: "",
@@ -26,7 +26,7 @@ var upstreamTestConfig = HandlerConfig {
         ConnectTimeout: 0,
         ReadTimeout: 0,
     },
-    Log: eventlog.LogConfig {
+    Log: logger.LogConfig {
         Enable: false,
     },
     Upstream: []UpstreamConfig  {
@@ -44,7 +44,7 @@ var upstreamTestConfig = HandlerConfig {
 }
 
 func TestUpstream(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
     u := NewUpstream(upstreamTestConfig.Upstream)
     rs, res := u.Query("google.com.", dns.TypeAAAA)
     if len(rs) == 0 || res != 0 {
@@ -67,7 +67,7 @@ func TestFallback(t *testing.T) {
     tc := test.Case{
         Qname: "google.com.", Qtype: dns.TypeAAAA,
     }
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&upstreamTestConfig)
 

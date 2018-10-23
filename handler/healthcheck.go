@@ -8,14 +8,14 @@ import (
     "strings"
     "net"
     "net/http"
-    "os"
 
-    "arvancloud/redins/redis"
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
     "github.com/patrickmn/go-cache"
     "github.com/pkg/errors"
     "golang.org/x/net/icmp"
     "golang.org/x/net/ipv4"
+    "encoding/binary"
 )
 
 type HealthCheckItem struct {
@@ -39,9 +39,9 @@ type Healthcheck struct {
     maxRequests       int
     updateInterval    time.Duration
     checkInterval     time.Duration
-    redisConfigServer *redis.Redis
-    redisStatusServer *redis.Redis
-    logger            *eventlog.EventLogger
+    redisConfigServer *uperdis.Redis
+    redisStatusServer *uperdis.Redis
+    logger            *logger.EventLogger
     cachedItems       *cache.Cache
     lastUpdate        time.Time
     dispatcher        *Dispatcher
@@ -120,13 +120,13 @@ func NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) Worke
 
 func (w Worker) Start() {
     go func() {
-        eventlog.Logger.Debugf("Worker: worker %d started", w.Id)
+        logger.Default.Debugf("Worker: worker %d started", w.Id)
         for {
-            eventlog.Logger.Debugf("Worker: worker %d waiting for new job", w.Id)
+            logger.Default.Debugf("Worker: worker %d waiting for new job", w.Id)
             w.WorkerPool <- w.JobChannel
             select {
             case item := <- w.JobChannel:
-                eventlog.Logger.Debugf("item %v received", item)
+                logger.Default.Debugf("item %v received", item)
                 var err error = nil
                 switch item.Protocol {
                 case "http", "https":
@@ -134,10 +134,11 @@ func (w Worker) Start() {
                     url := item.Protocol + "://" + item.Ip + item.Uri
                     err = w.httpCheck(url, item.Host)
                 case "ping", "icmp":
-                    err = pingCheck(item.Ip)
+                    err = pingCheck(item.Ip, time.Duration(item.Timeout) * time.Millisecond)
+                    logger.Default.Error("@@@@@@@@@@@@@@ ", item.Ip, " : result : ", err)
                 default:
                     err = errors.New(fmt.Sprintf("invalid protocol : %s used for %s:%d", item.Protocol, item.Ip, item.Port))
-                    eventlog.Logger.Error(err)
+                    logger.Default.Error(err)
                 }
                 item.Error = err
                 if err == nil {
@@ -159,13 +160,13 @@ func (w Worker) Start() {
 func (w Worker) httpCheck(url string,host string) error {
     req, err := http.NewRequest("HEAD", url, nil)
     if err != nil {
-        eventlog.Logger.Errorf("invalid request : %s", err)
+        logger.Default.Errorf("invalid request : %s", err)
         return err
     }
     req.Host = strings.TrimRight(host, ".")
     resp, err := w.Client.Do(req)
     if err != nil {
-        eventlog.Logger.Errorf("request failed : %s", err)
+        logger.Default.Errorf("request failed : %s", err)
         return err
     }
     switch resp.StatusCode {
@@ -176,17 +177,19 @@ func (w Worker) httpCheck(url string,host string) error {
     }
 }
 
-func pingCheck(ip string) error {
+func pingCheck(ip string, timeout time.Duration) error {
     c, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
+    c.SetDeadline(time.Now().Add(timeout))
     if err != nil {
         return err
     }
     defer c.Close()
 
+    id := int(binary.BigEndian.Uint32(net.ParseIP(ip)))
     wm := icmp.Message{
         Type: ipv4.ICMPTypeEcho, Code: 0,
         Body: &icmp.Echo{
-            ID: os.Getpid() & 0xffff, Seq: 1,
+            ID: id,
             Data: []byte("HELLO-R-U-THERE"),
         },
     }
@@ -203,12 +206,13 @@ func pingCheck(ip string) error {
     if err != nil {
         return err
     }
-    rm, err := icmp.ParseMessage(ipv4.ICMPTypeEcho.Protocol(), rb[:n])
+    rm, err := icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), rb[:n])
     if err != nil {
         return err
     }
     switch rm.Type {
     case ipv4.ICMPTypeEchoReply:
+        logger.Default.Error("@@@@@@@@@@@@ code = ", rm.Code)
         return nil
     default:
         return errors.New(fmt.Sprintf("got %+v; want echo reply", rm))
@@ -226,11 +230,11 @@ type HealthcheckConfig struct {
     MaxRequests int `json:"max_requests,omitempty"`
     UpdateInterval int `json:"update_interval,omitempty"`
     CheckInterval int `json:"check_interval,omitempty"`
-    RedisStatusServer redis.RedisConfig `json:"redis,omitempty"`
-    Log eventlog.LogConfig `json:"log,omitempty"`
+    RedisStatusServer uperdis.RedisConfig `json:"redis,omitempty"`
+    Log logger.LogConfig `json:"log,omitempty"`
 }
 
-func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *redis.Redis) *Healthcheck {
+func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis) *Healthcheck {
     h := &Healthcheck {
         Enable: config.Enable,
         maxRequests: config.MaxRequests,
@@ -241,11 +245,11 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *redis.Redis) *
     if h.Enable {
 
         h.redisConfigServer = redisConfigServer
-        h.redisStatusServer = redis.NewRedis(&config.RedisStatusServer)
+        h.redisStatusServer = uperdis.NewRedis(&config.RedisStatusServer)
         h.cachedItems = cache.New(time.Second * time.Duration(config.CheckInterval), time.Duration(config.CheckInterval) * time.Second * 10)
         h.transferItems()
         h.dispatcher = NewDispatcher(config.MaxRequests)
-        h.logger = eventlog.NewLogger(&config.Log)
+        h.logger = logger.NewLogger(&config.Log)
     }
 
     return h
@@ -272,9 +276,9 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
 
 func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     splits := strings.SplitAfterN(key, ":", 2)
-    // eventlog.Logger.Error(splits)
+    // logger.Default.Error(splits)
     if len(splits) != 2 {
-        eventlog.Logger.Errorf("invalid key: %s", key)
+        logger.Default.Errorf("invalid key: %s", key)
         return nil
     }
     item := new(HealthCheckItem)
@@ -295,10 +299,10 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
     key := item.Host + ":" + item.Ip
     itemStr, err := json.Marshal(item)
     if err != nil {
-        eventlog.Logger.Errorf("cannot marshal item to json : %s", err)
+        logger.Default.Errorf("cannot marshal item to json : %s", err)
         return
     }
-    eventlog.Logger.Debugf("setting %v in redis : %s", *item, string(itemStr))
+    logger.Default.Debugf("setting %v in redis : %s", *item, string(itemStr))
     h.redisStatusServer.Set(key, string(itemStr))
 }
 
@@ -308,7 +312,7 @@ func (h *Healthcheck) getDomainId(zone string) string {
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &cfg)
         if err != nil {
-            eventlog.Logger.Errorf("cannot parse zone config : %s", err)
+            logger.Default.Errorf("cannot parse zone config : %s", err)
         }
     }
     return cfg.DomainId
@@ -346,7 +350,7 @@ func (h *Healthcheck) transferItems() {
             record.AAAA = record.A
             err := json.Unmarshal([]byte(recordStr), record)
             if err != nil {
-                eventlog.Logger.Errorf("cannot parse json : %s -> %s", recordStr, err)
+                logger.Default.Errorf("cannot parse json : %s -> %s", recordStr, err)
                 continue
             }
             var host string
@@ -401,7 +405,7 @@ func (h *Healthcheck) Start() {
                 continue
             }
             if time.Since(item.LastCheck) > h.checkInterval {
-                eventlog.Logger.Debugf("item %v added", item)
+                logger.Default.Debugf("item %v added", item)
                 h.dispatcher.JobQueue <- item
             }
         }
@@ -467,13 +471,13 @@ func (h *Healthcheck) FilterHealthcheck(qname string, rrset *IP_RRSet) []IP_RR {
             min = status
         }
     }
-    eventlog.Logger.Debugf("min = %d", min)
+    logger.Default.Debugf("min = %d", min)
     if min < rrset.HealthCheckConfig.UpCount - 1 && min > rrset.HealthCheckConfig.DownCount {
         min = rrset.HealthCheckConfig.DownCount + 1
     }
-    eventlog.Logger.Debugf("min = %d", min)
+    logger.Default.Debugf("min = %d", min)
     for _, ip := range rrset.Data {
-        eventlog.Logger.Debug("qname: ", ip.Ip.String(), " status: ", h.getStatus(qname, ip.Ip))
+        logger.Default.Debug("qname: ", ip.Ip.String(), " status: ", h.getStatus(qname, ip.Ip))
         if h.getStatus(qname, ip.Ip) < min {
             continue
         }

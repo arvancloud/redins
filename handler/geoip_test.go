@@ -5,7 +5,7 @@ import (
     "net"
     "log"
 
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
 )
 
 func TestGeoIpAutomatic(t *testing.T) {
@@ -54,7 +54,7 @@ func TestGeoIpAutomatic(t *testing.T) {
         Enable: true,
         Db: "../geoCity.mmdb",
     }
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     g := NewGeoIp(&cfg)
 
@@ -91,7 +91,7 @@ func TestGeoIpManual(t *testing.T) {
         Enable: true,
         Db: "../geoCity.mmdb",
     }
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     g := NewGeoIp(&cfg)
 

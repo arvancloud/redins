@@ -6,7 +6,7 @@ import (
 
     "github.com/miekg/dns"
     "github.com/patrickmn/go-cache"
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
 )
 
 type UpstreamConnection struct {
@@ -61,7 +61,7 @@ func (u *Upstream) Query(location string, qtype uint16) ([]dns.RR, int) {
     for _, c := range u.connections {
         r, _, err := c.client.Exchange(m, c.connectionStr)
         if err != nil {
-            eventlog.Logger.Error("failed to retreive record from upstream ", c.connectionStr, " : ", err)
+            logger.Default.Error("failed to retreive record from upstream ", c.connectionStr, " : ", err)
             continue
         }
         if len(r.Answer) == 0 {

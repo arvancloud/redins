@@ -11,8 +11,8 @@ import (
     "github.com/miekg/dns"
     "github.com/patrickmn/go-cache"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/redis"
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
 )
 
 type DnsRequestHandler struct {
@@ -24,8 +24,8 @@ type DnsRequestHandler struct {
     Zones             []string
     zoneLock          sync.RWMutex
     LastZoneUpdate    time.Time
-    Redis             *redis.Redis
-    Logger            *eventlog.EventLogger
+    Redis             *uperdis.Redis
+    Logger            *logger.EventLogger
     cache             *cache.Cache
     geoip             *GeoIp
     healthcheck       *Healthcheck
@@ -42,8 +42,8 @@ type HandlerConfig struct {
     ZoneReload int `json:"zone_reload,omitempty"`
     LogSourceLocation bool `json:"log_source_location,omitempty"`
     UpstreamFallback bool `json:"upstream_fallback,omitempty"`
-    Redis redis.RedisConfig `json:"redis,omitempty"`
-    Log eventlog.LogConfig `json:"log,omitempty"`
+    Redis uperdis.RedisConfig `json:"redis,omitempty"`
+    Log logger.LogConfig `json:"log,omitempty"`
 }
 
 func NewHandler(config *HandlerConfig) *DnsRequestHandler {
@@ -56,8 +56,8 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
         zoneLock: sync.RWMutex{},
     }
 
-    h.Redis = redis.NewRedis(&config.Redis)
-    h.Logger = eventlog.NewLogger(&config.Log)
+    h.Redis = uperdis.NewRedis(&config.Redis)
+    h.Logger = logger.NewLogger(&config.Log)
     h.geoip = NewGeoIp(&config.GeoIp)
     h.healthcheck = NewHealthcheck(&config.HealthCheck, h.Redis)
     h.upstream = NewUpstream(config.Upstream)
@@ -74,12 +74,12 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
 func (h *DnsRequestHandler) UpdateZones() {
     for {
-        eventlog.Logger.Debugf("%v", h.Zones)
+        logger.Default.Debugf("%v", h.Zones)
         if time.Since(h.LastZoneUpdate) > time.Duration(h.ZoneReload)*time.Second {
-            eventlog.Logger.Debug("loading zones")
+            logger.Default.Debug("loading zones")
             h.LoadZones()
         }
-        eventlog.Logger.Debugf("%v", h.Zones)
+        logger.Default.Debugf("%v", h.Zones)
         time.Sleep(time.Duration(h.ZoneReload) * time.Second)
     }
 }
@@ -88,8 +88,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     qname := state.Name()
     qtype := state.QType()
 
-    eventlog.Logger.Debugf("name : %s", state.Name())
-    eventlog.Logger.Debugf("type : %s", state.Type())
+    logger.Default.Debugf("name : %s", state.Name())
+    logger.Default.Debugf("type : %s", state.Type())
 
     requestStartTime := time.Now()
 
@@ -327,7 +327,7 @@ func (h *DnsRequestHandler) LoadZones() {
 func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*Record, int) {
     cachedRecord, found := h.cache.Get(qname)
     if found {
-        eventlog.Logger.Debug("cached")
+        logger.Default.Debug("cached")
         logData["cache"] = "HIT"
         return cachedRecord.(*Record), dns.RcodeSuccess
     } else {
@@ -573,18 +573,18 @@ func (h *DnsRequestHandler) Matches(qname string) string {
 }
 
 func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
-    eventlog.Logger.Debug("GetRecord")
+    logger.Default.Debug("GetRecord")
 
     zone := h.Matches(qname)
-    eventlog.Logger.Debugf("zone : %s", zone)
+    logger.Default.Debugf("zone : %s", zone)
     if zone == "" {
-        eventlog.Logger.Debugf("no matching zone found for %s", qname)
+        logger.Default.Debugf("no matching zone found for %s", qname)
         return nil, dns.RcodeNotAuth
     }
 
     z := h.LoadZone(zone)
     if z == nil {
-        eventlog.Logger.Errorf("empty zone : %s", zone)
+        logger.Default.Errorf("empty zone : %s", zone)
         return nil, dns.RcodeServerFailure
     }
 
@@ -592,7 +592,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
     if len(location) == 0 { // empty, no results
         return &Record{Name:qname, Zone: z}, dns.RcodeNameError
     }
-    eventlog.Logger.Debugf("location : %s", location)
+    logger.Default.Debugf("location : %s", location)
 
     record = h.LoadLocation(location, z)
     if record == nil {
@@ -628,7 +628,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &z.Config)
         if err != nil {
-            eventlog.Logger.Errorf("cannot parse zone config : %s", err)
+            logger.Default.Errorf("cannot parse zone config : %s", err)
         }
     }
     z.Config.SOA.Ns = dns.Fqdn(z.Config.SOA.Ns)
@@ -637,21 +637,21 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         privStr := h.Redis.Get(z.Name + "_priv")
         privStr = strings.Replace(privStr, "\\n", "\n", -1)
         if pubStr == "" || privStr == "" {
-            eventlog.Logger.Errorf("key is not set for zone %s", z.Name)
+            logger.Default.Errorf("key is not set for zone %s", z.Name)
             z.Config.DnsSec = false
             return z
         }
         if rr, err := dns.NewRR(pubStr); err == nil {
             z.DnsKey = rr.(*dns.DNSKEY)
         } else {
-            eventlog.Logger.Errorf("cannot parse zone key : %s", err)
+            logger.Default.Errorf("cannot parse zone key : %s", err)
             z.Config.DnsSec = false
             return z
         }
         if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
             z.PrivateKey = pk
         } else {
-            eventlog.Logger.Errorf("cannot create private key : %s", err)
+            logger.Default.Errorf("cannot create private key : %s", err)
             z.Config.DnsSec = false
             return z
         }
@@ -661,7 +661,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         if rrsig, err := Sign([]dns.RR{z.DnsKey}, z.Name, z, 300); err == nil {
             z.DnsKeySig = rrsig
         } else {
-            eventlog.Logger.Errorf("cannot create RRSIG for DNSKEY : %s", err)
+            logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)
         }
     }
     z.Config.SOA.Data = &dns.SOA {
@@ -708,7 +708,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
     }
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
-        eventlog.Logger.Errorf("cannot parse json : %s -> %s", val, err)
+        logger.Default.Errorf("cannot parse json : %s -> %s", val, err)
         return nil
     }
 
@@ -718,7 +718,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
 func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
     jsonValue, err := json.Marshal(val)
     if err != nil {
-        eventlog.Logger.Errorf("cannot encode to json : %s", err)
+        logger.Default.Errorf("cannot encode to json : %s", err)
         return
     }
     var label string

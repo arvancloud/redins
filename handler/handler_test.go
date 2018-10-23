@@ -9,8 +9,8 @@ import (
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/eventlog"
-    "arvancloud/redins/redis"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
 )
 
 var lookupZones = []string {
@@ -433,7 +433,7 @@ var handlerTestConfig = HandlerConfig {
     MaxTtl: 300,
     CacheTimeout: 60,
     ZoneReload: 600,
-    Redis: redis.RedisConfig {
+    Redis: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
         Password: "",
@@ -442,7 +442,7 @@ var handlerTestConfig = HandlerConfig {
         ConnectTimeout: 0,
         ReadTimeout: 0,
     },
-    Log: eventlog.LogConfig {
+    Log: logger.LogConfig {
         Enable: false,
     },
     Upstream: []UpstreamConfig  {
@@ -460,7 +460,7 @@ var handlerTestConfig = HandlerConfig {
 }
 
 func TestLookup(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
     for i, zone := range lookupZones {
@@ -489,7 +489,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestWeight(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     // distribution
     ips := []IP_RR {
@@ -618,7 +618,7 @@ var anameTestCases = []test.Case {
 
 func TestANAME(t *testing.T) {
     zones := []string{"arvancloud.com.", "arvan.an."}
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
     for i, zone := range zones {
@@ -648,7 +648,7 @@ func TestANAME(t *testing.T) {
 
 func TestWeightedANAME(t *testing.T) {
     zones := []string{"arvancloud.com.", "arvan.an."}
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
     for i, zone := range zones {
@@ -794,7 +794,7 @@ var filterGeoTestCases = []test.Case{
 }
 
 func TestGeoFilter(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     zone := "filtergeo.com."
     h := NewHandler(&handlerTestConfig)
@@ -879,7 +879,7 @@ var filterMultiTestCases = []test.Case{
 }
 
 func TestMultiFilter(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     zone := "filtermulti.com."
     h := NewHandler(&handlerTestConfig)
@@ -1033,7 +1033,7 @@ var filterSingleTestCases = []test.Case{
 }
 
 func TestSingleFilter(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     zone := "filtersingle.com."
     h := NewHandler(&handlerTestConfig)

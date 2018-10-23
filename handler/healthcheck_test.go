@@ -9,8 +9,8 @@ import (
     "time"
     "fmt"
 
-    "arvancloud/redins/eventlog"
-    "arvancloud/redins/redis"
+    "github.com/hawell/uperdis"
+    "github.com/hawell/logger"
 )
 
 var healthcheckGetEntries = [][]string {
@@ -78,7 +78,7 @@ var config = HealthcheckConfig {
     MaxRequests: 10,
     UpdateInterval: 600,
     CheckInterval: 600,
-    RedisStatusServer: redis.RedisConfig {
+    RedisStatusServer: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
         Password: "",
@@ -87,7 +87,7 @@ var config = HealthcheckConfig {
         ConnectTimeout: 0,
         ReadTimeout: 0,
     },
-    Log: eventlog.LogConfig {
+    Log: logger.LogConfig {
         Enable: true,
         Path: "/tmp/healthcheck.log",
     },
@@ -95,8 +95,8 @@ var config = HealthcheckConfig {
 
 func TestGet(t *testing.T) {
     log.Println("TestGet")
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
-    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisStatusServer.Del("*")
@@ -118,8 +118,8 @@ func TestGet(t *testing.T) {
 
 func TestFilter(t *testing.T) {
     log.Println("TestFilter")
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
-    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
     h := NewHealthcheck(&config, configRedis)
 
     for _, entry := range healthcheckGetEntries {
@@ -252,8 +252,8 @@ func TestFilter(t *testing.T) {
 
 func TestSet(t *testing.T) {
     log.Println("TestSet")
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
-    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
@@ -279,8 +279,8 @@ func TestSet(t *testing.T) {
 
 func TestTransfer(t *testing.T) {
     log.Printf("TestTransfer")
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
-    configRedis := redis.NewRedis(&config.RedisStatusServer)
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
@@ -321,21 +321,21 @@ func TestTransfer(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-    if err := pingCheck("4.2.2.4"); err != nil {
+    if err := pingCheck("4.2.2.4", time.Second); err != nil {
         t.Fail()
     }
 }
 
 var healthcheckConfig = HealthcheckConfig {
     Enable: true,
-    Log: eventlog.LogConfig {
+    Log: logger.LogConfig {
         Enable: true,
         Target: "file",
         Level: "info",
         Path: "/tmp/hctest.log",
         TimeFormat: "2006-01-02 15:04:05",
     },
-    RedisStatusServer: redis.RedisConfig {
+    RedisStatusServer: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
         Password: "",
@@ -349,7 +349,7 @@ var healthcheckConfig = HealthcheckConfig {
     MaxRequests: 20,
 }
 
-var healthcheckRedisStatusConfig = redis.RedisConfig {
+var healthcheckRedisStatusConfig = uperdis.RedisConfig {
     Ip: "redis",
     Port: 6379,
     Password: "",
@@ -366,16 +366,23 @@ var hcEntries = [][]string {
     {"www",
         `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"172.217.17.238"}]}}`,
     },
+    /*
     {"y",
         `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"4.2.2.4"}]}}`,
     },
     {"ddd",
         `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"/uri2","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"3.3.3.3"}]}}`,
     },
+    */
+    {"z",
+        `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"192.168.200.2"}]}}`,
+    },
 }
 
 func TestHealthCheck(t *testing.T) {
-    configRedis := redis.NewRedis(&healthcheckRedisStatusConfig)
+    logger.Default = logger.NewLogger(&logger.LogConfig{Enable:true, Target:"stdout", Format:"text"})
+
+    configRedis := uperdis.NewRedis(&healthcheckRedisStatusConfig)
     for _, entry := range hcEntries {
         configRedis.HSet("google.com.", entry[0], entry[1])
     }
@@ -383,16 +390,24 @@ func TestHealthCheck(t *testing.T) {
     go hc.Start()
     time.Sleep(10 * time.Second)
     h1 := hc.getStatus("www.google.com.", net.ParseIP("172.217.17.238"))
+    /*
     h2 := hc.getStatus("y.google.com.", net.ParseIP("4.2.2.4"))
     h3 := hc.getStatus("ddd.google.com.", net.ParseIP("3.3.3.3"))
-    log.Println(h1, " ", h2, " ", h3)
+    */
+    h4 := hc.getStatus("z.google.com.", net.ParseIP("192.168.200.2"))
+    log.Println(h1, " ", /*h2, " ", h3,*/ " ", h4)
     if h1 != 3 {
         t.Fail()
     }
+    /*
     if h2 != 3 {
         t.Fail()
     }
     if h3 != -3 {
+        t.Fail()
+    }
+    */
+    if h4 != -3 {
         t.Fail()
     }
 }

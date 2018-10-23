@@ -10,8 +10,8 @@ import (
 
     "github.com/miekg/dns"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/eventlog"
-    "arvancloud/redins/redis"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
     "arvancloud/redins/handler"
 )
 
@@ -35,7 +35,7 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 type RedinsConfig struct {
     Server    []handler.ServerConfig    `json:"server,omitempty"`
-    ErrorLog  eventlog.LogConfig        `json:"error_log,omitempty"`
+    ErrorLog  logger.LogConfig        `json:"error_log,omitempty"`
     Handler   handler.HandlerConfig     `json:"handler,omitempty"`
     RateLimit handler.RateLimiterConfig `json:"ratelimit,omitempty"`
 }
@@ -67,7 +67,7 @@ func LoadConfig(path string) *RedinsConfig {
                 MaxRequests: 10,
                 UpdateInterval: 600,
                 CheckInterval: 600,
-                RedisStatusServer: redis.RedisConfig {
+                RedisStatusServer: uperdis.RedisConfig {
                     Ip: "127.0.0.1",
                     Port: 6379,
                     Password: "",
@@ -76,17 +76,17 @@ func LoadConfig(path string) *RedinsConfig {
                     ConnectTimeout: 0,
                     ReadTimeout: 0,
                 },
-                Log: eventlog.LogConfig {
+                Log: logger.LogConfig {
                     Enable: true,
                     Target: "file",
                     Level: "info",
                     Path: "/tmp/healthcheck.log",
                     Format: "json",
                     TimeFormat: time.RFC3339,
-                    Sentry: eventlog.SentryConfig {
+                    Sentry: logger.SentryConfig {
                         Enable: false,
                     },
-                    Syslog: eventlog.SyslogConfig {
+                    Syslog: logger.SyslogConfig {
                         Enable: false,
                     },
                 },
@@ -96,7 +96,7 @@ func LoadConfig(path string) *RedinsConfig {
             ZoneReload: 600,
             LogSourceLocation: false,
             UpstreamFallback: false,
-            Redis: redis.RedisConfig {
+            Redis: uperdis.RedisConfig {
                 Ip: "127.0.0.1",
                 Port: 6379,
                 Password: "",
@@ -105,31 +105,31 @@ func LoadConfig(path string) *RedinsConfig {
                 ConnectTimeout: 0,
                 ReadTimeout: 0,
             },
-            Log: eventlog.LogConfig {
+            Log: logger.LogConfig {
                 Enable: true,
                 Target: "file",
                 Level: "info",
                 Path: "/tmp/redins.log",
                 Format: "json",
                 TimeFormat: time.RFC3339,
-                Sentry: eventlog.SentryConfig {
+                Sentry: logger.SentryConfig {
                     Enable: false,
                 },
-                Syslog: eventlog.SyslogConfig {
+                Syslog: logger.SyslogConfig {
                     Enable: false,
                 },
             },
         },
-        ErrorLog: eventlog.LogConfig {
+        ErrorLog: logger.LogConfig {
             Enable: true,
             Target: "stdout",
             Level: "info",
             Format: "text",
             TimeFormat: time.RFC3339,
-            Sentry: eventlog.SentryConfig {
+            Sentry: logger.SentryConfig {
                 Enable: false,
             },
-            Syslog: eventlog.SyslogConfig {
+            Syslog: logger.SyslogConfig {
                 Enable: false,
             },
         },
@@ -163,7 +163,7 @@ func main() {
     }
     cfg := LoadConfig(configFile)
 
-    eventlog.Logger = eventlog.NewLogger(&cfg.ErrorLog)
+    logger.Default = logger.NewLogger(&cfg.ErrorLog)
 
     s = handler.NewServer(cfg.Server)
 

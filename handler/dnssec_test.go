@@ -9,8 +9,8 @@ import (
     "github.com/miekg/dns"
     "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
-    "arvancloud/redins/eventlog"
-    "arvancloud/redins/redis"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
 )
 
 var dnssecZone = string("dnssec_test.com.")
@@ -243,7 +243,7 @@ var dnssecTestConfig = HandlerConfig {
     MaxTtl: 300,
     CacheTimeout: 60,
     ZoneReload: 600,
-    Redis: redis.RedisConfig {
+    Redis: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
         Password: "",
@@ -252,7 +252,7 @@ var dnssecTestConfig = HandlerConfig {
         ConnectTimeout: 0,
         ReadTimeout: 0,
     },
-    Log: eventlog.LogConfig {
+    Log: logger.LogConfig {
         Enable: false,
     },
     Upstream: []UpstreamConfig  {
@@ -270,7 +270,7 @@ var dnssecTestConfig = HandlerConfig {
 }
 
 func TestDNSSEC(t *testing.T) {
-    eventlog.Logger = eventlog.NewLogger(&eventlog.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&dnssecTestConfig)
 

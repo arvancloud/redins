@@ -5,7 +5,7 @@ import (
     "net"
 
     "github.com/oschwald/maxminddb-golang"
-    "arvancloud/redins/eventlog"
+    "github.com/hawell/logger"
 )
 
 type GeoIp struct {
@@ -26,7 +26,7 @@ func NewGeoIp(config *GeoIpConfig) *GeoIp {
     if g.Enable {
         g.db, err = maxminddb.Open(config.Db)
         if err != nil {
-            eventlog.Logger.Errorf("cannot open maxminddb file %s", err)
+            logger.Default.Errorf("cannot open maxminddb file %s", err)
             g.Enable = false
             return g
         }
@@ -41,7 +41,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        eventlog.Logger.Error("getSameCountry failed")
+        logger.Default.Error("getSameCountry failed")
         return ips
     }
     logData["Source_country"] = sourceCountry
@@ -77,7 +77,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []IP_RR, logData map[str
     var result []IP_RR
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
-        eventlog.Logger.Error("getMinimumDistance failed")
+        logger.Default.Error("getMinimumDistance failed")
         return ips
     }
     for _, ip := range ips {
@@ -113,7 +113,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
         math.Cos(slat)*math.Cos(dlat)* math.Sin(deltaLong/2.0)*math.Sin(deltaLong/2.0)
     c := 2.0 * math.Atan2(math.Sqrt(a), math.Sqrt(1.0-a))
 
-    eventlog.Logger.Debugf("distance = %f", c)
+    logger.Default.Debugf("distance = %f", c)
 
     return c, nil
 }
@@ -131,13 +131,13 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
             ISOCode string `maxminddb:"iso_code"`
         } `maxminddb:"country"`
     }
-    eventlog.Logger.Debugf("ip : %s", ip)
+    logger.Default.Debugf("ip : %s", ip)
     err = g.db.Lookup(ip, &record)
     if err != nil {
-        eventlog.Logger.Errorf("lookup failed : %s", err)
+        logger.Default.Errorf("lookup failed : %s", err)
         return 0, 0, "", err
     }
     g.db.Decode(record.Location.LongitudeOffset, &longitude)
-    eventlog.Logger.Debug("lat = ", record.Location.Latitude, " lang = ", longitude, " country = ", record.Country.ISOCode)
+    logger.Default.Debug("lat = ", record.Location.Latitude, " lang = ", longitude, " country = ", record.Country.ISOCode)
     return record.Location.Latitude, longitude, record.Country.ISOCode, nil
 }
