@@ -267,7 +267,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     m.Ns = append(m.Ns, authority...)
 
     state.SizeAndDo(m)
-    m, _ = state.Scrub(m)
+    m = state.Scrub(m)
     state.W.WriteMsg(m)
 }
 
