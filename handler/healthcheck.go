@@ -156,9 +156,9 @@ func (w *Worker) Start() {
                 var err error = nil
                 switch item.Protocol {
                 case "http", "https":
-                w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
-                url := item.Protocol + "://" + item.Ip + item.Uri
-                    err = w.httpCheck(url, item.Host)
+                    w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
+                    url := item.Protocol + "://" + item.Ip + item.Uri
+                        err = w.httpCheck(url, item.Host)
                 case "ping", "icmp":
                     err = pingCheck(item.Ip, time.Duration(item.Timeout) * time.Millisecond)
                     logger.Default.Error("@@@@@@@@@@@@@@ ", item.Ip, " : result : ", err)
@@ -245,12 +245,6 @@ func pingCheck(ip string, timeout time.Duration) error {
     default:
         return errors.New(fmt.Sprintf("got %+v; want echo reply", rm))
     }
-}
-
-func (w Worker) Stop() {
-    go func() {
-        w.quit <- true
-    }()
 }
 
 type HealthcheckConfig struct {

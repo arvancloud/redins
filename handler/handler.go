@@ -92,7 +92,7 @@ func (h *DnsRequestHandler) UpdateZones() {
             return
         case <-time.After(time.Duration(h.ZoneReload) * time.Second):
             logger.Default.Debugf("%v", h.Zones)
-            logge.Default.Debug("loading zones")
+            logger.Default.Debug("loading zones")
             h.LoadZones()
         }
     }
