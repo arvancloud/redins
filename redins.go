@@ -2,11 +2,12 @@ package main
 
 import (
     "log"
-    "sync"
     "os"
     "time"
     "io/ioutil"
     "encoding/json"
+    "os/signal"
+    "syscall"
 
     "github.com/miekg/dns"
     "github.com/coredns/coredns/request"
@@ -156,7 +157,7 @@ func LoadConfig(path string) *RedinsConfig {
     return config
 }
 
-func main() {
+func Start() {
     configFile := "config.json"
     if len(os.Args) > 1 {
         configFile = os.Args[1]
@@ -173,11 +174,34 @@ func main() {
 
     dns.HandleFunc(".", handleRequest)
 
-    var wg sync.WaitGroup
     for i := range s {
         go s[i].ListenAndServe()
-        wg.Add(1)
         time.Sleep(1 * time.Second)
     }
-    wg.Wait()
+}
+
+func Stop() {
+    for i := range s {
+        s[i].Shutdown()
+    }
+    h.ShutDown()
+}
+
+func main() {
+
+    Start()
+
+    c := make(chan os.Signal, 1)
+    signal.Notify(c, syscall.SIGINT, syscall.SIGHUP)
+
+    for sig := range c {
+        switch sig {
+        case syscall.SIGINT:
+            Stop()
+            return
+        case syscall.SIGHUP:
+            Stop()
+            Start()
+        }
+    }
 }
