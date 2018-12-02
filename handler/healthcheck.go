@@ -104,7 +104,6 @@ func (d *Dispatcher) dispatch() {
 
 type Worker struct {
     Id int
-    Client *http.Client
     healthcheck *Healthcheck
     WorkerPool chan chan Job
     JobChannel chan Job
@@ -113,22 +112,9 @@ type Worker struct {
 }
 
 func (d *Dispatcher) NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) *Worker {
-    tr := &http.Transport {
-        MaxIdleConnsPerHost: 1024,
-        TLSHandshakeTimeout: 0 * time.Second,
-        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-    }
-    client := &http.Client {
-        Transport: tr,
-        CheckRedirect: func(req *http.Request, via []*http.Request) error {
-            return http.ErrUseLastResponse
-        },
-
-    }
 
     return &Worker {
         Id:          id,
-        Client:      client,
         healthcheck: healthcheck,
         WorkerPool:  workerPool,
         JobChannel:  make(chan Job),
@@ -156,9 +142,9 @@ func (w *Worker) Start() {
                 var err error = nil
                 switch item.Protocol {
                 case "http", "https":
-                    w.Client.Timeout = time.Duration(item.Timeout) * time.Millisecond
+                    timeout := time.Duration(item.Timeout) * time.Millisecond
                     url := item.Protocol + "://" + item.Ip + item.Uri
-                        err = w.httpCheck(url, item.Host)
+                        err = w.httpCheck(url, item.Host, timeout)
                 case "ping", "icmp":
                     err = pingCheck(item.Ip, time.Duration(item.Timeout) * time.Millisecond)
                     logger.Default.Error("@@@@@@@@@@@@@@ ", item.Ip, " : result : ", err)
@@ -185,25 +171,40 @@ func (w *Worker) Start() {
     }()
 }
 
-func (w Worker) httpCheck(url string,host string) error {
-                req, err := http.NewRequest("HEAD", url, nil)
-                if err != nil {
+func (w Worker) httpCheck(url string,host string, timeout time.Duration) error {
+    tr := &http.Transport {
+        MaxIdleConnsPerHost: 1024,
+        TLSHandshakeTimeout: 0 * time.Second,
+        TLSClientConfig: &tls.Config {
+            InsecureSkipVerify: true,
+            ServerName: host,
+        },
+    }
+    client := &http.Client {
+        Transport: tr,
+        CheckRedirect: func(req *http.Request, via []*http.Request) error {
+            return http.ErrUseLastResponse
+        },
+
+    }
+    req, err := http.NewRequest("HEAD", url, nil)
+    if err != nil {
         logger.Default.Errorf("invalid request : %s", err)
         return err
     }
     req.Host = strings.TrimRight(host, ".")
-                    resp, err := w.Client.Do(req)
-                    if err != nil {
+    resp, err := client.Do(req)
+    if err != nil {
         logger.Default.Errorf("request failed : %s", err)
         return err
     }
-                        switch resp.StatusCode {
-                        case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
+    switch resp.StatusCode {
+    case http.StatusOK, http.StatusFound, http.StatusMovedPermanently:
         return nil
-                        default:
+    default:
         return errors.New(fmt.Sprintf("invalid http status code : %d", resp.StatusCode))
-                        }
-                    }
+    }
+}
 
 func pingCheck(ip string, timeout time.Duration) error {
     c, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
