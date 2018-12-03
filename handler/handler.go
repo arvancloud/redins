@@ -13,6 +13,7 @@ import (
     "github.com/coredns/coredns/request"
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
+    "github.com/hashicorp/go-immutable-radix"
 )
 
 type DnsRequestHandler struct {
@@ -21,8 +22,7 @@ type DnsRequestHandler struct {
     CacheTimeout      int
     LogSourceLocation bool
     UpstreamFallback  bool
-    Zones             []string
-    zoneLock          sync.RWMutex
+    Zones             *iradix.Tree
     LastZoneUpdate    time.Time
     Redis             *uperdis.Redis
     Logger            *logger.EventLogger
@@ -55,7 +55,6 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
         CacheTimeout: config.CacheTimeout,
         LogSourceLocation: config.LogSourceLocation,
         UpstreamFallback: config.UpstreamFallback,
-        zoneLock: sync.RWMutex{},
     }
 
     h.Redis = uperdis.NewRedis(&config.Redis)
@@ -63,6 +62,7 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h.geoip = NewGeoIp(&config.GeoIp)
     h.healthcheck = NewHealthcheck(&config.HealthCheck, h.Redis)
     h.upstream = NewUpstream(config.Upstream)
+    h.Zones = iradix.New()
 
     h.LoadZones()
 
@@ -330,12 +330,24 @@ func GetSourceIp(request *request.Request) net.IP {
     return net.ParseIP(request.IP())
 }
 
+func reverseZone(zone string) string {
+    x := strings.Split(zone, ".")
+    var y string
+    for i := len(x)-1; i > 0; i-- {
+        y += x[i] + "."
+    }
+    y += x[0]
+    return y
+}
+
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
-    newZones := h.Redis.GetKeys("*")
-    h.zoneLock.Lock()
+    zones := h.Redis.GetKeys("*")
+    newZones := iradix.New()
+    for _, zone := range zones {
+        newZones, _, _ = newZones.Insert([]byte(reverseZone(zone)), zone)
+    }
     h.Zones = newZones
-    h.zoneLock.Unlock()
 }
 
 func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*Record, int) {
@@ -571,19 +583,12 @@ func split255(s string) []string {
 }
 
 func (h *DnsRequestHandler) Matches(qname string) string {
-    zone := ""
-    h.zoneLock.RLock()
-    zones := h.Zones
-    h.zoneLock.RUnlock()
-    for _, zname := range zones {
-        if dns.IsSubDomain(zname, qname) {
-            // We want the *longest* matching zone, otherwise we may end up in a parent
-            if len(zname) > len(zone) {
-                zone = zname
-            }
-        }
+    rzname := reverseZone(qname)
+    _, zname, ok := h.Zones.Root().LongestPrefix([]byte(rzname))
+    if ok {
+        return zname.(string)
     }
-    return zone
+    return ""
 }
 
 func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) {
