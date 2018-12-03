@@ -361,7 +361,7 @@ var healthcheckRedisStatusConfig = uperdis.RedisConfig {
 
 var hcEntries = [][]string {
     {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66},"cname_flattening":false}`,
+        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66}}`,
     },
     {"www",
         `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"172.217.17.238"}]}}`,

@@ -14,7 +14,7 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc."/*, "example.caa."*/,
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.ddd."/*, "example.caa."*/,
 }
 
 var lookupEntries = [][][]string {
@@ -81,12 +81,12 @@ var lookupEntries = [][][]string {
     },
     {
         {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.aaa.","ns":"ns1.example.aaa.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.aaa.","ns":"ns1.example.aaa.","refresh":44,"retry":55,"expire":66}}`,
         },
         {"x",
             `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]},
                 "aaaa":{"ttl":300, "records":[{"ip":"::1"}]},
-                "txt":{"ttl":300, "records":[{"text":"foo"},{"ttl":300, "text":"bar"}]},
+                "txt":{"ttl":300, "records":[{"text":"foo"},{"text":"bar"}]},
                 "ns":{"ttl":300, "records":[{"host":"ns1.example.aaa."},{"ttl":300, "host":"ns2.example.aaa."}]},
                 "mx":{"ttl":300, "records":[{"host":"mx1.example.aaa.", "preference":10},{"host":"mx2.example.aaa.", "preference":10}]},
                 "srv":{"ttl":300, "records":[{"target":"sip.example.aaa.","port":555,"priority":10,"weight":100}]}}`,
@@ -100,7 +100,7 @@ var lookupEntries = [][][]string {
     },
     {
         {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.bbb.","ns":"ns1.example.bbb.","refresh":44,"retry":55,"expire":66},"cname_flattening":false}`,
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.bbb.","ns":"ns1.example.bbb.","refresh":44,"retry":55,"expire":66}}`,
         },
         {"x",
             `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]}}`,
@@ -114,16 +114,41 @@ var lookupEntries = [][][]string {
     },
     {
         {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ccc.","ns":"ns1.example.ccc.","refresh":44,"retry":55,"expire":66},"cname_flattening":false}`,
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ccc.","ns":"ns1.example.ccc.","refresh":44,"retry":55,"expire":66}}`,
         },
         {"x",
             `{"txt":{"ttl":300, "records":[{"text":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}}`,
         },
     },
+    {
+        {"@config",
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ddd.","ns":"ns1.example.ddd.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
+        },
+        {"a",
+            `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]},
+                "aaaa":{"ttl":300, "records":[{"ip":"::1"}]},
+                "txt":{"ttl":300, "records":[{"text":"foo"},{"text":"bar"}]},
+                "ns":{"ttl":300, "records":[{"host":"ns1.example.ddd."},{"ttl":300, "host":"ns2.example.ddd."}]},
+                "mx":{"ttl":300, "records":[{"host":"mx1.example.ddd.", "preference":10},{"host":"mx2.example.ddd.", "preference":10}]},
+                "srv":{"ttl":300, "records":[{"target":"sip.example.ddd.","port":555,"priority":10,"weight":100}]}}`,
+        },
+        {"b",
+            `{"cname":{"ttl":300, "host":"a.example.ddd."}}`,
+        },
+        {"c",
+            `{"cname":{"ttl":300, "host":"b.example.ddd."}}`,
+        },
+        {"d",
+            `{"cname":{"ttl":300, "host":"c.example.ddd."}}`,
+        },
+        {"e",
+            `{"cname":{"ttl":300, "host":"d.example.ddd."}}`,
+        },
+    },
     /*
     {
         {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66},"cname_flattening":false}`,
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66}}`,
         },
         {"@",
             `{"caa":{"ttl":300, "records":[{"tag":"issue", "value":"godaddy.com;", "flag":0}]}}`,
@@ -362,6 +387,7 @@ var lookupTestCases = [][]test.Case{
         {
             Qname: "y.example.bbb.", Qtype: dns.TypeA,
             Answer: []dns.RR{
+                test.A("x.example.bbb.	300	IN	A	1.2.3.4"),
                 test.CNAME("y.example.bbb.	300	IN	CNAME	x.example.bbb."),
             },
         },
@@ -407,6 +433,56 @@ var lookupTestCases = [][]test.Case{
             Qname: "x.example.ccc.", Qtype: dns.TypeTXT,
             Answer: []dns.RR{
                 test.TXT("x.example.ccc. 300 IN TXT \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""),
+            },
+        },
+    },
+    // CNAME flattening
+    {
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeA,
+            Answer: []dns.RR{
+                test.A("e.example.ddd. 300 IN A 1.2.3.4"),
+            },
+        },
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeAAAA,
+            Answer: []dns.RR{
+                test.AAAA("e.example.ddd. 300 IN AAAA ::1"),
+            },
+        },
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeTXT,
+            Answer: []dns.RR{
+                test.TXT("e.example.ddd. 300 IN TXT \"bar\""),
+                test.TXT("e.example.ddd. 300 IN TXT \"foo\""),
+            },
+        },
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeNS,
+            Answer: []dns.RR{
+                test.NS("e.example.ddd. 300 IN NS ns1.example.ddd."),
+                test.NS("e.example.ddd. 300 IN NS ns2.example.ddd."),
+            },
+        },
+        // MX Test
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeMX,
+            Answer: []dns.RR{
+                test.MX("e.example.ddd. 300 IN MX 10 mx1.example.ddd."),
+                test.MX("e.example.ddd. 300 IN MX 10 mx2.example.ddd."),
+            },
+        },
+        // SRV Test
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeSRV,
+            Answer: []dns.RR{
+                test.SRV("e.example.ddd. 300 IN SRV 10 100 555 sip.example.ddd."),
+            },
+        },
+        {
+            Qname: "e.example.ddd.", Qtype: dns.TypeCNAME,
+            Answer: []dns.RR{
+                test.CNAME("e.example.ddd. 300 IN CNAME d.example.ddd."),
             },
         },
     },

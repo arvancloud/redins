@@ -18,7 +18,7 @@ var dnssecZone = string("dnssec_test.com.")
 var dnssecEntries = [][]string {
     {"@config",
         `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.dnssec_test.com.","ns":"ns1.dnssec_test.com.","refresh":44,"retry":55,"expire":66},
-        "dnssec": true, "cname_flattening": true}`,
+        "dnssec": true}`,
     },
     {"@",
         `{"ns":{"ttl":300,"records":[{"host":"a.dnssec_test.com."}]}}`,
