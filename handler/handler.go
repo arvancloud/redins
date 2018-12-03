@@ -63,6 +63,7 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h.healthcheck = NewHealthcheck(&config.HealthCheck, h.Redis)
     h.upstream = NewUpstream(config.Upstream)
     h.Zones = iradix.New()
+    h.quit = make(chan struct{}, 1)
 
     h.LoadZones()
 

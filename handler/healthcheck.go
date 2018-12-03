@@ -273,13 +273,16 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis)
         h.transferItems()
         h.dispatcher = NewDispatcher(config.MaxRequests)
         h.logger = logger.NewLogger(&config.Log)
-	h.quit = make(chan struct{}, 1)
+	    h.quit = make(chan struct{}, 1)
     }
 
     return h
 }
 
 func (h *Healthcheck) ShutDown() {
+    if !h.Enable {
+        return
+    }
     // fmt.Println("healthcheck : stopping")
     h.dispatcher.ShutDown()
     h.quitWG.Add(1)
