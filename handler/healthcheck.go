@@ -12,6 +12,7 @@ import (
 
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
+    "github.com/hawell/workerpool"
     "github.com/patrickmn/go-cache"
     "github.com/pkg/errors"
     "golang.org/x/net/icmp"
@@ -36,142 +37,51 @@ type HealthCheckItem struct {
 }
 
 type Healthcheck struct {
-    Enable            bool
-    maxRequests       int
-    updateInterval    time.Duration
-    checkInterval     time.Duration
-    redisConfigServer *uperdis.Redis
-    redisStatusServer *uperdis.Redis
-    logger            *logger.EventLogger
-    cachedItems       *cache.Cache
-    lastUpdate        time.Time
-    dispatcher        *Dispatcher
-    quit              chan struct{}
-    quitWG            sync.WaitGroup
+    Enable             bool
+    maxRequests        int
+    maxPendingRequests int
+    updateInterval     time.Duration
+    checkInterval      time.Duration
+    redisConfigServer  *uperdis.Redis
+    redisStatusServer  *uperdis.Redis
+    logger             *logger.EventLogger
+    cachedItems        *cache.Cache
+    lastUpdate         time.Time
+    dispatcher         *workerpool.Dispatcher
+    quit               chan struct{}
+    quitWG             sync.WaitGroup
 }
 
-type Job *HealthCheckItem
-
-type Dispatcher struct {
-    WorkerPool chan chan Job
-    Workers []*Worker
-    MaxWorkers int
-    JobQueue chan Job
-    quit chan struct{}
-    quitWG sync.WaitGroup
-}
-
-func NewDispatcher(maxWorkers int) *Dispatcher {
-    pool := make(chan chan Job, maxWorkers)
-    return &Dispatcher {
-        WorkerPool: pool,
-        MaxWorkers: maxWorkers,
-        JobQueue: make(chan Job, 100),
-        quit: make(chan struct{}, 1),
-    }
-}
-
-func (d *Dispatcher) Run(healthcheck *Healthcheck) {
-    for i := 0; i < d.MaxWorkers; i++ {
-        worker := d.NewWorker(d.WorkerPool, healthcheck, i)
-        d.Workers = append(d.Workers, worker)
-        worker.Start()
-    }
-
-    go d.dispatch()
-}
-
-func (d *Dispatcher) dispatch() {
-    for {
-        select {
-        case job := <- d.JobQueue:
-            go func(job Job) {
-                jobChannel := <- d.WorkerPool
-                jobChannel <- job
-            }(job)
-        case <- d.quit:
-            for _, w := range d.Workers {
-                w.quitWG.Add(1)
-                close(w.quit)
-                w.quitWG.Wait()
-            }
-            d.quitWG.Done()
-            // fmt.Println("dispatcher : quit")
-            return
+func HandleHealthCheck(h *Healthcheck) workerpool.JobHandler {
+    return func(worker *workerpool.Worker, job workerpool.Job) {
+        item := job.(*HealthCheckItem)
+        logger.Default.Debugf("item %v received", item)
+        var err error = nil
+        switch item.Protocol {
+        case "http", "https":
+            timeout := time.Duration(item.Timeout) * time.Millisecond
+            url := item.Protocol + "://" + item.Ip + item.Uri
+            err = httpCheck(url, item.Host, timeout)
+        case "ping", "icmp":
+            err = pingCheck(item.Ip, time.Duration(item.Timeout) * time.Millisecond)
+            logger.Default.Error("@@@@@@@@@@@@@@ ", item.Ip, " : result : ", err)
+        default:
+            err = errors.New(fmt.Sprintf("invalid protocol : %s used for %s:%d", item.Protocol, item.Ip, item.Port))
+            logger.Default.Error(err)
         }
-    }
-}
-
-type Worker struct {
-    Id int
-    healthcheck *Healthcheck
-    WorkerPool chan chan Job
-    JobChannel chan Job
-    quit chan struct{}
-    quitWG sync.WaitGroup
-}
-
-func (d *Dispatcher) NewWorker(workerPool chan chan Job, healthcheck *Healthcheck, id int) *Worker {
-
-    return &Worker {
-        Id:          id,
-        healthcheck: healthcheck,
-        WorkerPool:  workerPool,
-        JobChannel:  make(chan Job),
-        quit:        make(chan struct{}, 1),
-    }
-}
-
-func (d *Dispatcher) ShutDown() {
-    // fmt.Println("dispatcher : stopping")
-    d.quitWG.Add(1)
-    close(d.quit)
-    d.quitWG.Wait()
-    // fmt.Println("dispatcher : stopped")
-}
-
-func (w *Worker) Start() {
-    go func() {
-        logger.Default.Debugf("Worker: worker %d started", w.Id)
-        for {
-            logger.Default.Debugf("Worker: worker %d waiting for new job", w.Id)
-            w.WorkerPool <- w.JobChannel
-            select {
-            case item := <- w.JobChannel:
-                logger.Default.Debugf("item %v received", item)
-                var err error = nil
-                switch item.Protocol {
-                case "http", "https":
-                    timeout := time.Duration(item.Timeout) * time.Millisecond
-                    url := item.Protocol + "://" + item.Ip + item.Uri
-                        err = w.httpCheck(url, item.Host, timeout)
-                case "ping", "icmp":
-                    err = pingCheck(item.Ip, time.Duration(item.Timeout) * time.Millisecond)
-                    logger.Default.Error("@@@@@@@@@@@@@@ ", item.Ip, " : result : ", err)
-                default:
-                    err = errors.New(fmt.Sprintf("invalid protocol : %s used for %s:%d", item.Protocol, item.Ip, item.Port))
-                    logger.Default.Error(err)
-                }
-                item.Error = err
-                if err == nil {
-                    statusUp(item)
-                } else {
-                    statusDown(item)
-                }
-                item.LastCheck = time.Now()
-                w.healthcheck.storeItem(item)
-                w.healthcheck.logHealthcheck(item)
-
-            case <- w.quit:
-                // fmt.Println("worker : ", w.Id, " quit")
-                w.quitWG.Done()
-                return
-            }
+        item.Error = err
+        if err == nil {
+            statusUp(item)
+        } else {
+            statusDown(item)
         }
-    }()
+        item.LastCheck = time.Now()
+        h.storeItem(item)
+        h.logHealthcheck(item)
+    }
 }
 
-func (w Worker) httpCheck(url string,host string, timeout time.Duration) error {
+func httpCheck(url string,host string, timeout time.Duration) error {
     tr := &http.Transport {
         MaxIdleConnsPerHost: 1024,
         TLSHandshakeTimeout: 0 * time.Second,
@@ -206,6 +116,7 @@ func (w Worker) httpCheck(url string,host string, timeout time.Duration) error {
     }
 }
 
+// FIXME: ping check is not working properly
 func pingCheck(ip string, timeout time.Duration) error {
     c, err := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
     c.SetDeadline(time.Now().Add(timeout))
@@ -251,6 +162,7 @@ func pingCheck(ip string, timeout time.Duration) error {
 type HealthcheckConfig struct {
     Enable bool `json:"enable,omitempty"`
     MaxRequests int `json:"max_requests,omitempty"`
+    MaxPendingRequests int `json:"max_pending_requests,omitempty"`
     UpdateInterval int `json:"update_interval,omitempty"`
     CheckInterval int `json:"check_interval,omitempty"`
     RedisStatusServer uperdis.RedisConfig `json:"redis,omitempty"`
@@ -261,6 +173,7 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis)
     h := &Healthcheck {
         Enable: config.Enable,
         maxRequests: config.MaxRequests,
+        maxPendingRequests: config.MaxPendingRequests,
         updateInterval: time.Duration(config.UpdateInterval) * time.Second,
         checkInterval: time.Duration(config.CheckInterval) * time.Second,
     }
@@ -271,7 +184,10 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis)
         h.redisStatusServer = uperdis.NewRedis(&config.RedisStatusServer)
         h.cachedItems = cache.New(time.Second * time.Duration(config.CheckInterval), time.Duration(config.CheckInterval) * time.Second * 10)
         h.transferItems()
-        h.dispatcher = NewDispatcher(config.MaxRequests)
+        h.dispatcher = workerpool.NewDispatcher(config.MaxPendingRequests, config.MaxRequests)
+        for i := 0; i < config.MaxRequests; i++ {
+            h.dispatcher.AddWorker(HandleHealthCheck(h))
+        }
         h.logger = logger.NewLogger(&config.Log)
 	    h.quit = make(chan struct{}, 1)
     }
@@ -284,7 +200,7 @@ func (h *Healthcheck) ShutDown() {
         return
     }
     // fmt.Println("healthcheck : stopping")
-    h.dispatcher.ShutDown()
+    h.dispatcher.Stop()
     h.quitWG.Add(1)
     close(h.quit)
     h.quitWG.Wait()
@@ -430,7 +346,7 @@ func (h *Healthcheck) Start() {
     if h.Enable == false {
         return
     }
-    h.dispatcher.Run(h)
+    h.dispatcher.Run()
 
     for {
         select {

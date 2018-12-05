@@ -122,6 +122,7 @@ healthcheck configuration
   "healthcheck": {
     "enable": true,
     "max_requests": 10,
+    "max_pending_requests": 100,
     "update_interval": 600,
     "check_interval": 600,
     "redis": {
@@ -145,6 +146,7 @@ healthcheck configuration
 
 * enable : enable/disable healthcheck, default: disable
 * max_requests : maximum number of simultanous healthcheck requests, deafult: 10
+* max_pending_requests : maximum number of requests to queue, default: 100
 * update_interval : time between checking for updated data from redis in seconds, default: 300
 * check_interval : time between two healthcheck requests in seconds, default: 600
 * redis : redis configuration to use for healthcheck stats
@@ -312,6 +314,7 @@ sample config:
     "healthcheck": {
       "enable": true,
       "max_requests": 10,
+      "max_pending_requests": 100,
       "update_interval": 600,
       "check_interval": 600,
       "redis": {

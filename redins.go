@@ -66,6 +66,7 @@ func LoadConfig(path string) *RedinsConfig {
             HealthCheck: handler.HealthcheckConfig {
                 Enable: false,
                 MaxRequests: 10,
+                MaxPendingRequests: 100,
                 UpdateInterval: 600,
                 CheckInterval: 600,
                 RedisStatusServer: uperdis.RedisConfig {

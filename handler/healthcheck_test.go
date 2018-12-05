@@ -76,6 +76,7 @@ var healthCheckTransferResults = [][]string {
 var config = HealthcheckConfig {
     Enable: true,
     MaxRequests: 10,
+    MaxPendingRequests: 100,
     UpdateInterval: 600,
     CheckInterval: 600,
     RedisStatusServer: uperdis.RedisConfig {
@@ -347,6 +348,7 @@ var healthcheckConfig = HealthcheckConfig {
     CheckInterval: 1,
     UpdateInterval: 200,
     MaxRequests: 20,
+    MaxPendingRequests: 100,
 }
 
 var healthcheckRedisStatusConfig = uperdis.RedisConfig {
