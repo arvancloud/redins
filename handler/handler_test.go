@@ -14,7 +14,7 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.ddd."/*, "example.caa."*/,
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc."/*, "example.ddd."*//*, "example.caa."*/,
 }
 
 var lookupEntries = [][][]string {
@@ -120,6 +120,7 @@ var lookupEntries = [][][]string {
             `{"txt":{"ttl":300, "records":[{"text":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}}`,
         },
     },
+    /*
     {
         {"@config",
             `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ddd.","ns":"ns1.example.ddd.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
@@ -145,6 +146,7 @@ var lookupEntries = [][][]string {
             `{"cname":{"ttl":300, "host":"d.example.ddd."}}`,
         },
     },
+    */
     /*
     {
         {"@config",
@@ -437,6 +439,7 @@ var lookupTestCases = [][]test.Case{
         },
     },
     // CNAME flattening
+    /*
     {
         {
             Qname: "e.example.ddd.", Qtype: dns.TypeA,
@@ -486,6 +489,7 @@ var lookupTestCases = [][]test.Case{
             },
         },
     },
+    */
     // CAA Test
     /*
     {

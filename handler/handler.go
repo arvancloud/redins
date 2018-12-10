@@ -147,7 +147,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 if record.CNAME == nil {
                     break
                 }
-                if !record.Zone.Config.CnameFlattening {
+                if !/*record.Zone.Config.CnameFlattening*/false {
                     answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
                     qname = record.CNAME.Host
                 }
