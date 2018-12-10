@@ -730,7 +730,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
     }
     err := json.Unmarshal([]byte(val), r)
     if err != nil {
-        logger.Default.Errorf("cannot parse json : %s -> %s", val, err)
+        logger.Default.Errorf("cannot parse json : zone -> %s, %s -> %s", z.Name, val, err)
         return nil
     }
 
