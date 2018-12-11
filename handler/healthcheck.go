@@ -99,13 +99,13 @@ func httpCheck(url string,host string, timeout time.Duration) error {
     }
     req, err := http.NewRequest("HEAD", url, nil)
     if err != nil {
-        logger.Default.Errorf("invalid request : %s", err)
+        logger.Default.Errorf("invalid request, host:%s, url:%s : %s", host, url, err)
         return err
     }
     req.Host = strings.TrimRight(host, ".")
     resp, err := client.Do(req)
     if err != nil {
-        logger.Default.Errorf("request failed : %s", err)
+        logger.Default.Errorf("request failed, host:%s, url:%s : %s", host, url, err)
         return err
     }
     switch resp.StatusCode {
