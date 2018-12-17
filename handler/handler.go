@@ -113,10 +113,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
         "Record":   state.Name(),
         "Type":     state.Type(),
     }
-    opt := state.Req.IsEdns0()
-    if opt != nil && len(opt.Option) != 0 {
-        logData["ClientSubnet"] = opt.Option[0].String()
-    }
+    logData["ClientSubnet"] = GetSourceSubnet(state)
 
     if h.LogSourceLocation {
         _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
@@ -328,9 +325,27 @@ func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime ti
 func GetSourceIp(request *request.Request) net.IP {
     opt := request.Req.IsEdns0()
     if opt != nil && len(opt.Option) != 0 {
-        return net.ParseIP(strings.Split(opt.Option[0].String(), "/")[0])
+        for _, o := range opt.Option {
+            switch v := o.(type) {
+            case *dns.EDNS0_SUBNET:
+                return v.Address
+            }
+        }
     }
     return net.ParseIP(request.IP())
+}
+
+func GetSourceSubnet(request *request.Request) string {
+    opt := request.Req.IsEdns0()
+    if opt != nil && len(opt.Option) != 0 {
+        for _, o := range opt.Option {
+            switch o.(type) {
+            case *dns.EDNS0_SUBNET:
+                return o.String()
+            }
+        }
+    }
+    return ""
 }
 
 func reverseZone(zone string) string {
