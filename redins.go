@@ -72,6 +72,7 @@ func LoadConfig(path string) *RedinsConfig {
                 RedisStatusServer: uperdis.RedisConfig {
                     Ip: "127.0.0.1",
                     Port: 6379,
+                    DB: 0,
                     Password: "",
                     Prefix: "redins_",
                     Suffix: "_redins",
@@ -101,6 +102,7 @@ func LoadConfig(path string) *RedinsConfig {
             Redis: uperdis.RedisConfig {
                 Ip: "127.0.0.1",
                 Port: 6379,
+                DB: 0,
                 Password: "",
                 Prefix: "redins_",
                 Suffix: "_redins",

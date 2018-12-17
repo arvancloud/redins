@@ -246,6 +246,7 @@ var dnssecTestConfig = HandlerConfig {
     Redis: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
+        DB: 0,
         Password: "",
         Prefix: "test_",
         Suffix: "_test",

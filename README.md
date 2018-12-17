@@ -60,6 +60,7 @@ dns query handler configuration
         "ip": "127.0.0.1",
         "port": 6379,
         "password": "",
+        "db": 0,
         "prefix": "test_",
         "suffix": "_test",
         "connect_timeout": 0,
@@ -80,6 +81,7 @@ dns query handler configuration
         "redis": {
             "ip": "127.0.0.1",
             "port": 6379,
+            "db": 0,
             "password": "",
             "prefix": "healthcheck_",
             "suffix": "_healthcheck",
@@ -128,6 +130,7 @@ healthcheck configuration
     "redis": {
       "ip": "127.0.0.1",
       "port": 6379,
+      "db": 0,
       "password": "",
       "prefix": "healthcheck_",
       "suffix": "_healthcheck",
@@ -201,6 +204,7 @@ redis configurations
 "redis": {
   "ip": "127.0.0.1",
   "port": 6379,
+  "db": 0,
   "password": "",
   "prefix": "test_",
   "suffix": "_test",
@@ -211,6 +215,7 @@ redis configurations
 
 * ip : redis server ip, default: 127.0.0.1
 * port : redis server port, deafult: 6379
+* db : redis database, default: 0
 * password : redis password, deafult: ""
 * prefix : limit redis keys to those prefixed with this string
 * suffix : limit redis keys to those suffixed with this string

@@ -82,6 +82,7 @@ var config = HealthcheckConfig {
     RedisStatusServer: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
+        DB: 0,
         Password: "",
         Prefix: "healthcheck_",
         Suffix: "_healthcheck",
@@ -339,6 +340,7 @@ var healthcheckConfig = HealthcheckConfig {
     RedisStatusServer: uperdis.RedisConfig {
         Ip: "redis",
         Port: 6379,
+        DB: 0,
         Password: "",
         Prefix: "hcstattest_",
         Suffix: "_hcstattest",
@@ -354,6 +356,7 @@ var healthcheckConfig = HealthcheckConfig {
 var healthcheckRedisStatusConfig = uperdis.RedisConfig {
     Ip: "redis",
     Port: 6379,
+    DB: 0,
     Password: "",
     Prefix: "hctest_",
     Suffix: "_hctest",
