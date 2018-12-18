@@ -174,6 +174,11 @@ var lookupEntries = [][][]string {
 var lookupTestCases = [][]test.Case{
     // basic tests
     {
+        // NOAUTH Test
+        {
+            Qname: "dsdsd.sdf.dfd.", Qtype: dns.TypeA,
+            Rcode: dns.RcodeNotAuth,
+        },
         // A Test
         {
             Qname: "x.example.com.", Qtype: dns.TypeA,

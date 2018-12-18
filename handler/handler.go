@@ -249,7 +249,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 auth = false
             }
             res = upstreamRes
-        } else if originalRecord.CNAME != nil {
+        } else if originalRecord != nil && originalRecord.CNAME != nil {
             if len(answers) == 0 {
                 answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
             }
