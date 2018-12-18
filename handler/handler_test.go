@@ -1213,3 +1213,87 @@ func TestSingleFilter(t *testing.T) {
         }
     }
 }
+
+
+var upstreamCNAME = [][]string {
+    {"@config",
+        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.upstreamcname.com.","ns":"ns1.upstreamcname.com.","refresh":44,"retry":55,"expire":66}}`,
+    },
+    {"upstream",
+        `{"cname":{"ttl":300, "host":"www.google.com"}}`,
+    },
+}
+
+var upstreamCNAMETestCases = []test.Case{
+    {
+        Qname: "upstream.upstreamcname.com.", Qtype: dns.TypeA,
+    },
+}
+
+func TestUpstreamCNAME(t *testing.T) {
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+    zone := "upstreamcname.com."
+    h := NewHandler(&handlerTestConfig)
+    h.Redis.Del(zone)
+    for _, cmd := range upstreamCNAME {
+        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            log.Println("1")
+            t.Fail()
+        }
+    }
+    h.LoadZones()
+
+    h.Config.UpstreamFallback = false
+    {
+        tc := upstreamCNAMETestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        log.Println(resp)
+        if resp.Rcode != dns.RcodeSuccess {
+            log.Println("%%%%%%%%%%%%% 1")
+            t.Fail()
+        }
+        cname := resp.Answer[0].(*dns.CNAME)
+        if cname.Target != "www.google.com." {
+            log.Println("%%%%%%%%%%%%% 2 ", cname)
+            t.Fail()
+        }
+    }
+
+    h.Config.UpstreamFallback = true
+    {
+        tc := upstreamCNAMETestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        log.Println(resp)
+        if resp.Rcode != dns.RcodeSuccess {
+            log.Println("%%%%%%%%%%%%% 3")
+            t.Fail()
+        }
+        hasCNAME := false
+        hasA := false
+        for _, rr := range resp.Answer {
+            switch rr.(type) {
+            case *dns.CNAME:
+                hasCNAME = true
+            case *dns.A:
+                hasA = true
+            }
+        }
+        if !hasCNAME || !hasA {
+            log.Println("%%%%%%%%%%%%% 4")
+            t.Fail()
+        }
+    }
+}

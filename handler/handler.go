@@ -17,11 +17,7 @@ import (
 )
 
 type DnsRequestHandler struct {
-    MaxTtl            int
-    ZoneReload        int
-    CacheTimeout      int
-    LogSourceLocation bool
-    UpstreamFallback  bool
+    Config            *HandlerConfig
     Zones             *iradix.Tree
     LastZoneUpdate    time.Time
     Redis             *uperdis.Redis
@@ -50,11 +46,7 @@ type HandlerConfig struct {
 
 func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h := &DnsRequestHandler {
-        MaxTtl: config.MaxTtl,
-        ZoneReload: config.ZoneReload,
-        CacheTimeout: config.CacheTimeout,
-        LogSourceLocation: config.LogSourceLocation,
-        UpstreamFallback: config.UpstreamFallback,
+        Config: config,
     }
 
     h.Redis = uperdis.NewRedis(&config.Redis)
@@ -67,7 +59,7 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
     h.LoadZones()
 
-    h.cache = cache.New(time.Second * time.Duration(h.CacheTimeout), time.Duration(h.CacheTimeout) * time.Second * 10)
+    h.cache = cache.New(time.Second * time.Duration(h.Config.CacheTimeout), time.Duration(h.Config.CacheTimeout) * time.Second * 10)
 
     go h.healthcheck.Start()
     go h.UpdateZones()
@@ -91,7 +83,7 @@ func (h *DnsRequestHandler) UpdateZones() {
             // fmt.Println("updateZone : quit")
             h.quitWG.Done()
             return
-        case <-time.After(time.Duration(h.ZoneReload) * time.Second):
+        case <-time.After(time.Duration(h.Config.ZoneReload) * time.Second):
             logger.Default.Debugf("%v", h.Zones)
             logger.Default.Debug("loading zones")
             h.LoadZones()
@@ -115,7 +107,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     }
     logData["ClientSubnet"] = GetSourceSubnet(state)
 
-    if h.LogSourceLocation {
+    if h.Config.LogSourceLocation {
         _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
         if err == nil {
             logData["SourceCountry"] = sourceCountry
@@ -249,19 +241,26 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             authority = AppendNSEC(authority, record.Zone, qname, secured)
             res = dns.RcodeSuccess
         }
-    } else if localRes == dns.RcodeNotAuth && h.UpstreamFallback {
-        upstreamAnswers, upstreamRes := h.upstream.Query(qname, qtype)
-        if upstreamRes == dns.RcodeSuccess {
-            answers = append(answers, upstreamAnswers...)
-            auth = false
+    } else if localRes == dns.RcodeNotAuth {
+        if  h.Config.UpstreamFallback {
+            upstreamAnswers, upstreamRes := h.upstream.Query(dns.Fqdn(qname), qtype)
+            if upstreamRes == dns.RcodeSuccess {
+                answers = append(answers, upstreamAnswers...)
+                auth = false
+            }
+            res = upstreamRes
+        } else if originalRecord.CNAME != nil {
+            if len(answers) == 0 {
+                answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
+            }
+            res = dns.RcodeSuccess
         }
-        res = upstreamRes
     }
 
     h.LogRequest(logData, requestStartTime, res)
     m := new(dns.Msg)
     m.SetReply(state.Req)
-    m.Authoritative, m.RecursionAvailable, m.Compress = auth, h.UpstreamFallback, true
+    m.Authoritative, m.RecursionAvailable, m.Compress = auth, h.Config.UpstreamFallback, true
     m.SetRcode(state.Req, res)
     m.Answer = append(m.Answer, answers...)
     m.Ns = append(m.Ns, authority...)
@@ -378,7 +377,7 @@ func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interfa
         logData["Cache"] = "MISS"
         record, res := h.GetRecord(qname)
         if res == dns.RcodeSuccess {
-            h.cache.Set(qname, record, time.Duration(h.CacheTimeout)*time.Second)
+            h.cache.Set(qname, record, time.Duration(h.Config.CacheTimeout)*time.Second)
         }
         return record, res
     }
@@ -498,7 +497,7 @@ func (h *DnsRequestHandler) CAA(name string, record *Record) (answers []dns.RR) 
 }
 
 func (h *DnsRequestHandler) getTtl(ttl uint32) uint32 {
-    maxTtl := uint32(h.MaxTtl)
+    maxTtl := uint32(h.Config.MaxTtl)
     if ttl == 0 {
         return maxTtl
     }

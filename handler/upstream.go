@@ -61,7 +61,7 @@ func (u *Upstream) Query(location string, qtype uint16) ([]dns.RR, int) {
     for _, c := range u.connections {
         r, _, err := c.client.Exchange(m, c.connectionStr)
         if err != nil {
-            logger.Default.Error("failed to retreive record from upstream ", c.connectionStr, " : ", err)
+            logger.Default.Errorf("failed to retreive record %s from upstream %s : %s", location, c.connectionStr, err)
             continue
         }
         if len(r.Answer) == 0 {
