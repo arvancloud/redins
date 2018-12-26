@@ -54,7 +54,7 @@ var healthcheckTransferItems = [][]string{
         `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":2, "up_count": 3, "down_count": -3, "timeout":1000}`,
     },
     {"w1", "2.3.4.5",
-        `{"enable":false,"protocol":"https","uri":"/uri111","port":8081, "up_count": 3, "down_count": -3, "timeout":1000}`,
+        `{"enable":true,"protocol":"https","uri":"/uri111","port":8081, "up_count": 3, "down_count": -3, "timeout":1000}`,
         `{"enable":true,"protocol":"http","uri":"/uri1","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
     },
     {"w2", "3.4.5.6",
@@ -69,7 +69,7 @@ var healthcheckTransferItems = [][]string{
 
 var healthCheckTransferResults = [][]string {
     {"w0.healthcheck.com.:1.2.3.4", `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":2, "up_count": 3, "down_count": -3, "timeout":1000}`},
-    {"w1.healthcheck.com.:2.3.4.5", `{"enable":false,"protocol":"https","uri":"/uri111","port":8081, "status":0, "up_count": 3, "down_count": -3, "timeout":1000}`},
+    {"w1.healthcheck.com.:2.3.4.5", `{"enable":true,"protocol":"https","uri":"/uri111","port":8081, "status":0, "up_count": 3, "down_count": -3, "timeout":1000}`},
     {"w3.healthcheck.com.:4.5.6.7", `{"enable":true,"protocol":"http","uri":"/uri3","port":80, "status":0, "up_count": 3, "down_count": -3, "timeout":1000}`},
 }
 
@@ -95,13 +95,25 @@ var config = HealthcheckConfig {
     },
 }
 
+var configRedisConf = uperdis.RedisConfig {
+    Ip: "redis",
+    Port: 6379,
+    DB: 0,
+    Password: "",
+    Prefix: "hcconfig_",
+    Suffix: "_hcconfig",
+    ConnectTimeout: 0,
+    ReadTimeout: 0,
+}
+
 func TestGet(t *testing.T) {
     log.Println("TestGet")
     logger.Default = logger.NewLogger(&logger.LogConfig{})
-    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
+    configRedis := uperdis.NewRedis(&configRedisConf)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisStatusServer.Del("*")
+    h.redisConfigServer.Del("*")
     for _, entry := range healthcheckGetEntries {
         h.redisStatusServer.Set(entry[0], entry[1])
     }
@@ -121,9 +133,11 @@ func TestGet(t *testing.T) {
 func TestFilter(t *testing.T) {
     log.Println("TestFilter")
     logger.Default = logger.NewLogger(&logger.LogConfig{})
-    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
+    configRedis := uperdis.NewRedis(&configRedisConf)
     h := NewHealthcheck(&config, configRedis)
 
+    h.redisStatusServer.Del("*")
+    h.redisConfigServer.Del("*")
     for _, entry := range healthcheckGetEntries {
         h.redisStatusServer.Set(entry[0], entry[1])
     }
@@ -255,7 +269,7 @@ func TestFilter(t *testing.T) {
 func TestSet(t *testing.T) {
     log.Println("TestSet")
     logger.Default = logger.NewLogger(&logger.LogConfig{})
-    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
+    configRedis := uperdis.NewRedis(&configRedisConf)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
@@ -271,7 +285,7 @@ func TestSet(t *testing.T) {
         }
         h.redisStatusServer.Set(key, str[2])
     }
-    h.transferItems()
+    // h.transferItems()
     go h.Start()
     time.Sleep(time.Second * 10)
 
@@ -282,7 +296,7 @@ func TestSet(t *testing.T) {
 func TestTransfer(t *testing.T) {
     log.Printf("TestTransfer")
     logger.Default = logger.NewLogger(&logger.LogConfig{})
-    configRedis := uperdis.NewRedis(&config.RedisStatusServer)
+    configRedis := uperdis.NewRedis(&configRedisConf)
     h := NewHealthcheck(&config, configRedis)
 
     h.redisConfigServer.Del("*")
@@ -298,7 +312,9 @@ func TestTransfer(t *testing.T) {
         }
     }
 
-    h.transferItems()
+    // h.transferItems()
+    go h.Start()
+    time.Sleep(time.Second * 10)
 
     itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
         if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
@@ -309,7 +325,7 @@ func TestTransfer(t *testing.T) {
         return true
     }
 
-    for _, str := range healthCheckTransferResults {
+    for i, str := range healthCheckTransferResults {
         h.redisStatusServer.Set(str[0] + "res", str[1])
         resItem := h.loadItem(str[0] + "res")
         resItem.Ip = strings.TrimRight(resItem.Ip, "res")
@@ -317,12 +333,14 @@ func TestTransfer(t *testing.T) {
         log.Println(resItem)
         log.Println(storedItem)
         if !itemsEqual(resItem, storedItem) {
+            log.Println(i, "failed")
             t.Fail()
         }
     }
 }
 
 func TestPing(t *testing.T) {
+    log.Println("TestPing")
     if err := pingCheck("4.2.2.4", time.Second); err != nil {
         t.Fail()
     }
@@ -353,17 +371,6 @@ var healthcheckConfig = HealthcheckConfig {
     MaxPendingRequests: 100,
 }
 
-var healthcheckRedisStatusConfig = uperdis.RedisConfig {
-    Ip: "redis",
-    Port: 6379,
-    DB: 0,
-    Password: "",
-    Prefix: "hctest_",
-    Suffix: "_hctest",
-    ConnectTimeout: 0,
-    ReadTimeout: 0,
-}
-
 var hcEntries = [][]string {
     {"@config",
         `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66}}`,
@@ -385,13 +392,17 @@ var hcEntries = [][]string {
 }
 
 func TestHealthCheck(t *testing.T) {
+    log.Println("TestHealthCheck")
     logger.Default = logger.NewLogger(&logger.LogConfig{Enable:true, Target:"stdout", Format:"text"})
 
-    configRedis := uperdis.NewRedis(&healthcheckRedisStatusConfig)
+    configRedis := uperdis.NewRedis(&configRedisConf)
+    hc := NewHealthcheck(&healthcheckConfig, configRedis)
+    hc.redisStatusServer.Del("*")
+    hc.redisConfigServer.Del("*")
     for _, entry := range hcEntries {
         configRedis.HSet("google.com.", entry[0], entry[1])
     }
-    hc := NewHealthcheck(&healthcheckConfig, configRedis)
+
     go hc.Start()
     time.Sleep(10 * time.Second)
     h1 := hc.getStatus("www.google.com.", net.ParseIP("172.217.17.238"))
@@ -413,6 +424,47 @@ func TestHealthCheck(t *testing.T) {
     }
     */
     if h4 != -3 {
+        t.Fail()
+    }
+}
+
+func TestExpire(t *testing.T) {
+    log.Printf("TestTransfer")
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    configRedis := uperdis.NewRedis(&configRedisConf)
+    config.UpdateInterval = 1
+    h := NewHealthcheck(&config, configRedis)
+
+    h.redisConfigServer.Del("*")
+    h.redisStatusServer.Del("*")
+
+    expireItem := []string {
+        "w0", "1.2.3.4",
+            `{"enable":true,"protocol":"http","uri":"/uri0","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
+            `{"enable":false,"protocol":"http","uri":"/uri0","port":80, "status":3, "up_count": 3, "down_count": -3, "timeout":1000}`,
+    }
+
+    a := fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[2])
+    log.Println(a)
+    h.redisConfigServer.HSet("healthcheck.com.", expireItem[0], a)
+    key := fmt.Sprintf("%s.healthcheck.com.:%s", expireItem[0], expireItem[1])
+    h.redisStatusServer.Set(key, expireItem[2])
+
+    go h.Start()
+    time.Sleep(time.Second * 2)
+    status := h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
+    if status != 3 {
+        t.Fail()
+    }
+
+    a = fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[3])
+    log.Println(a)
+    h.redisConfigServer.HSet("healthcheck.com.", expireItem[0], a)
+
+    time.Sleep(time.Second * 3)
+    status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
+    status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
+    if status != 0 {
         t.Fail()
     }
 }

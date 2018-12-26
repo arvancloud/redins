@@ -91,6 +91,7 @@ func httpCheck(url string,host string, timeout time.Duration) error {
         },
     }
     client := &http.Client {
+        Timeout: timeout,
         Transport: tr,
         CheckRedirect: func(req *http.Request, via []*http.Request) error {
             return http.ErrUseLastResponse
@@ -183,7 +184,6 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis)
         h.redisConfigServer = redisConfigServer
         h.redisStatusServer = uperdis.NewRedis(&config.RedisStatusServer)
         h.cachedItems = cache.New(time.Second * time.Duration(config.CheckInterval), time.Duration(config.CheckInterval) * time.Second * 10)
-        h.transferItems()
         h.dispatcher = workerpool.NewDispatcher(config.MaxPendingRequests, config.MaxRequests)
         for i := 0; i < config.MaxRequests; i++ {
             h.dispatcher.AddWorker(HandleHealthCheck(h))
@@ -201,7 +201,7 @@ func (h *Healthcheck) ShutDown() {
     }
     // fmt.Println("healthcheck : stopping")
     h.dispatcher.Stop()
-    h.quitWG.Add(1)
+    h.quitWG.Add(2) // one for h.dispatcher.Start(), another for h.Transfer()
     close(h.quit)
     h.quitWG.Wait()
     // fmt.Println("healthcheck : stopped")
@@ -219,7 +219,7 @@ func (h *Healthcheck) getStatus(host string, ip net.IP) int {
         if item == nil {
             item = new(HealthCheckItem)
         }
-        h.cachedItems.Set(key, item, h.checkInterval)
+        h.cachedItems.Set(key, item, h.updateInterval)
     } else {
         item = val.(*HealthCheckItem)
     }
@@ -270,106 +270,32 @@ func (h *Healthcheck) getDomainId(zone string) string {
     return cfg.DomainId
 }
 
-func (h *Healthcheck) transferItems() {
-    itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
-        if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
-            item1.Protocol != item2.Protocol || item1.Enable != item2.Enable ||
-            item1.UpCount != item2.UpCount || item1.DownCount != item2.DownCount || item1.Timeout != item2.Timeout {
-            return false
-        }
-        return true
-    }
-    var newItems []*HealthCheckItem
-    zones := h.redisConfigServer.GetKeys("*")
-    for _, zone := range zones {
-        domainId := h.getDomainId(zone)
-        subDomains := h.redisConfigServer.GetHKeys(zone)
-        for _, subDomain := range subDomains {
-            if subDomain == "@config" {
-                continue
-            }
-            recordStr := h.redisConfigServer.HGet(zone, subDomain)
-            record := new(Record)
-            record.A.HealthCheckConfig = IpHealthCheckConfig {
-                Timeout: 1000,
-                Port: 80,
-                UpCount: 3,
-                DownCount: -3,
-                Protocol: "http",
-                Uri: "/",
-                Enable: false,
-            }
-            record.AAAA = record.A
-            err := json.Unmarshal([]byte(recordStr), record)
-            if err != nil {
-                logger.Default.Errorf("cannot parse json : zone -> %s, %s -> %s", zone, recordStr, err)
-                continue
-            }
-            var host string
-            if subDomain == "@" {
-                host = zone
-            } else {
-                host = subDomain + "." + zone
-            }
-            for _, rrset := range []*IP_RRSet{&record.A, &record.AAAA} {
-                for i := range rrset.Data {
-                    key := host + ":" + rrset.Data[i].Ip.String()
-                    newItem := &HealthCheckItem{
-                        Ip:        rrset.Data[i].Ip.String(),
-                        Port:      rrset.HealthCheckConfig.Port,
-                        Host:      host,
-                        Enable:    rrset.HealthCheckConfig.Enable,
-                        DownCount: rrset.HealthCheckConfig.DownCount,
-                        UpCount:   rrset.HealthCheckConfig.UpCount,
-                        Timeout:   rrset.HealthCheckConfig.Timeout,
-                        Uri:       rrset.HealthCheckConfig.Uri,
-                        Protocol:  rrset.HealthCheckConfig.Protocol,
-                        DomainId:  domainId,
-                    }
-                    oldItem := h.loadItem(key)
-                    if oldItem != nil && itemsEqual(oldItem, newItem) {
-                        newItem.Status = oldItem.Status
-                        newItem.LastCheck = oldItem.LastCheck
-                    }
-                    newItems = append(newItems, newItem)
-                }
-            }
-        }
-    }
-    h.redisStatusServer.Del("*")
-    for _, item := range newItems {
-        h.storeItem(item)
-    }
-}
-
 func (h *Healthcheck) Start() {
     if h.Enable == false {
         return
     }
     h.dispatcher.Run()
 
+    go h.Transfer()
+
     for {
+        itemKeys := h.redisStatusServer.GetKeys("*")
         select {
         case <-h.quit:
-            // fmt.Println("healthcheck : quit")
             h.quitWG.Done()
             return
         case <-time.After(h.checkInterval):
-        keys := h.redisStatusServer.GetKeys("*")
-        for _, key := range keys {
-            item := h.loadItem(key)
-            if item == nil || item.Enable == false {
-                continue
+            for _, itemKey := range itemKeys {
+                item := h.loadItem(itemKey)
+                if item != nil {
+                    if time.Since(item.LastCheck) > h.checkInterval {
+                        h.dispatcher.Queue(item)
+                    }
+                }
             }
-            if time.Since(item.LastCheck) > h.checkInterval {
-                logger.Default.Debugf("item %v added", item)
-                h.dispatcher.JobQueue <- item
-            }
-        }
-        case <-time.After(h.updateInterval):
-            h.transferItems()
         }
     }
+
 }
 
 func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
@@ -438,4 +364,86 @@ func (h *Healthcheck) FilterHealthcheck(qname string, rrset *IP_RRSet) []IP_RR {
         newIps = append(newIps, ip)
     }
     return newIps
+}
+
+
+func (h *Healthcheck) Transfer() {
+    itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
+        if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
+            item1.Protocol != item2.Protocol || item1.Enable != item2.Enable ||
+            item1.UpCount != item2.UpCount || item1.DownCount != item2.DownCount || item1.Timeout != item2.Timeout {
+            return false
+        }
+        return true
+    }
+
+    limiter := time.Tick(time.Millisecond * 50)
+    for {
+        domains := h.redisConfigServer.GetKeys("*")
+        for _, domain := range domains {
+            domainId := h.getDomainId(domain)
+            subdomains := h.redisConfigServer.GetHKeys(domain)
+            for _, subdomain := range subdomains {
+                select {
+                case <-h.quit:
+                    h.quitWG.Done()
+                    return
+                case <-limiter:
+                    if subdomain == "@config" {
+                        continue
+                    }
+                    recordStr := h.redisConfigServer.HGet(domain, subdomain)
+                    record := new(Record)
+                    record.A.HealthCheckConfig = IpHealthCheckConfig {
+                        Timeout: 1000,
+                        Port: 80,
+                        UpCount: 3,
+                        DownCount: -3,
+                        Protocol: "http",
+                        Uri: "/",
+                        Enable: false,
+                    }
+                    record.AAAA = record.A
+                    err := json.Unmarshal([]byte(recordStr), record)
+                    if err != nil {
+                        logger.Default.Errorf("cannot parse json : zone -> %s, %s -> %s", domain, recordStr, err)
+                        continue
+                    }
+                    var host string
+                    if subdomain == "@" {
+                        host = domain
+                    } else {
+                        host = subdomain + "." + domain
+                    }
+                    for _, rrset := range []*IP_RRSet{&record.A, &record.AAAA} {
+                        if rrset.HealthCheckConfig.Enable == false {
+                            continue
+                        }
+                        for i := range rrset.Data {
+                            key := host + ":" + rrset.Data[i].Ip.String()
+                            newItem := &HealthCheckItem{
+                                Ip:        rrset.Data[i].Ip.String(),
+                                Port:      rrset.HealthCheckConfig.Port,
+                                Host:      host,
+                                Enable:    rrset.HealthCheckConfig.Enable,
+                                DownCount: rrset.HealthCheckConfig.DownCount,
+                                UpCount:   rrset.HealthCheckConfig.UpCount,
+                                Timeout:   rrset.HealthCheckConfig.Timeout,
+                                Uri:       rrset.HealthCheckConfig.Uri,
+                                Protocol:  rrset.HealthCheckConfig.Protocol,
+                                DomainId:  domainId,
+                            }
+                            oldItem := h.loadItem(key)
+                            if oldItem != nil && itemsEqual(oldItem, newItem) {
+                                newItem.Status = oldItem.Status
+                                newItem.LastCheck = oldItem.LastCheck
+                            }
+                            h.storeItem(newItem)
+                            h.redisStatusServer.Expire(key, h.updateInterval)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
