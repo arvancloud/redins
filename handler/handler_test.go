@@ -541,7 +541,8 @@ var handlerTestConfig = HandlerConfig {
     },
     GeoIp: GeoIpConfig {
         Enable: true,
-        Db: "../geoCity.mmdb",
+        CountryDB: "../geoCity.mmdb",
+        ASNDB: "../geoIsp.mmdb",
     },
 }
 
@@ -839,14 +840,44 @@ var filterGeoEntries = [][]string{
     },
     {"ww3",
         `{"a":{"ttl":300, "records":[
-            {"ip":"192.30.252.225", "country":"US"},
-            {"ip":"192.30.252.225", "country":"GB"},
-            {"ip":"192.30.252.225", "country":"ES"},
-            {"ip":"213.95.10.76", "country":""},
-            {"ip":"213.95.10.76", "country":""},
-            {"ip":"213.95.10.76", "country":""}],
+            {"ip":"192.30.252.225"},
+            {"ip":"94.76.229.204"},
+            {"ip":"84.88.14.229"},
+            {"ip":"192.168.0.1"}],
             "filter":{"count":"multi","order":"none","geo_filter":"location"}}}`,
     },
+    {"ww4",
+        `{"a":{"ttl":300, "records":[
+            {"ip":"212.83.32.45", "asn":47447},
+            {"ip":"80.67.163.250", "asn":20776},
+            {"ip":"178.18.89.144", "asn":35470},
+            {"ip":"127.0.0.4", "asn":0},
+            {"ip":"127.0.0.5", "asn":0},
+            {"ip":"127.0.0.6", "asn":0}],
+        "filter":{"count":"multi", "order":"none","geo_filter":"asn"}}}`,
+    },
+    {"ww5",
+        `{"a":{"ttl":300, "records":[
+            {"ip":"212.83.32.45", "country":"DE", "asn":47447},
+            {"ip":"80.67.163.250", "country":"DE", "asn":20776},
+            {"ip":"178.18.89.144", "country":"DE", "asn":35470},
+            {"ip":"127.0.0.4", "country":"GB", "asn":0},
+            {"ip":"127.0.0.5", "country":"", "asn":0},
+            {"ip":"127.0.0.6", "country":"", "asn":0}],
+        "filter":{"count":"multi", "order":"none","geo_filter":"asn+country"}}}`,
+    },
+}
+
+var filterGeoSourceIps = []string {
+    "127.0.0.1",
+    "127.0.0.1",
+    "127.0.0.1",
+    "127.0.0.1",
+    "127.0.0.1",
+    "94.76.229.204", // country = GB
+    "154.11.253.242", // location = CA near US
+    "212.83.32.45", // ASN = 47447
+    "212.83.32.45", // country = DE, ASN = 47447
 }
 
 var filterGeoTestCases = []test.Case{
@@ -872,15 +903,52 @@ var filterGeoTestCases = []test.Case{
     {
         Qname: "ww3.filtergeo.com.", Qtype: dns.TypeA,
         Answer: []dns.RR{
-            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
-            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
-            test.A("ww3.filtergeo.com. 300 IN A 213.95.10.76"),
+            test.A("ww3.filtergeo.com. 300 IN A 192.168.0.1"),
+        },
+    },
+    {
+        Qname: "ww4.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww4.filtergeo.com. 300 IN A 127.0.0.4"),
+            test.A("ww4.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww4.filtergeo.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww5.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww5.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww5.filtergeo.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww2.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww2.filtergeo.com. 300 IN A 127.0.0.2"),
+        },
+    },
+    {
+        Qname: "ww3.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww3.filtergeo.com. 300 IN A 192.30.252.225"),
+        },
+    },
+    {
+        Qname: "ww4.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww4.filtergeo.com. 300 IN A 212.83.32.45"),
+        },
+    },
+    {
+        Qname: "ww5.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww5.filtergeo.com. 300 IN A 212.83.32.45"),
         },
     },
 }
 
 func TestGeoFilter(t *testing.T) {
-    logger.Default = logger.NewLogger(&logger.LogConfig{})
+    logger.Default = logger.NewLogger(&logger.LogConfig{Target:"file", Enable:true, Path:"/tmp/rtest.log", Format:"txt"})
 
     zone := "filtergeo.com."
     h := NewHandler(&handlerTestConfig)
@@ -893,14 +961,28 @@ func TestGeoFilter(t *testing.T) {
         }
     }
     h.LoadZones()
-    for _, tc := range filterGeoTestCases {
-
+    for i, tc := range filterGeoTestCases {
+        sa := filterGeoSourceIps[i]
+        opt := &dns.OPT {
+            Hdr: dns.RR_Header{Name:".", Rrtype:dns.TypeOPT,Class:dns.ClassANY, Rdlength:0, Ttl: 300,},
+            Option: []dns.EDNS0 {
+                &dns.EDNS0_SUBNET{
+                    Address:net.ParseIP(sa),
+                    Code:dns.EDNS0SUBNET,
+                    Family: 1,
+                    SourceNetmask:32,
+                    SourceScope:0,
+                },
+            },
+        }
         r := tc.Msg()
+        r.Extra = append(r.Extra, opt)
         w := dnstest.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
         resp := w.Msg
+        resp.Extra = nil
 
         test.SortAndCheck(t, resp, tc)
     }
@@ -1262,12 +1344,12 @@ func TestUpstreamCNAME(t *testing.T) {
         resp := w.Msg
         log.Println(resp)
         if resp.Rcode != dns.RcodeSuccess {
-            log.Println("%%%%%%%%%%%%% 1")
+            log.Println("1")
             t.Fail()
         }
         cname := resp.Answer[0].(*dns.CNAME)
         if cname.Target != "www.google.com." {
-            log.Println("%%%%%%%%%%%%% 2 ", cname)
+            log.Println("2 ", cname)
             t.Fail()
         }
     }
@@ -1283,7 +1365,7 @@ func TestUpstreamCNAME(t *testing.T) {
         resp := w.Msg
         log.Println(resp)
         if resp.Rcode != dns.RcodeSuccess {
-            log.Println("%%%%%%%%%%%%% 3")
+            log.Println("3")
             t.Fail()
         }
         hasCNAME := false
@@ -1297,7 +1379,7 @@ func TestUpstreamCNAME(t *testing.T) {
             }
         }
         if !hasCNAME || !hasA {
-            log.Println("%%%%%%%%%%%%% 4")
+            log.Println("4")
             t.Fail()
         }
     }

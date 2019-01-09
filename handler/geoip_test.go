@@ -6,6 +6,7 @@ import (
     "log"
 
     "github.com/hawell/logger"
+    "strconv"
 )
 
 func TestGeoIpAutomatic(t *testing.T) {
@@ -52,21 +53,21 @@ func TestGeoIpAutomatic(t *testing.T) {
 
     cfg := GeoIpConfig {
         Enable: true,
-        Db: "../geoCity.mmdb",
+        CountryDB: "../geoCity.mmdb",
     }
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     g := NewGeoIp(&cfg)
 
-    for i,_ := range sip {
+    for i := range sip {
         dest := new(IP_RRSet)
-        for i,_ := range dip {
-            _, _, cc, _ := g.GetGeoLocation(net.ParseIP(dip[i][0]))
-            if cc != dip[i][1] {
+        for j := range dip {
+            _, _, cc, _ := g.GetGeoLocation(net.ParseIP(dip[j][0]))
+            if cc != dip[j][1] {
                 t.Fail()
             }
             r := IP_RR {
-                Ip:  net.ParseIP(dip[i][0]),
+                Ip:  net.ParseIP(dip[j][0]),
             }
             dest.Data = append(dest.Data, r)
         }
@@ -79,7 +80,7 @@ func TestGeoIpAutomatic(t *testing.T) {
     }
 }
 
-func TestGeoIpManual(t *testing.T) {
+func TestGetSameCountry(t *testing.T) {
     sip := [][]string{
         {"212.83.32.45", "DE", "1.2.3.4"},
         {"80.67.163.250", "FR", "2.3.4.5"},
@@ -89,14 +90,14 @@ func TestGeoIpManual(t *testing.T) {
 
     cfg := GeoIpConfig {
         Enable: true,
-        Db: "../geoCity.mmdb",
+        CountryDB: "../geoCity.mmdb",
     }
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     g := NewGeoIp(&cfg)
 
 
-    for i, _ := range sip {
+    for i := range sip {
         var dest IP_RRSet
         dest.Data = []IP_RR {
             { Ip: net.ParseIP("1.2.3.4"), Country: "DE"},
@@ -109,6 +110,48 @@ func TestGeoIpManual(t *testing.T) {
         }
         log.Println("[DEBUG]", sip[i][1], sip[i][2], ips[0].Country, ips[0].Ip.String())
         if ips[0].Country != sip[i][1] || ips[0].Ip.String() != sip[i][2] {
+            t.Fail()
+        }
+    }
+
+}
+
+func TestGetSameASN(t *testing.T) {
+    sip := []string{
+        "212.83.32.45",
+        "80.67.163.250",
+        "154.11.253.242",
+        "127.0.0.1",
+    }
+
+    dip := IP_RRSet{
+        Data: []IP_RR{
+            {Ip: net.ParseIP("1.2.3.4"), ASN: 47447},
+            {Ip: net.ParseIP("2.3.4.5"), ASN: 20766},
+            {Ip: net.ParseIP("3.4.5.6"), ASN: 852},
+            {Ip: net.ParseIP("4.5.6.7"), ASN: 0},
+        },
+    }
+
+    res := [][]string {
+        {"47447", "1.2.3.4"},
+        {"20766", "2.3.4.5"},
+        {"852", "3.4.5.6"},
+        {"0", "4.5.6.7"},
+    }
+    cfg := GeoIpConfig {
+        Enable: true,
+        ASNDB: "../geoIsp.mmdb",
+    }
+
+    g := NewGeoIp(&cfg)
+
+    for i := range sip {
+        ips := g.GetSameASN(net.ParseIP(sip[i]), dip.Data, map[string]interface{}{})
+        if len(ips) != 1 {
+            t.Fail()
+        }
+        if strconv.Itoa(int(ips[0].ASN)) != res[i][0] || ips[0].Ip.String() != res[i][1] {
             t.Fail()
         }
     }

@@ -98,7 +98,8 @@ dns query handler configuration
     },
     "geoip": {
         "enable": true,
-        "db": "geoCity.mmdb"
+        "country_db": "geoCity.mmdb",
+        "asn_db": "geoIsp.mmdb"
     },
     "upstream": [{
         "ip": "1.1.1.1",
@@ -161,12 +162,14 @@ geoip configuration
 ~~~json
   "geoip": {
     "enable": true,
-    "db": "geoCity.mmdb"
+    "country_db": "geoCity.mmdb",
+    "asn_db": "geoIsp.mmdb"
   }
 ~~~
 
 * enable : enable/disable geoip calculations, default: disable
-* db : maxminddb file to use, default: geoCity.mmdb
+* country_db : maxminddb file for country codes to use, default: geoCity.mmdb
+* asn_db : maxminddb file for autonomous system numbers to use, default: geoIsp.mmdb
 
 ### upstream
 
@@ -314,7 +317,8 @@ sample config:
     },
     "geoip": {
       "enable": true,
-      "db": "geoCity.mmdb"
+      "country_db": "geoCity.mmdb",
+      "asn_db": "geoIsp.mmdb"
     },
     "healthcheck": {
       "enable": true,
@@ -385,11 +389,13 @@ redis-cli>HGETALL example.com.
           {
             "ip" : "1.2.3.4",
             "country" : "US",
+            "asn": 444,
             "weight" : 10
           },
           {
             "ip" : "2.2.3.4",
             "country" : "US",
+            "asn": 444,
             "weight" : 10
           }
         ],
@@ -421,11 +427,13 @@ redis-cli>HGETALL example.com.
           {
             "ip" : "1.2.3.4",
             "country" : "US",
+            "asn": 444,
             "weight" : 10
           },
           {
             "ip" : "1.2.3.4",
             "country" : "US",
+            "asn": 444,
             "weight" : 10
           }
         ],
@@ -450,7 +458,7 @@ redis-cli>HGETALL example.com.
 `filter` : filtering mode:
 * count : return single or multiple results. values : "multi", "single"
 * order : order of result. values : "none" - saved order, "weighted" - weighted shuffle, "rr" - uniform shuffle
-* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination, "none"
+* geo_filter : geo filter. values : "country" - same country, "location" - nearest destination, "asn" - same isp, "asn+country" same isp then same country, "none"
 
 `health_check` : health check configuration
 * enable : enable/disable healthcheck for this host:ip

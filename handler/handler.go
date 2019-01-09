@@ -108,12 +108,11 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     logData["ClientSubnet"] = GetSourceSubnet(state)
 
     if h.Config.LogSourceLocation {
-        _, _, sourceCountry, err := h.geoip.GetGeoLocation(GetSourceIp(state))
-        if err == nil {
-            logData["SourceCountry"] = sourceCountry
-        } else {
-            logData["SourceCountry"] = ""
-        }
+        sourceIP := GetSourceIp(state)
+        _, _, sourceCountry, _ := h.geoip.GetGeoLocation(sourceIP)
+        logData["SourceCountry"] = sourceCountry
+        sourceASN, _ := h.geoip.GetASN(sourceIP)
+        logData["SourceASN"] = sourceASN
     }
 
     auth := true
@@ -273,7 +272,12 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, logData map[string]interface{}) []IP_RR {
     ips := h.healthcheck.FilterHealthcheck(request.Name(), rrset)
     switch rrset.FilterConfig.GeoFilter {
+    case "asn":
+        ips = h.geoip.GetSameASN(GetSourceIp(request), ips, logData)
     case "country":
+        ips = h.geoip.GetSameCountry(GetSourceIp(request), ips, logData)
+    case "asn+country":
+        ips = h.geoip.GetSameASN(GetSourceIp(request), ips, logData)
         ips = h.geoip.GetSameCountry(GetSourceIp(request), ips, logData)
     case "location":
         ips = h.geoip.GetMinimumDistance(GetSourceIp(request), ips, logData)

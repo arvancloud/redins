@@ -46,7 +46,8 @@
     }],
     "geoip": {
       "enable": true,
-      "db": "geoCity.mmdb"
+      "country_db": "geoCity.mmdb",
+      "asn_db": "geoIsp.mmdb"
     },
     "healthcheck": {
       "enable": true,
@@ -74,8 +75,8 @@
   },
   "error_log": {
     "enable": true,
-    "target": "file",
-    "level": "error",
+    "target": "stdout",
+    "level": "debug",
     "path": "/tmp/error.log",
     "format": "text",
     "time_format": "2006-01-02 15:04:05"

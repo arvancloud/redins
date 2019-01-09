@@ -61,7 +61,8 @@ func LoadConfig(path string) *RedinsConfig {
             },
             GeoIp: handler.GeoIpConfig {
                 Enable: false,
-                Db: "geoCity.mmdb",
+                CountryDB: "geoCity.mmdb",
+                ASNDB: "geoIsp.mmdb",
             },
             HealthCheck: handler.HealthcheckConfig {
                 Enable: false,

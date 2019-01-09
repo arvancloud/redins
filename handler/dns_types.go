@@ -58,6 +58,7 @@ type IP_RRSet struct {
 type IP_RR struct {
     Ip      net.IP `json:"ip"`
     Country string `json:"country,omitempty"`
+    ASN     uint   `json:"asn"`
     Weight  int    `json:"weight,omitempty"`
 }
 

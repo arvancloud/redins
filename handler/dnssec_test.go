@@ -266,7 +266,7 @@ var dnssecTestConfig = HandlerConfig {
     },
     GeoIp: GeoIpConfig {
         Enable: true,
-        Db: "../geoCity.mmdb",
+        CountryDB: "../geoCity.mmdb",
     },
 }
 

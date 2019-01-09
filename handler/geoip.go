@@ -9,13 +9,15 @@ import (
 )
 
 type GeoIp struct {
-    Enable bool
-    db     *maxminddb.Reader
+    Enable    bool
+    CountryDB *maxminddb.Reader
+    ASNDB     *maxminddb.Reader
 }
 
 type GeoIpConfig struct {
-    Enable bool `json:"enable,omitempty"`
-    Db string `json:"db,omitempty"`
+    Enable bool      `json:"enable,omitempty"`
+    CountryDB string `json:"country_db,omitempty"`
+    ASNDB string     `json:"asn_db,omitempty"`
 }
 
 func NewGeoIp(config *GeoIpConfig) *GeoIp {
@@ -24,11 +26,13 @@ func NewGeoIp(config *GeoIpConfig) *GeoIp {
     }
     var err error
     if g.Enable {
-        g.db, err = maxminddb.Open(config.Db)
+        g.CountryDB, err = maxminddb.Open(config.CountryDB)
         if err != nil {
-            logger.Default.Errorf("cannot open maxminddb file %s", err)
-            g.Enable = false
-            return g
+            logger.Default.Errorf("cannot open maxminddb file %s: %s", config.CountryDB, err)
+        }
+        g.ASNDB, err = maxminddb.Open(config.ASNDB)
+        if err != nil {
+            logger.Default.Errorf("cannot open maxminddb file %s: %s", config.ASNDB, err)
         }
     }
     // defer g.db.Close()
@@ -36,7 +40,7 @@ func NewGeoIp(config *GeoIpConfig) *GeoIp {
 }
 
 func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
-    if g.Enable == false {
+    if g.Enable == false || g.CountryDB == nil {
         return ips
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
@@ -44,7 +48,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
         logger.Default.Error("getSameCountry failed")
         return ips
     }
-    logData["Source_country"] = sourceCountry
+    logData["SourceCountry"] = sourceCountry
 
     var result []IP_RR
     for _, ip := range ips {
@@ -68,12 +72,45 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
     return ips
 }
 
+func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
+    if g.Enable == false || g.ASNDB == nil {
+        return ips
+    }
+    sourceASN, err := g.GetASN(sourceIp)
+    if err != nil {
+        logger.Default.Error("getSameASN failed")
+        return ips
+    }
+    logData["SourceASN"] = sourceASN
+
+    var result []IP_RR
+    for _, ip := range ips {
+        if ip.ASN == sourceASN {
+            result = append(result, ip)
+        }
+    }
+    if len(result) > 0 {
+        return result
+    }
+
+    for _, ip := range ips {
+        if ip.ASN == 0 {
+            result = append(result, ip)
+        }
+    }
+    if len(result) > 0 {
+        return result
+    }
+
+    return ips
+}
+
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
-    if g.Enable == false {
+    if g.Enable == false || g.CountryDB == nil {
         return ips
     }
     minDistance := 1000.0
-    dists := []float64{}
+    var dists []float64
     var result []IP_RR
     slat, slong, _, err := g.GetGeoLocation(sourceIp)
     if err != nil {
@@ -119,7 +156,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
 }
 
 func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, country string, err error) {
-    if g.Enable == false {
+    if g.Enable == false || g.CountryDB == nil {
         return
     }
     var record struct {
@@ -132,12 +169,25 @@ func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, 
         } `maxminddb:"country"`
     }
     logger.Default.Debugf("ip : %s", ip)
-    err = g.db.Lookup(ip, &record)
+    err = g.CountryDB.Lookup(ip, &record)
     if err != nil {
         logger.Default.Errorf("lookup failed : %s", err)
         return 0, 0, "", err
     }
-    g.db.Decode(record.Location.LongitudeOffset, &longitude)
+    g.CountryDB.Decode(record.Location.LongitudeOffset, &longitude)
     logger.Default.Debug("lat = ", record.Location.Latitude, " lang = ", longitude, " country = ", record.Country.ISOCode)
     return record.Location.Latitude, longitude, record.Country.ISOCode, nil
+}
+
+func (g *GeoIp) GetASN(ip net.IP) (uint, error) {
+    var record struct {
+        AutonomousSystemNumber uint `maxminddb:"autonomous_system_number"`
+    }
+    err := g.ASNDB.Lookup(ip, &record)
+    if err != nil {
+        logger.Default.Errorf("lookup failed : %s", err)
+        return 0, err
+    }
+    logger.Default.Debug("asn = ", record.AutonomousSystemNumber)
+    return record.AutonomousSystemNumber, nil
 }

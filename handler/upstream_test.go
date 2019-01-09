@@ -40,7 +40,7 @@ var upstreamTestConfig = HandlerConfig {
     },
     GeoIp: GeoIpConfig {
         Enable: true,
-        Db: "../geoCity.mmdb",
+        CountryDB: "../geoCity.mmdb",
     },
 }
 
