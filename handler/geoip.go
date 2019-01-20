@@ -51,9 +51,14 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
     logData["SourceCountry"] = sourceCountry
 
     var result []IP_RR
-    for _, ip := range ips {
-        if ip.Country == sourceCountry {
-            result = append(result, ip)
+    if sourceCountry != "" {
+        for _, ip := range ips {
+            for _, country := range ip.Country {
+                if country == sourceCountry {
+                    result = append(result, ip)
+                    break
+                }
+            }
         }
     }
     if len(result) > 0 {
@@ -61,8 +66,15 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
     }
 
     for _, ip := range ips {
-        if ip.Country == "" {
+        if ip.Country == nil || len(ip.Country) == 0 {
             result = append(result, ip)
+        } else {
+            for _, country := range ip.Country {
+                if country == "" {
+                    result = append(result, ip)
+                    break
+                }
+            }
         }
     }
     if len(result) > 0 {
@@ -84,9 +96,14 @@ func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]inte
     logData["SourceASN"] = sourceASN
 
     var result []IP_RR
-    for _, ip := range ips {
-        if ip.ASN == sourceASN {
-            result = append(result, ip)
+    if sourceASN != 0 {
+        for _, ip := range ips {
+            for _, asn := range ip.ASN {
+                if asn == sourceASN {
+                    result = append(result, ip)
+                    break
+                }
+            }
         }
     }
     if len(result) > 0 {
@@ -94,8 +111,15 @@ func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]inte
     }
 
     for _, ip := range ips {
-        if ip.ASN == 0 {
+        if ip.ASN == nil || len(ip.ASN) == 0 {
             result = append(result, ip)
+        } else {
+            for _, asn := range ip.ASN {
+                if asn == 0 {
+                    result = append(result, ip)
+                    break
+                }
+            }
         }
     }
     if len(result) > 0 {

@@ -848,9 +848,9 @@ var filterGeoEntries = [][]string{
     },
     {"ww4",
         `{"a":{"ttl":300, "records":[
-            {"ip":"212.83.32.45", "asn":47447},
-            {"ip":"80.67.163.250", "asn":20776},
-            {"ip":"178.18.89.144", "asn":35470},
+            {"ip":"127.0.0.1", "asn":47447},
+            {"ip":"127.0.0.2", "asn":20776},
+            {"ip":"127.0.0.3", "asn":35470},
             {"ip":"127.0.0.4", "asn":0},
             {"ip":"127.0.0.5", "asn":0},
             {"ip":"127.0.0.6", "asn":0}],
@@ -858,13 +858,34 @@ var filterGeoEntries = [][]string{
     },
     {"ww5",
         `{"a":{"ttl":300, "records":[
-            {"ip":"212.83.32.45", "country":"DE", "asn":47447},
-            {"ip":"80.67.163.250", "country":"DE", "asn":20776},
-            {"ip":"178.18.89.144", "country":"DE", "asn":35470},
+            {"ip":"127.0.0.1", "country":"DE", "asn":47447},
+            {"ip":"127.0.0.2", "country":"DE", "asn":20776},
+            {"ip":"127.0.0.3", "country":"DE", "asn":35470},
             {"ip":"127.0.0.4", "country":"GB", "asn":0},
             {"ip":"127.0.0.5", "country":"", "asn":0},
             {"ip":"127.0.0.6", "country":"", "asn":0}],
         "filter":{"count":"multi", "order":"none","geo_filter":"asn+country"}}}`,
+    },
+    {"ww6",
+        `{"a":{"ttl":300, "records":[
+            {"ip":"127.0.0.1", "asn":[47447,20776]},
+            {"ip":"127.0.0.2", "asn":[0,35470]},
+            {"ip":"127.0.0.3", "asn":35470},
+            {"ip":"127.0.0.4", "asn":0},
+            {"ip":"127.0.0.5", "asn":[]},
+            {"ip":"127.0.0.6"}],
+        "filter":{"count":"multi", "order":"none","geo_filter":"asn"}}}`,
+    },
+    {"ww7",
+        `{"a":{"ttl":300, "records":[
+            {"ip":"127.0.0.1", "country":["DE", "GB"]},
+            {"ip":"127.0.0.2", "country":["", "DE"]},
+            {"ip":"127.0.0.3", "country":"DE"},
+            {"ip":"127.0.0.4", "country":"CA"},
+            {"ip":"127.0.0.5", "country": ""},
+            {"ip":"127.0.0.6", "country": []},
+            {"ip":"127.0.0.7"}],
+        "filter":{"count":"multi", "order":"none","geo_filter":"country"}}}`,
     },
 }
 
@@ -878,6 +899,13 @@ var filterGeoSourceIps = []string {
     "154.11.253.242", // location = CA near US
     "212.83.32.45", // ASN = 47447
     "212.83.32.45", // country = DE, ASN = 47447
+    "212.83.32.45",
+    "178.18.89.144",
+    "127.0.0.1",
+    "213.95.10.76", // DE
+    "94.76.229.204", // GB
+    "154.11.253.242", // CA
+    "127.0.0.1",
 }
 
 var filterGeoTestCases = []test.Case{
@@ -936,15 +964,67 @@ var filterGeoTestCases = []test.Case{
     {
         Qname: "ww4.filtergeo.com.", Qtype: dns.TypeA,
         Answer: []dns.RR{
-            test.A("ww4.filtergeo.com. 300 IN A 212.83.32.45"),
+            test.A("ww4.filtergeo.com. 300 IN A 127.0.0.1"),
         },
     },
     {
         Qname: "ww5.filtergeo.com.", Qtype: dns.TypeA,
         Answer: []dns.RR{
-            test.A("ww5.filtergeo.com. 300 IN A 212.83.32.45"),
+            test.A("ww5.filtergeo.com. 300 IN A 127.0.0.1"),
         },
     },
+    {
+        Qname: "ww6.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.1"),
+        },
+    },
+    {
+        Qname: "ww6.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.2"),
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.3"),
+        },
+    },
+    {
+        Qname: "ww6.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.2"),
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.4"),
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww6.filtergeo.com. 300 IN A 127.0.0.6"),
+        },
+    },
+    {
+        Qname: "ww7.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.1"),
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.2"),
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.3"),
+        },
+    },
+    {
+        Qname: "ww7.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.1"),
+        },
+    },
+    {
+        Qname: "ww7.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.4"),
+        },
+    },
+    {
+        Qname: "ww7.filtergeo.com.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.2"),
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.5"),
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.6"),
+            test.A("ww7.filtergeo.com. 300 IN A 127.0.0.7"),
+        },
+    },
+
 }
 
 func TestGeoFilter(t *testing.T) {

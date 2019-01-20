@@ -406,7 +406,7 @@ func (h *Healthcheck) Transfer() {
                     record.AAAA = record.A
                     err := json.Unmarshal([]byte(recordStr), record)
                     if err != nil {
-                        logger.Default.Errorf("cannot parse json : zone -> %s, %s -> %s", domain, recordStr, err)
+                        logger.Default.Errorf("cannot parse json : zone -> %s, location -> %s, %s -> %s", domain, subdomain, recordStr, err)
                         continue
                     }
                     var host string
