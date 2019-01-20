@@ -342,7 +342,9 @@ func TestDNSSEC(t *testing.T) {
             }
         }
         fmt.Println("dddd")
-        test.SortAndCheck(t, resp, tc)
+        if test.SortAndCheck(resp, tc) != nil {
+            t.Fail()
+        }
         fmt.Println("xxxx")
     }
 }

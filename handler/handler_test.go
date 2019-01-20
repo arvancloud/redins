@@ -569,7 +569,9 @@ func TestLookup(t *testing.T) {
 
             resp := w.Msg
 
-            test.SortAndCheck(t, resp, tc)
+            if test.SortAndCheck(resp, tc) != nil {
+                t.Fail()
+            }
         }
     }
 
@@ -729,7 +731,9 @@ func TestANAME(t *testing.T) {
 
         resp := w.Msg
 
-        test.SortAndCheck(t, resp, tc)
+        if test.SortAndCheck(resp, tc) != nil {
+            t.Fail()
+        }
     }
 }
 
@@ -1064,7 +1068,9 @@ func TestGeoFilter(t *testing.T) {
         resp := w.Msg
         resp.Extra = nil
 
-        test.SortAndCheck(t, resp, tc)
+        if test.SortAndCheck(resp, tc) != nil {
+            t.Fail()
+        }
     }
 }
 
@@ -1151,7 +1157,9 @@ func TestMultiFilter(t *testing.T) {
 
         resp := w.Msg
 
-        test.SortAndCheck(t, resp, tc)
+        if test.SortAndCheck(resp, tc) != nil {
+            t.Fail()
+        }
     }
 
     w1, w4, w10, w2, w20 := 0, 0, 0, 0, 0
@@ -1305,7 +1313,9 @@ func TestSingleFilter(t *testing.T) {
 
         resp := w.Msg
 
-        test.SortAndCheck(t, resp, tc)
+        if test.SortAndCheck(resp, tc) != nil {
+            t.Fail()
+        }
     }
 
     w1, w4, w10, w2, w20 := 0, 0, 0, 0, 0
