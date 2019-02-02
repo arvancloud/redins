@@ -17,6 +17,7 @@ type RRSets struct {
     MX           MX_RRSet      `json:"mx,omitempty"`
     SRV          SRV_RRSet     `json:"srv,omitempty"`
     CAA          CAA_RRSet     `json:"caa,omitempty"`
+    PTR          *PTR_RRSet    `json:"ptr,omitempty"`
     ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
@@ -186,6 +187,11 @@ type CAA_RR struct {
     Tag   string `json:"tag"`
     Value string `json:"value"`
     Flag  uint8  `json:"flag"`
+}
+
+type PTR_RRSet struct {
+    Ttl    uint32 `json:"ttl,omitempty"`
+    Domain string `json:domain`
 }
 
 type SOA_RRSet struct {

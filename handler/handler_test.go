@@ -11,10 +11,11 @@ import (
     "github.com/coredns/coredns/request"
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
+    "fmt"
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc."/*, "example.ddd."*//*, "example.caa."*/,
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",/*, "example.ddd."*//*, "example.caa.",*/ "in-addr.arpa.",
 }
 
 var lookupEntries = [][][]string {
@@ -169,6 +170,14 @@ var lookupEntries = [][][]string {
         },
     },
     */
+    {
+        {"1.0.0.127",
+            `{"ptr":{"ttl":300, "domain":"localhost"}}`,
+        },
+        {"4.2.2.4",
+            `{"ptr":{"ttl":300, "domain":"d.resolvers.level3.net"}}`,
+        },
+    },
 }
 
 var lookupTestCases = [][]test.Case{
@@ -512,6 +521,20 @@ var lookupTestCases = [][]test.Case{
         },
     },
     */
+    {
+        {
+            Qname: "1.0.0.127.in-addr.arpa.", Qtype:dns.TypePTR,
+            Answer: []dns.RR{
+                test.PTR("1.0.0.127.in-addr.arpa. 300 IN PTR localhost."),
+            },
+        },
+        {
+            Qname: "4.2.2.4.in-addr.arpa.", Qtype:dns.TypePTR,
+            Answer: []dns.RR{
+                test.PTR("4.2.2.4.in-addr.arpa. 300 IN PTR d.resolvers.level3.net."),
+            },
+        },
+    },
 }
 
 var handlerTestConfig = HandlerConfig {
@@ -560,7 +583,7 @@ func TestLookup(t *testing.T) {
             }
         }
         h.LoadZones()
-        for _, tc := range lookupTestCases[i] {
+        for j, tc := range lookupTestCases[i] {
 
             r := tc.Msg()
             w := dnstest.NewRecorder(&test.ResponseWriter{})
@@ -569,7 +592,8 @@ func TestLookup(t *testing.T) {
 
             resp := w.Msg
 
-            if test.SortAndCheck(resp, tc) != nil {
+            if err := test.SortAndCheck(resp, tc); err != nil {
+                fmt.Println(i, j, err, tc.Qname, tc.Answer, resp.Answer)
                 t.Fail()
             }
         }

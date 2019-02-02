@@ -214,6 +214,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             if caaRecord != nil {
                 answers = AppendRR(answers, h.CAA(qname, caaRecord), qname, caaRecord, secured)
             }
+        case dns.TypePTR:
+            answers = AppendRR(answers, h.PTR(qname, record), qname, record, secured)
         case dns.TypeSOA:
             answers = AppendSOA(answers, record.Zone, secured)
         case dns.TypeDNSKEY:
@@ -497,6 +499,18 @@ func (h *DnsRequestHandler) CAA(name string, record *Record) (answers []dns.RR) 
         r.Tag = caa.Tag
         answers = append(answers, r)
     }
+    return
+}
+
+func (h *DnsRequestHandler) PTR(name string, record *Record) (answers []dns.RR) {
+    if record.PTR == nil {
+        return
+    }
+    r := new(dns.PTR)
+    r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypePTR,
+        Class: dns.ClassINET, Ttl: h.getTtl(record.PTR.Ttl)}
+    r.Ptr = dns.Fqdn(record.PTR.Domain)
+    answers = append(answers, r)
     return
 }
 

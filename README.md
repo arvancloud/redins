@@ -23,6 +23,7 @@
         - [MX](#mx)
         - [SRV](#srv)
         - [CAA](#caa)
+        - [PTR](#ptr)
         - [SOA](#soa)
     - [example](#zone-example)
     
@@ -569,6 +570,17 @@ redis-cli>HGETALL example.com.
         "flag": 0
       }
     ]
+  }
+}
+~~~
+
+#### PTR
+
+~~~json
+{
+  "ptr":{
+    "ttl": 300,
+    "domain": "mail.example.com"
   }
 }
 ~~~
