@@ -15,7 +15,7 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",/*, "example.ddd."*//*, "example.caa.",*/ "in-addr.arpa.",
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",/*, "example.ddd."*//*, "example.caa.",*/ "0.0.127.in-addr.arpa.", "20.127.10.in-addr.arpa.",
 }
 
 var lookupEntries = [][][]string {
@@ -171,11 +171,13 @@ var lookupEntries = [][][]string {
     },
     */
     {
-        {"1.0.0.127",
+        {"1",
             `{"ptr":{"ttl":300, "domain":"localhost"}}`,
         },
-        {"4.2.2.4",
-            `{"ptr":{"ttl":300, "domain":"d.resolvers.level3.net"}}`,
+    },
+    {
+        {"54",
+            `{"ptr":{"ttl":300, "domain":"example.fff"}}`,
         },
     },
 }
@@ -528,10 +530,12 @@ var lookupTestCases = [][]test.Case{
                 test.PTR("1.0.0.127.in-addr.arpa. 300 IN PTR localhost."),
             },
         },
+    },
+    {
         {
-            Qname: "4.2.2.4.in-addr.arpa.", Qtype:dns.TypePTR,
+            Qname: "54.20.127.10.in-addr.arpa.", Qtype:dns.TypePTR,
             Answer: []dns.RR{
-                test.PTR("4.2.2.4.in-addr.arpa. 300 IN PTR d.resolvers.level3.net."),
+                test.PTR("54.20.127.10.in-addr.arpa. 300 IN PTR example.fff."),
             },
         },
     },
