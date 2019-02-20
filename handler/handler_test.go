@@ -1486,18 +1486,70 @@ func TestUpstreamCNAME(t *testing.T) {
             log.Println("3")
             t.Fail()
         }
-        hasCNAME := false
-        hasA := false
-        for _, rr := range resp.Answer {
-            switch rr.(type) {
-            case *dns.CNAME:
-                hasCNAME = true
-            case *dns.A:
-                hasA = true
+        cname := resp.Answer[0].(*dns.CNAME)
+        if cname.Target != "www.google.com." {
+            log.Println("4 ", cname)
+            t.Fail()
+        }
+    }
+}
+
+var cnameOutsideZones = []string{"inside.cnm.", "outside.cnm."}
+
+var cnameOutsideEntries = [][][]string {
+    {
+        {"@config",
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.inside.cnm.","ns":"ns1.inside.cnm.","refresh":44,"retry":55,"expire":66}}`,
+        },
+        {"upstream",
+            `{"cname":{"ttl":300, "host":"outside.cnm."}}`,
+        },
+    },
+    {
+        {"@config",
+            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.outside.cnm.","ns":"ns1.outside.cnm.","refresh":44,"retry":55,"expire":66}}`,
+        },
+        {"@",
+            `{"a":{"ttl":300, "records":[{"ip":"127.0.0.6"}]}}`,
+        },
+    },
+}
+
+var cnameOutsideTests = []test.Case{
+    {
+        Qname: "upstream.inside.cnm.", Qtype: dns.TypeA,
+        Answer: []dns.RR{
+            test.CNAME("upstream.inside.cnm. 300 IN CNAME outside.cnm."),
+        },
+    },
+}
+
+func TestCNameOutsideZone(t *testing.T) {
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+    h := NewHandler(&handlerTestConfig)
+    for i, zone := range cnameOutsideZones {
+        h.Redis.Del(zone)
+        for _, cmd := range cnameOutsideEntries[i] {
+            err := h.Redis.HSet(zone, cmd[0], cmd[1])
+            if err != nil {
+                log.Printf("[ERROR] cannot connect to redis: %s", err)
+                t.Fail()
             }
         }
-        if !hasCNAME || !hasA {
-            log.Println("4")
+    }
+    h.LoadZones()
+    for j, tc := range cnameOutsideTests {
+
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        fmt.Println(j, tc.Qname, tc.Answer, resp.Answer)
+        if err := test.SortAndCheck(resp, tc); err != nil {
             t.Fail()
         }
     }

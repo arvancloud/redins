@@ -137,6 +137,9 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                 }
                 if !/*record.Zone.Config.CnameFlattening*/false {
                     answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
+                    if h.Matches(record.CNAME.Host) != originalRecord.Zone.Name {
+                        break
+                    }
                     qname = record.CNAME.Host
                 }
                 record, localRes = h.FetchRecord(record.CNAME.Host, logData)
