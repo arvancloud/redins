@@ -12,6 +12,7 @@
     - [rate limit](#rate-limit)
     - [example](#example)
 - [Zone format in redis](#zone-format-in-redis-db)
+    - [keys](#keys)
     - [zones](#zones)
     - [dns RRs](#dns-rrs)
         - [A](#a)
@@ -357,16 +358,38 @@ sample config:
 
 ## zone format in redis db
 
-### zones
+### keys
 
-each zone is stored in redis as a hash map with *zone* as key.
-
+* redins:zones is a set containing all active zones
 ~~~
-redis-cli>KEYS *
+redis-cli>SMEMBERS redins:zones
 1) "example.com."
 2) "example.net."
-redis-cli>
 ~~~
+
+* redins:zones:XXXX.XXX. is a hash map containing dns RRs, @ is used for TLD records.
+~~~
+redis-cli>HKEYS redins:zones:example.com.
+1) "@"
+2) "www"
+3) "ns"
+4) "subdomain.www"
+~~~
+@ is a special case used for root data
+
+* redins:zones:XXXX.XXX.:config is a string containing zone specific configurations
+~~~
+redis-cli>GET redins:zones:example.com.:config
+"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}"
+~~~
+
+* redins:zones:XXXX.XXX.:pub and redins:zones:XXXX.XXX.:priv contains keypair for dnssec 
+~~~
+redis-cli>GET redins:zones:XXXX.XXX.:pub
+"dnssec_test.com. IN DNSKEY 256 3 5 AwEAAaKsF5vxBfKuqeUa4+ugW37ftFZOyo+k7r2aeJzZdIbYk//P/dpC HK4uYG8Z1dr/qeo12ECNVcf76j+XAdJD841ELiRVaZteH8TqfPQ+jdHz 10e8Sfkh7OZ4oBwSCXWj+Q=="
+~~~
+
+### zones
 
 ### dns RRs 
 

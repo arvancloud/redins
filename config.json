@@ -53,7 +53,7 @@
       "enable": true,
       "max_requests": 5,
       "max_pending_requests": 100,
-      "update_interval": 601,
+      "update_interval": 600,
       "check_interval": 10,
       "redis": {
         "ip": "redis",

@@ -236,7 +236,7 @@ func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     item := new(HealthCheckItem)
     item.Host = strings.TrimSuffix(splits[0], ":")
     item.Ip = splits[1]
-    itemStr := h.redisStatusServer.Get(key)
+    itemStr := h.redisStatusServer.Get("redins:healthcheck:" + key)
     if itemStr == "" {
         return nil
     }
@@ -255,12 +255,12 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
         return
     }
     logger.Default.Debugf("setting %v in redis : %s", *item, string(itemStr))
-    h.redisStatusServer.Set(key, string(itemStr))
+    h.redisStatusServer.Set("redins:healthcheck:" + key, string(itemStr))
 }
 
 func (h *Healthcheck) getDomainId(zone string) string {
     var cfg ZoneConfig
-    val := h.redisConfigServer.HGet(zone, "@config")
+    val := h.redisConfigServer.Get("redins:zones:" + zone + ":config")
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &cfg)
         if err != nil {
@@ -279,13 +279,14 @@ func (h *Healthcheck) Start() {
     go h.Transfer()
 
     for {
-        itemKeys := h.redisStatusServer.GetKeys("*")
+        itemKeys := h.redisStatusServer.GetKeys("redins:healthcheck:*")
         select {
         case <-h.quit:
             h.quitWG.Done()
             return
         case <-time.After(h.checkInterval):
-            for _, itemKey := range itemKeys {
+            for i := range itemKeys {
+                itemKey := strings.TrimLeft(itemKeys[i], "redins:healthcheck:")
                 item := h.loadItem(itemKey)
                 if item != nil {
                     if time.Since(item.LastCheck) > h.checkInterval {
@@ -369,6 +370,9 @@ func (h *Healthcheck) FilterHealthcheck(qname string, rrset *IP_RRSet) []IP_RR {
 
 func (h *Healthcheck) Transfer() {
     itemsEqual := func(item1 *HealthCheckItem, item2 *HealthCheckItem) bool {
+        if item1 == nil || item2 == nil {
+            return  false
+        }
         if item1.Ip != item2.Ip || item1.Uri != item2.Uri || item1.Port != item2.Port ||
             item1.Protocol != item2.Protocol || item1.Enable != item2.Enable ||
             item1.UpCount != item2.UpCount || item1.DownCount != item2.DownCount || item1.Timeout != item2.Timeout {
@@ -379,20 +383,18 @@ func (h *Healthcheck) Transfer() {
 
     limiter := time.Tick(time.Millisecond * 50)
     for {
-        domains := h.redisConfigServer.GetKeys("*")
+        domains := h.redisConfigServer.SMembers("redins:zones")
         for _, domain := range domains {
             domainId := h.getDomainId(domain)
-            subdomains := h.redisConfigServer.GetHKeys(domain)
+            subdomains := h.redisConfigServer.GetHKeys("redins:zones:" + domain)
             for _, subdomain := range subdomains {
                 select {
                 case <-h.quit:
                     h.quitWG.Done()
                     return
                 case <-limiter:
-                    if subdomain == "@config" {
-                        continue
-                    }
-                    recordStr := h.redisConfigServer.HGet(domain, subdomain)
+                    logger.Default.Error("transfer : tick")
+                    recordStr := h.redisConfigServer.HGet("redins:zones:" + domain, subdomain)
                     record := new(Record)
                     record.A.HealthCheckConfig = IpHealthCheckConfig {
                         Timeout: 1000,
@@ -434,12 +436,10 @@ func (h *Healthcheck) Transfer() {
                                 DomainId:  domainId,
                             }
                             oldItem := h.loadItem(key)
-                            if oldItem != nil && itemsEqual(oldItem, newItem) {
-                                newItem.Status = oldItem.Status
-                                newItem.LastCheck = oldItem.LastCheck
+                            if !itemsEqual(oldItem, newItem) {
+                                h.storeItem(newItem)
                             }
-                            h.storeItem(newItem)
-                            h.redisStatusServer.Expire(key, h.updateInterval)
+                            h.redisStatusServer.Expire("redins:healthcheck:" + key, h.updateInterval)
                         }
                     }
                 }

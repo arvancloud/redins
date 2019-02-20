@@ -15,14 +15,22 @@ import (
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.",/*, "example.ddd."*//*, "example.caa.",*/ "0.0.127.in-addr.arpa.", "20.127.10.in-addr.arpa.",
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.ddd.",/* "example.caa.",*/ "0.0.127.in-addr.arpa.", "20.127.10.in-addr.arpa.",
 }
 
+var lookupConfig = []string {
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.com.","ns":"ns1.example.com.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.net.","ns":"ns1.example.net.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.aaa.","ns":"ns1.example.aaa.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.bbb.","ns":"ns1.example.bbb.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ccc.","ns":"ns1.example.ccc.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ddd.","ns":"ns1.example.ddd.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
+    /*`{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66}}`,*/
+    "",
+    "",
+}
 var lookupEntries = [][][]string {
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.com.","ns":"ns1.example.com.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"x",
             `{
             "a":{"ttl":300, "records":[{"ip":"1.2.3.4", "country":"ES"},{"ip":"5.6.7.8", "country":""}]},
@@ -54,9 +62,6 @@ var lookupEntries = [][][]string {
         },
     },
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.net.","ns":"ns1.example.net.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"@",
             `{"ns":{"ttl":300, "records":[{"host":"ns1.example.net."},{"host":"ns2.example.net."}]}}`,
         },
@@ -81,9 +86,6 @@ var lookupEntries = [][][]string {
         },
     },
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.aaa.","ns":"ns1.example.aaa.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"x",
             `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]},
                 "aaaa":{"ttl":300, "records":[{"ip":"::1"}]},
@@ -100,9 +102,6 @@ var lookupEntries = [][][]string {
         },
     },
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.bbb.","ns":"ns1.example.bbb.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"x",
             `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]}}`,
         },
@@ -114,18 +113,11 @@ var lookupEntries = [][][]string {
         },
     },
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ccc.","ns":"ns1.example.ccc.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"x",
             `{"txt":{"ttl":300, "records":[{"text":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}}`,
         },
     },
-    /*
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ddd.","ns":"ns1.example.ddd.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
-        },
         {"a",
             `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]},
                 "aaaa":{"ttl":300, "records":[{"ip":"::1"}]},
@@ -147,12 +139,8 @@ var lookupEntries = [][][]string {
             `{"cname":{"ttl":300, "host":"d.example.ddd."}}`,
         },
     },
-    */
     /*
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"@",
             `{"caa":{"ttl":300, "records":[{"tag":"issue", "value":"godaddy.com;", "flag":0}]}}`,
         },
@@ -455,7 +443,6 @@ var lookupTestCases = [][]test.Case{
         },
     },
     // CNAME flattening
-    /*
     {
         {
             Qname: "e.example.ddd.", Qtype: dns.TypeA,
@@ -505,7 +492,6 @@ var lookupTestCases = [][]test.Case{
             },
         },
     },
-    */
     // CAA Test
     /*
     {
@@ -577,15 +563,17 @@ func TestLookup(t *testing.T) {
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
+    h.Redis.Del("*")
     for i, zone := range lookupZones {
-        h.Redis.Del(zone)
+        h.Redis.SAdd("redins:zones", zone)
         for _, cmd := range lookupEntries[i] {
-            err := h.Redis.HSet(zone, cmd[0], cmd[1])
+            err := h.Redis.HSet("redins:zones:" + zone, cmd[0], cmd[1])
             if err != nil {
                 log.Printf("[ERROR] cannot connect to redis: %s", err)
                 t.Fail()
             }
         }
+        h.Redis.Set("redins:zones:" + zone + ":config", lookupConfig[i])
         h.LoadZones()
         for j, tc := range lookupTestCases[i] {
 
@@ -687,11 +675,17 @@ func TestWeight(t *testing.T) {
     }
 }
 
+var anameZones = []string {
+    "arvancloud.com.", "arvan.an.",
+}
+
+var anameConfig = []string {
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.arvancloud.com.","ns":"ns1.arvancloud.com.","refresh":44,"retry":55,"expire":66}}`,
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.arvan.an.","ns":"ns1.arvan.an.","refresh":44,"retry":55,"expire":66}}`,
+}
+
 var anameEntries = [][][]string{
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.arvancloud.com.","ns":"ns1.arvancloud.com.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"@",
             `{"aname":{"location":"aname.arvan.an."}}`,
         },
@@ -703,9 +697,6 @@ var anameEntries = [][][]string{
         },
     },
     {
-        {"@config",
-            `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.arvan.an.","ns":"ns1.arvan.an.","refresh":44,"retry":55,"expire":66}}`,
-        },
         {"aname",
             `{"a":{"ttl":300, "records":[{"ip":"6.5.6.5"}]}, "aaaa":{"ttl":300, "records":[{"ip":"::1"}]}}`,
         },
@@ -734,19 +725,20 @@ var anameTestCases = []test.Case {
 }
 
 func TestANAME(t *testing.T) {
-    zones := []string{"arvancloud.com.", "arvan.an."}
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
-    for i, zone := range zones {
-        h.Redis.Del(zone)
+    h.Redis.Del("*")
+    for i, zone := range anameZones {
+        h.Redis.SAdd("redins:zones", zone)
         for _, cmd := range anameEntries[i] {
-            err := h.Redis.HSet(zone, cmd[0], cmd[1])
+            err := h.Redis.HSet("redins:zones:" + zone, cmd[0], cmd[1])
             if err != nil {
                 log.Printf("[ERROR] cannot connect to redis: %s", err)
                 t.Fail()
             }
         }
+        h.Redis.Set("redins:zones:" + zone + ":config", anameConfig[i])
     }
     h.LoadZones()
 
@@ -766,19 +758,20 @@ func TestANAME(t *testing.T) {
 }
 
 func TestWeightedANAME(t *testing.T) {
-    zones := []string{"arvancloud.com.", "arvan.an."}
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
     h := NewHandler(&handlerTestConfig)
-    for i, zone := range zones {
-        h.Redis.Del(zone)
+    h.Redis.Del("*")
+    for i, zone := range anameZones {
+        h.Redis.SAdd("redins:zones", zone)
         for _, cmd := range anameEntries[i] {
-            err := h.Redis.HSet(zone, cmd[0], cmd[1])
+            err := h.Redis.HSet("redins:zones:" + zone, cmd[0], cmd[1])
             if err != nil {
                 log.Printf("[ERROR] cannot connect to redis: %s", err)
                 t.Fail()
             }
         }
+        h.Redis.Set("redins:zones:" + zone + ":config", anameConfig[i])
     }
     h.LoadZones()
 
@@ -846,10 +839,11 @@ func TestWeightedANAME(t *testing.T) {
     }
 }
 
+var filterGeoZone = "filtergeo.com."
+
+var filterGeoConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filter.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`
+
 var filterGeoEntries = [][]string{
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filter.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`,
-    },
     {"ww1",
         `{"a":{"ttl":300, "records":[
             {"ip":"127.0.0.1", "country":""},
@@ -1062,16 +1056,17 @@ var filterGeoTestCases = []test.Case{
 func TestGeoFilter(t *testing.T) {
     logger.Default = logger.NewLogger(&logger.LogConfig{Target:"file", Enable:true, Path:"/tmp/rtest.log", Format:"txt"})
 
-    zone := "filtergeo.com."
     h := NewHandler(&handlerTestConfig)
-    h.Redis.Del(zone)
+    h.Redis.Del("*")
+    h.Redis.SAdd("redins:zones", filterGeoZone)
     for _, cmd := range filterGeoEntries {
-        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        err := h.Redis.HSet("redins:zones:" + filterGeoZone, cmd[0], cmd[1])
         if err != nil {
             log.Printf("[ERROR] cannot connect to redis: %s", err)
             t.Fail()
         }
     }
+    h.Redis.Set("redins:zones:" + filterGeoZone + ":config", filterGeoConfig)
     h.LoadZones()
     for i, tc := range filterGeoTestCases {
         sa := filterGeoSourceIps[i]
@@ -1102,10 +1097,11 @@ func TestGeoFilter(t *testing.T) {
     }
 }
 
+var filterMultiZone = "filtermulti.com."
+
+var filterMultiConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filtermulti.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`
+
 var filterMultiEntries = [][]string{
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filtermulti.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`,
-    },
     {"ww1",
         `{"a":{"ttl":300, "records":[
             {"ip":"127.0.0.1", "country":""},
@@ -1163,17 +1159,18 @@ var filterMultiTestCases = []test.Case{
 func TestMultiFilter(t *testing.T) {
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
-    zone := "filtermulti.com."
     h := NewHandler(&handlerTestConfig)
-    h.Redis.Del(zone)
+    h.Redis.Del("*")
+    h.Redis.SAdd("redins:zones", filterMultiZone)
     for _, cmd := range filterMultiEntries {
-        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        err := h.Redis.HSet("redins:zones:" + filterMultiZone, cmd[0], cmd[1])
         if err != nil {
             log.Printf("[ERROR] cannot connect to redis: %s", err)
             log.Println("1")
             t.Fail()
         }
     }
+    h.Redis.Set("redins:zones:" + filterMultiZone + ":config", filterMultiConfig)
     h.LoadZones()
 
     for i := 0; i < 10; i++ {
@@ -1263,10 +1260,9 @@ func TestMultiFilter(t *testing.T) {
     }
 }
 
+var filterSingleZone = "filtersingle.com."
+var filterSingleConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filtersingle.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`
 var filterSingleEntries = [][]string{
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.filtersingle.com.","ns":"ns1.filter.com.","refresh":44,"retry":55,"expire":66}}`,
-    },
     {"ww1",
         `{"a":{"ttl":300, "records":[
             {"ip":"127.0.0.1", "country":""},
@@ -1319,17 +1315,18 @@ var filterSingleTestCases = []test.Case{
 func TestSingleFilter(t *testing.T) {
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
-    zone := "filtersingle.com."
     h := NewHandler(&handlerTestConfig)
-    h.Redis.Del(zone)
+    h.Redis.Del("*")
+    h.Redis.SAdd("redins:zones", filterSingleZone)
     for _, cmd := range filterSingleEntries {
-        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        err := h.Redis.HSet("redins:zones:" + filterSingleZone, cmd[0], cmd[1])
         if err != nil {
             log.Printf("[ERROR] cannot connect to redis: %s", err)
             log.Println("1")
             t.Fail()
         }
     }
+    h.Redis.Set("redins:zones:" + filterSingleZone + ":config", filterSingleConfig)
     h.LoadZones()
 
     for i := 0; i < 10; i++ {
@@ -1419,11 +1416,9 @@ func TestSingleFilter(t *testing.T) {
     }
 }
 
-
+var upstreamCNAMEZone = "upstreamcname.com."
+var upstreamCNAMEConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.upstreamcname.com.","ns":"ns1.upstreamcname.com.","refresh":44,"retry":55,"expire":66}}`
 var upstreamCNAME = [][]string {
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.upstreamcname.com.","ns":"ns1.upstreamcname.com.","refresh":44,"retry":55,"expire":66}}`,
-    },
     {"upstream",
         `{"cname":{"ttl":300, "host":"www.google.com"}}`,
     },
@@ -1438,17 +1433,18 @@ var upstreamCNAMETestCases = []test.Case{
 func TestUpstreamCNAME(t *testing.T) {
     logger.Default = logger.NewLogger(&logger.LogConfig{})
 
-    zone := "upstreamcname.com."
     h := NewHandler(&handlerTestConfig)
-    h.Redis.Del(zone)
+    h.Redis.Del("*")
+    h.Redis.SAdd("redins:zones", upstreamCNAMEZone)
     for _, cmd := range upstreamCNAME {
-        err := h.Redis.HSet(zone, cmd[0], cmd[1])
+        err := h.Redis.HSet("redins:zones:" + upstreamCNAMEZone, cmd[0], cmd[1])
         if err != nil {
             log.Printf("[ERROR] cannot connect to redis: %s", err)
             log.Println("1")
             t.Fail()
         }
     }
+    h.Redis.Set("redins:zones:" + upstreamCNAMEZone + ":config", upstreamCNAMEConfig)
     h.LoadZones()
 
     h.Config.UpstreamFallback = false

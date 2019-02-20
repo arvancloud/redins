@@ -15,11 +15,9 @@ import (
 
 var dnssecZone = string("dnssec_test.com.")
 
+
+var dnssecConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.dnssec_test.com.","ns":"ns1.dnssec_test.com.","refresh":44,"retry":55,"expire":66},"dnssec": true}`
 var dnssecEntries = [][]string {
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.dnssec_test.com.","ns":"ns1.dnssec_test.com.","refresh":44,"retry":55,"expire":66},
-        "dnssec": true}`,
-    },
     {"@",
         `{"ns":{"ttl":300,"records":[{"host":"a.dnssec_test.com."}]}}`,
     },
@@ -277,14 +275,16 @@ func TestDNSSEC(t *testing.T) {
 
     h.Redis.Del(dnssecZone)
     for _, cmd := range dnssecEntries {
-        err := h.Redis.HSet(dnssecZone, cmd[0], cmd[1])
+        err := h.Redis.HSet("redins:zones:" + dnssecZone, cmd[0], cmd[1])
         if err != nil {
             log.Printf("[ERROR] cannot connect to redis: %s", err)
             t.Fail()
         }
     }
-    h.Redis.Set(dnssecZone + "_pub", dnssecKeyPub)
-    h.Redis.Set(dnssecZone + "_priv", dnssecKeyPriv)
+    h.Redis.Set("redins:zones:" + dnssecZone + ":config", dnssecConfig)
+    h.Redis.Set("redins:zones:" + dnssecZone + ":pub", dnssecKeyPub)
+    h.Redis.Set("redins:zones:" + dnssecZone + ":priv", dnssecKeyPriv)
+    h.Redis.SAdd("redins:zones", dnssecZone)
     h.LoadZones()
 
     var dnskey dns.RR
@@ -294,6 +294,7 @@ func TestDNSSEC(t *testing.T) {
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
         resp := w.Msg
+        fmt.Println(resp.Answer)
         dnskey = resp.Answer[0]
     }
 

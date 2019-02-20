@@ -115,7 +115,7 @@ func TestGet(t *testing.T) {
     h.redisStatusServer.Del("*")
     h.redisConfigServer.Del("*")
     for _, entry := range healthcheckGetEntries {
-        h.redisStatusServer.Set(entry[0], entry[1])
+        h.redisStatusServer.Set("redins:healthcheck:" + entry[0], entry[1])
     }
 
     for i := range healthcheckGetEntries {
@@ -139,7 +139,7 @@ func TestFilter(t *testing.T) {
     h.redisStatusServer.Del("*")
     h.redisConfigServer.Del("*")
     for _, entry := range healthcheckGetEntries {
-        h.redisStatusServer.Set(entry[0], entry[1])
+        h.redisStatusServer.Set("redins:healthcheck:" + entry[0], entry[1])
     }
 
     w := []Record {
@@ -276,14 +276,14 @@ func TestSet(t *testing.T) {
     h.redisStatusServer.Del("*")
     for _, str  := range healthCheckSetEntries {
         a := fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", str[1], str[2])
-        h.redisConfigServer.HSet("healthcheck.com.", str[0], a)
+        h.redisConfigServer.HSet("redins:zones:healthcheck.com.", str[0], a)
         var key string
         if str[0] == "@" {
             key = fmt.Sprintf("arvancloud.com.:%s", str[1])
         } else {
             key = fmt.Sprintf("%s.arvancloud.com.:%s", str[0], str[1])
         }
-        h.redisStatusServer.Set(key, str[2])
+        h.redisStatusServer.Set("redins:healthcheck:" + key, str[2])
     }
     // h.transferItems()
     go h.Start()
@@ -301,14 +301,15 @@ func TestTransfer(t *testing.T) {
 
     h.redisConfigServer.Del("*")
     h.redisStatusServer.Del("*")
+    h.redisConfigServer.SAdd("redins:zones", "healthcheck.com.")
     for _, str  := range healthcheckTransferItems {
         if str[2] != "" {
             a := fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", str[1], str[2])
-            h.redisConfigServer.HSet("healthcheck.com.", str[0], a)
+            h.redisConfigServer.HSet("redins:zones:healthcheck.com.", str[0], a)
         }
         if str[3] != "" {
             key := fmt.Sprintf("%s.healthcheck.com.:%s", str[0], str[1])
-            h.redisStatusServer.Set(key, str[3])
+            h.redisStatusServer.Set("redins:healthcheck:" + key, str[3])
         }
     }
 
@@ -326,12 +327,13 @@ func TestTransfer(t *testing.T) {
     }
 
     for i, str := range healthCheckTransferResults {
-        h.redisStatusServer.Set(str[0] + "res", str[1])
+        h.redisStatusServer.Set("redins:healthcheck:" + str[0] + "res", str[1])
         resItem := h.loadItem(str[0] + "res")
         resItem.Ip = strings.TrimRight(resItem.Ip, "res")
         storedItem := h.loadItem(str[0])
-        log.Println(resItem)
-        log.Println(storedItem)
+        log.Println("** key : ", str[0])
+        log.Println("** expected : ", resItem)
+        log.Println("** stored : ", storedItem)
         if !itemsEqual(resItem, storedItem) {
             log.Println(i, "failed")
             t.Fail()
@@ -371,10 +373,8 @@ var healthcheckConfig = HealthcheckConfig {
     MaxPendingRequests: 100,
 }
 
+var hcConfig = `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66}}`
 var hcEntries = [][]string {
-    {"@config",
-        `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.google.com.","ns":"ns1.google.com.","refresh":44,"retry":55,"expire":66}}`,
-    },
     {"www",
         `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"172.217.17.238"}]}}`,
     },
@@ -399,9 +399,11 @@ func TestHealthCheck(t *testing.T) {
     hc := NewHealthcheck(&healthcheckConfig, configRedis)
     hc.redisStatusServer.Del("*")
     hc.redisConfigServer.Del("*")
+    hc.redisConfigServer.SAdd("redins:zones", "google.com.")
     for _, entry := range hcEntries {
-        configRedis.HSet("google.com.", entry[0], entry[1])
+        configRedis.HSet("redins:zones:google.com.", entry[0], entry[1])
     }
+    configRedis.Set("redins:zones:google.com.:config", hcConfig)
 
     go hc.Start()
     time.Sleep(10 * time.Second)
@@ -446,25 +448,28 @@ func TestExpire(t *testing.T) {
 
     a := fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[2])
     log.Println(a)
-    h.redisConfigServer.HSet("healthcheck.com.", expireItem[0], a)
+    h.redisConfigServer.SAdd("redins:zones", "healthcheck.com.")
+    h.redisConfigServer.HSet("redins:zones:healthcheck.com.", expireItem[0], a)
     key := fmt.Sprintf("%s.healthcheck.com.:%s", expireItem[0], expireItem[1])
-    h.redisStatusServer.Set(key, expireItem[2])
+    h.redisStatusServer.Set("redins:healthcheck:" + key, expireItem[2])
 
     go h.Start()
     time.Sleep(time.Second * 2)
     status := h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
     if status != 3 {
+        fmt.Println("1")
         t.Fail()
     }
 
     a = fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[3])
     log.Println(a)
-    h.redisConfigServer.HSet("healthcheck.com.", expireItem[0], a)
+    h.redisConfigServer.HSet("redins:zones:healthcheck.com.", expireItem[0], a)
 
     time.Sleep(time.Second * 3)
     status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
     status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
     if status != 0 {
+        fmt.Println("2")
         t.Fail()
     }
 }
