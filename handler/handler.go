@@ -17,17 +17,18 @@ import (
 )
 
 type DnsRequestHandler struct {
-    Config            *HandlerConfig
-    Zones             *iradix.Tree
-    LastZoneUpdate    time.Time
-    Redis             *uperdis.Redis
-    Logger            *logger.EventLogger
-    cache             *cache.Cache
-    geoip             *GeoIp
-    healthcheck       *Healthcheck
-    upstream          *Upstream
-    quit              chan struct{}
-    quitWG            sync.WaitGroup
+    Config         *HandlerConfig
+    Zones          *iradix.Tree
+    LastZoneUpdate time.Time
+    Redis          *uperdis.Redis
+    Logger         *logger.EventLogger
+    RecordCache    *cache.Cache
+    ZoneCache      *cache.Cache
+    geoip          *GeoIp
+    healthcheck    *Healthcheck
+    upstream       *Upstream
+    quit           chan struct{}
+    quitWG         sync.WaitGroup
 
 }
 
@@ -59,7 +60,8 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
     h.LoadZones()
 
-    h.cache = cache.New(time.Second * time.Duration(h.Config.CacheTimeout), time.Duration(h.Config.CacheTimeout) * time.Second * 10)
+    h.RecordCache = cache.New(time.Second * time.Duration(h.Config.CacheTimeout), time.Duration(h.Config.CacheTimeout) * time.Second * 10)
+    h.ZoneCache = cache.New(time.Second * time.Duration(h.Config.CacheTimeout), time.Duration(h.Config.CacheTimeout) * time.Second * 10)
 
     go h.healthcheck.Start()
     go h.UpdateZones()
@@ -374,7 +376,7 @@ func (h *DnsRequestHandler) LoadZones() {
 }
 
 func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interface{}) (*Record, int) {
-    cachedRecord, found := h.cache.Get(qname)
+    cachedRecord, found := h.RecordCache.Get(qname)
     if found {
         logger.Default.Debug("cached")
         logData["Cache"] = "HIT"
@@ -383,7 +385,7 @@ func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interfa
         logData["Cache"] = "MISS"
         record, res := h.GetRecord(qname)
         if res == dns.RcodeSuccess {
-            h.cache.Set(qname, record, time.Duration(h.Config.CacheTimeout)*time.Second)
+            h.RecordCache.Set(qname, record, time.Duration(h.Config.CacheTimeout)*time.Second)
         }
         return record, res
     }
@@ -657,6 +659,11 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 }
 
 func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
+    cachedZone, found := h.ZoneCache.Get(zone)
+    if found {
+        return cachedZone.(*Zone)
+    }
+
     z := new(Zone)
     z.Name = zone
     vals := h.Redis.GetHKeys("redins:zones:" + zone)
@@ -686,38 +693,6 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         }
     }
     z.Config.SOA.Ns = dns.Fqdn(z.Config.SOA.Ns)
-    if z.Config.DnsSec {
-        pubStr := h.Redis.Get("redins:zones:" + z.Name + ":pub")
-        privStr := h.Redis.Get("redins:zones:" + z.Name + ":priv")
-        privStr = strings.Replace(privStr, "\\n", "\n", -1)
-        if pubStr == "" || privStr == "" {
-            logger.Default.Errorf("key is not set for zone %s", z.Name)
-            z.Config.DnsSec = false
-            return z
-        }
-        if rr, err := dns.NewRR(pubStr); err == nil {
-            z.DnsKey = rr.(*dns.DNSKEY)
-        } else {
-            logger.Default.Errorf("cannot parse zone key : %s", err)
-            z.Config.DnsSec = false
-            return z
-        }
-        if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
-            z.PrivateKey = pk
-        } else {
-            logger.Default.Errorf("cannot create private key : %s", err)
-            z.Config.DnsSec = false
-            return z
-        }
-        now := time.Now()
-        z.KeyInception = uint32(now.Add(-3 * time.Hour).Unix())
-        z.KeyExpiration = uint32(now.Add(8 * 24 * time.Hour).Unix())
-        if rrsig, err := Sign([]dns.RR{z.DnsKey}, z.Name, z, 300); err == nil {
-            z.DnsKeySig = rrsig
-        } else {
-            logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)
-        }
-    }
     z.Config.SOA.Data = &dns.SOA {
         Hdr: dns.RR_Header { Name: z.Name, Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: z.Config.SOA.Ttl, Rdlength:0},
         Ns: z.Config.SOA.Ns,
@@ -728,6 +703,46 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         Minttl: z.Config.SOA.MinTtl,
         Serial: uint32(time.Now().Unix()),
     }
+
+    z = func()*Zone{
+        if z.Config.DnsSec {
+            pubStr := h.Redis.Get("redins:zones:" + z.Name + ":pub")
+            privStr := h.Redis.Get("redins:zones:" + z.Name + ":priv")
+            privStr = strings.Replace(privStr, "\\n", "\n", -1)
+            if pubStr == "" || privStr == "" {
+                logger.Default.Errorf("key is not set for zone %s", z.Name)
+                z.Config.DnsSec = false
+                return z
+            }
+            if rr, err := dns.NewRR(pubStr); err == nil {
+                z.DnsKey = rr.(*dns.DNSKEY)
+            } else {
+                logger.Default.Errorf("cannot parse zone key : %s", err)
+                z.Config.DnsSec = false
+                return z
+            }
+            if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
+                z.PrivateKey = pk
+            } else {
+                logger.Default.Errorf("cannot create private key : %s", err)
+                z.Config.DnsSec = false
+                return z
+            }
+            now := time.Now()
+            z.KeyInception = uint32(now.Add(-3 * time.Hour).Unix())
+            z.KeyExpiration = uint32(now.Add(8 * 24 * time.Hour).Unix())
+            if rrsig, err := Sign([]dns.RR{z.DnsKey}, z.Name, z, 300); err == nil {
+                z.DnsKeySig = rrsig
+            } else {
+                logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)
+                z.Config.DnsSec = false
+                return z
+            }
+        }
+        return z
+    }()
+
+    h.ZoneCache.Set(zone, z, time.Duration(h.Config.CacheTimeout) * time.Second)
     return z
 }
 
