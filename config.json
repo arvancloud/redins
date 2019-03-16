@@ -24,7 +24,8 @@
       "prefix": "test_",
       "suffix": "_test",
       "connect_timeout": 0,
-      "read_timeout": 0
+      "read_timeout": 0,
+      "active_connections": 10
     },
     "log": {
       "enable": true,
@@ -62,7 +63,8 @@
         "prefix": "healthcheck_",
         "suffix": "_healthcheck",
         "connect_timeout": 0,
-        "read_timeout": 0
+        "read_timeout": 0,
+        "active_connections": 10
       },
       "log": {
         "enable": true,

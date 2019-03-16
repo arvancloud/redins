@@ -79,6 +79,7 @@ func LoadConfig(path string) *RedinsConfig {
                     Suffix: "_redins",
                     ConnectTimeout: 0,
                     ReadTimeout: 0,
+                    ActiveConnections: 10,
                 },
                 Log: logger.LogConfig {
                     Enable: true,
@@ -109,6 +110,7 @@ func LoadConfig(path string) *RedinsConfig {
                 Suffix: "_redins",
                 ConnectTimeout: 0,
                 ReadTimeout: 0,
+                ActiveConnections: 10,
             },
             Log: logger.LogConfig {
                 Enable: true,
