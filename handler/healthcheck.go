@@ -393,7 +393,6 @@ func (h *Healthcheck) Transfer() {
                     h.quitWG.Done()
                     return
                 case <-limiter:
-                    logger.Default.Error("transfer : tick")
                     recordStr := h.redisConfigServer.HGet("redins:zones:" + domain, subdomain)
                     record := new(Record)
                     record.A.HealthCheckConfig = IpHealthCheckConfig {
