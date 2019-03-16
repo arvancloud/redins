@@ -57,7 +57,7 @@ func main() {
 		return
 	}
 
-	con.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, "*" + ".tst.")
+	con.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, "*")
 
 	fq, err := os.Create("query.txt")
 	if err != nil {
@@ -75,6 +75,7 @@ func main() {
 			return
 		}
 		defer fz.Close()
+		con.Do("SADD", "redins:zones", zoneName)
 		wz := bufio.NewWriter(fz)
 		wz.WriteString("$ORIGIN " + zoneName + "\n" +
 			"$TTL 86400\n\n" +
@@ -92,9 +93,9 @@ func main() {
 			location := RandomString(15)
 			ip := fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
 
-			con.Do("HSET", zoneName, location, "{\"a\":[{\"ttl\":300, \"ip\":\"" + ip + "\"}]}")
+			con.Do("HSET", "redins:zones:" + zoneName, location, `{"a":{"ttl":300, "records":[{"ip":"` + ip + `"}]}}`)
 
-			wq.WriteString(location + "." + zoneName + " A\n")
+			wq.WriteString(location + "." + zoneName + " " + ip + "\n")
 
 			wz.WriteString(location + " A " + ip + "\n")
 		}
