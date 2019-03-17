@@ -64,7 +64,11 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
     h.ZoneCache = cache.New(time.Second * time.Duration(h.Config.CacheTimeout), time.Duration(h.Config.CacheTimeout) * time.Second * 10)
 
     go h.healthcheck.Start()
-    go h.UpdateZones()
+
+    h.Redis.SubscribeEvent("redins:zones", func(channel string, event string){
+        logger.Default.Debug("loading zones")
+        h.LoadZones()
+    })
 
     return h
 }
@@ -76,21 +80,6 @@ func (h *DnsRequestHandler) ShutDown() {
     close(h.quit)
     h.quitWG.Wait()
     // fmt.Println("handler : stopped")
-}
-
-func (h *DnsRequestHandler) UpdateZones() {
-    for {
-        select {
-        case <-h.quit:
-            // fmt.Println("updateZone : quit")
-            h.quitWG.Done()
-            return
-        case <-time.After(time.Duration(h.Config.ZoneReload) * time.Second):
-            logger.Default.Debugf("%v", h.Zones)
-            logger.Default.Debug("loading zones")
-            h.LoadZones()
-        }
-    }
 }
 
 func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
