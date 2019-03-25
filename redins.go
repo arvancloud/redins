@@ -29,7 +29,8 @@ func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     if l.CanHandle(state.IP()) {
         h.HandleRequest(&state)
     } else {
-        msg := state.ErrorMessage(dns.RcodeRefused)
+        msg := new(dns.Msg)
+        msg.SetRcode(r, dns.RcodeRefused)
         state.W.WriteMsg(msg)
     }
 }
