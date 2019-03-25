@@ -368,7 +368,7 @@ func reverseZone(zone string) string {
 
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
-    zones := h.Redis.GetKeys("*")
+    zones, _ := h.Redis.GetKeys("*")
     newZones := iradix.New()
     for _, zone := range zones {
         newZones, _, _ = newZones.Insert([]byte(reverseZone(zone)), zone)
@@ -662,7 +662,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     z := new(Zone)
     z.Name = zone
-    vals := h.Redis.GetHKeys(zone)
+    vals, _ := h.Redis.GetHKeys(zone)
     z.Locations = make(map[string]struct{})
     for _, val := range vals {
         z.Locations[val] = struct{}{}
@@ -681,7 +681,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         },
     }
     z.Config.SOA.Ttl = 300
-    val := h.Redis.HGet(zone, "@config")
+    val, _ := h.Redis.HGet(zone, "@config")
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &z.Config)
         if err != nil {
@@ -690,8 +690,8 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
     }
     z.Config.SOA.Ns = dns.Fqdn(z.Config.SOA.Ns)
     if z.Config.DnsSec {
-        pubStr := h.Redis.Get(z.Name + "_pub")
-        privStr := h.Redis.Get(z.Name + "_priv")
+        pubStr, _ := h.Redis.Get(z.Name + "_pub")
+        privStr, _ := h.Redis.Get(z.Name + "_priv")
         privStr = strings.Replace(privStr, "\\n", "\n", -1)
         if pubStr == "" || privStr == "" {
             logger.Default.Errorf("key is not set for zone %s", z.Name)
@@ -759,7 +759,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
     r.Zone = z
     r.Name = name
 
-    val := h.Redis.HGet(z.Name, label)
+    val, _ := h.Redis.HGet(z.Name, label)
     if val == "" && name == z.Name {
         return r
     }

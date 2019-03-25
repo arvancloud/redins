@@ -236,7 +236,7 @@ func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     item := new(HealthCheckItem)
     item.Host = strings.TrimSuffix(splits[0], ":")
     item.Ip = splits[1]
-    itemStr := h.redisStatusServer.Get(key)
+    itemStr, _ := h.redisStatusServer.Get(key)
     if itemStr == "" {
         return nil
     }
@@ -260,7 +260,7 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
 
 func (h *Healthcheck) getDomainId(zone string) string {
     var cfg ZoneConfig
-    val := h.redisConfigServer.HGet(zone, "@config")
+    val, _ := h.redisConfigServer.HGet(zone, "@config")
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &cfg)
         if err != nil {
@@ -279,7 +279,7 @@ func (h *Healthcheck) Start() {
     go h.Transfer()
 
     for {
-        itemKeys := h.redisStatusServer.GetKeys("*")
+        itemKeys, _ := h.redisStatusServer.GetKeys("*")
         select {
         case <-h.quit:
             h.quitWG.Done()
@@ -379,10 +379,10 @@ func (h *Healthcheck) Transfer() {
 
     limiter := time.Tick(time.Millisecond * 50)
     for {
-        domains := h.redisConfigServer.GetKeys("*")
+        domains, _ := h.redisConfigServer.GetKeys("*")
         for _, domain := range domains {
             domainId := h.getDomainId(domain)
-            subdomains := h.redisConfigServer.GetHKeys(domain)
+            subdomains, _ := h.redisConfigServer.GetHKeys(domain)
             for _, subdomain := range subdomains {
                 select {
                 case <-h.quit:
@@ -392,7 +392,7 @@ func (h *Healthcheck) Transfer() {
                     if subdomain == "@config" {
                         continue
                     }
-                    recordStr := h.redisConfigServer.HGet(domain, subdomain)
+                    recordStr, _ := h.redisConfigServer.HGet(domain, subdomain)
                     record := new(Record)
                     record.A.HealthCheckConfig = IpHealthCheckConfig {
                         Timeout: 1000,
