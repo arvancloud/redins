@@ -25,8 +25,7 @@ test-lab:
     script:
         - echo test
         - cd $GOPATH/src/arvancloud/redins
-        - git checkout dev
-        - go get -u
+        - go get
         - go build
         - go test ./...
     artifacts:
