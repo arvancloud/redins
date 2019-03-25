@@ -236,8 +236,9 @@ func (h *Healthcheck) loadItem(key string) *HealthCheckItem {
     item := new(HealthCheckItem)
     item.Host = strings.TrimSuffix(splits[0], ":")
     item.Ip = splits[1]
-    itemStr := h.redisStatusServer.Get("redins:healthcheck:" + key)
-    if itemStr == "" {
+    itemStr, err := h.redisStatusServer.Get("redins:healthcheck:" + key)
+    if err != nil {
+        logger.Default.Errorf("cannot load item %s : %s", key, err)
         return nil
     }
     json.Unmarshal([]byte(itemStr), item)
@@ -260,7 +261,10 @@ func (h *Healthcheck) storeItem(item *HealthCheckItem) {
 
 func (h *Healthcheck) getDomainId(zone string) string {
     var cfg ZoneConfig
-    val := h.redisConfigServer.Get("redins:zones:" + zone + ":config")
+    val, err := h.redisConfigServer.Get("redins:zones:" + zone + ":config")
+    if err != nil {
+        logger.Default.Errorf("cannot load zone %s config : %s", zone, err)
+    }
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &cfg)
         if err != nil {
@@ -279,7 +283,10 @@ func (h *Healthcheck) Start() {
     go h.Transfer()
 
     for {
-        itemKeys := h.redisStatusServer.GetKeys("redins:healthcheck:*")
+        itemKeys, err := h.redisStatusServer.GetKeys("redins:healthcheck:*")
+        if err != nil {
+            logger.Default.Errorf("cannot load keys : redins:healthcheck:* : %s", err)
+        }
         select {
         case <-h.quit:
             h.quitWG.Done()
@@ -383,17 +390,26 @@ func (h *Healthcheck) Transfer() {
 
     limiter := time.Tick(time.Millisecond * 50)
     for {
-        domains := h.redisConfigServer.SMembers("redins:zones")
+        domains,err := h.redisConfigServer.SMembers("redins:zones")
+        if err !=nil {
+            logger.Default.Errorf("cannot get members of redins:zones : %s", err)
+        }
         for _, domain := range domains {
             domainId := h.getDomainId(domain)
-            subdomains := h.redisConfigServer.GetHKeys("redins:zones:" + domain)
+            subdomains, err := h.redisConfigServer.GetHKeys("redins:zones:" + domain)
+            if err != nil {
+                logger.Default.Errorf("cannot get keys of %s : %s", domain, err)
+            }
             for _, subdomain := range subdomains {
                 select {
                 case <-h.quit:
                     h.quitWG.Done()
                     return
                 case <-limiter:
-                    recordStr := h.redisConfigServer.HGet("redins:zones:" + domain, subdomain)
+                    recordStr, err := h.redisConfigServer.HGet("redins:zones:" + domain, subdomain)
+                    if err != nil {
+                        logger.Default.Errorf("cannot get record of %s.%s : %s", subdomain, domain, err)
+                    }
                     record := new(Record)
                     record.A.HealthCheckConfig = IpHealthCheckConfig {
                         Timeout: 1000,
@@ -405,7 +421,7 @@ func (h *Healthcheck) Transfer() {
                         Enable: false,
                     }
                     record.AAAA = record.A
-                    err := json.Unmarshal([]byte(recordStr), record)
+                    err = json.Unmarshal([]byte(recordStr), record)
                     if err != nil {
                         logger.Default.Errorf("cannot parse json : zone -> %s, location -> %s, %s -> %s", domain, subdomain, recordStr, err)
                         continue
