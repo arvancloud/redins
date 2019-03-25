@@ -29,6 +29,7 @@ type DnsRequestHandler struct {
     upstream       *Upstream
     quit           chan struct{}
     quitWG         sync.WaitGroup
+    numRoutines    int
 
 }
 
@@ -65,10 +66,27 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 
     go h.healthcheck.Start()
 
-    h.Redis.SubscribeEvent("redins:zones", func(channel string, event string){
+    if h.Redis.SubscribeEvent("redins:zones", func(channel string, event string){
         logger.Default.Debug("loading zones")
         h.LoadZones()
-    })
+    }) != nil {
+        logger.Default.Warning("event notification is not available, adding/removing zones will not be instant")
+        go func() {
+            h.numRoutines++
+            for {
+                select {
+                case <-h.quit:
+                    // fmt.Println("updateZone : quit")
+                    h.quitWG.Done()
+                    return
+                case <-time.After(time.Duration(h.Config.ZoneReload) * time.Second):
+                    logger.Default.Debugf("%v", h.Zones)
+                    logger.Default.Debug("loading zones")
+                    h.LoadZones()
+                }
+            }
+        }()
+    }
 
     return h
 }
@@ -76,7 +94,7 @@ func NewHandler(config *HandlerConfig) *DnsRequestHandler {
 func (h *DnsRequestHandler) ShutDown() {
     // fmt.Println("handler : stopping")
     h.healthcheck.ShutDown()
-    h.quitWG.Add(1)
+    h.quitWG.Add(h.numRoutines)
     close(h.quit)
     h.quitWG.Wait()
     // fmt.Println("handler : stopped")
@@ -356,7 +374,10 @@ func reverseZone(zone string) string {
 
 func (h *DnsRequestHandler) LoadZones() {
     h.LastZoneUpdate = time.Now()
-    zones := h.Redis.SMembers("redins:zones")
+    zones, err := h.Redis.SMembers("redins:zones")
+    if err != nil {
+        logger.Default.Error("cannot load zones : ", err)
+    }
     newZones := iradix.New()
     for _, zone := range zones {
         newZones, _, _ = newZones.Insert([]byte(reverseZone(zone)), zone)
@@ -655,7 +676,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
 
     z := new(Zone)
     z.Name = zone
-    vals := h.Redis.GetHKeys("redins:zones:" + zone)
+    vals, err := h.Redis.GetHKeys("redins:zones:" + zone)
+    if err != nil {
+        logger.Default.Errorf("cannot load zone %s locations : %s", zone, err)
+    }
     z.Locations = make(map[string]struct{})
     for _, val := range vals {
         z.Locations[val] = struct{}{}
@@ -674,7 +698,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         },
     }
     z.Config.SOA.Ttl = 300
-    val := h.Redis.Get("redins:zones:" + zone + ":config")
+    val, err := h.Redis.Get("redins:zones:" + zone + ":config")
+    if err != nil {
+        logger.Default.Errorf("cannot load zone %s config : %s", zone, err)
+    }
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &z.Config)
         if err != nil {
@@ -695,8 +722,8 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
 
     z = func()*Zone{
         if z.Config.DnsSec {
-            pubStr := h.Redis.Get("redins:zones:" + z.Name + ":pub")
-            privStr := h.Redis.Get("redins:zones:" + z.Name + ":priv")
+            pubStr, _ := h.Redis.Get("redins:zones:" + z.Name + ":pub")
+            privStr, _ := h.Redis.Get("redins:zones:" + z.Name + ":priv")
             privStr = strings.Replace(privStr, "\\n", "\n", -1)
             if pubStr == "" || privStr == "" {
                 logger.Default.Errorf("key is not set for zone %s", z.Name)
@@ -760,7 +787,7 @@ func (h *DnsRequestHandler) LoadLocation(location string, z *Zone) *Record {
     r.Zone = z
     r.Name = name
 
-    val := h.Redis.HGet("redins:zones:" + z.Name, label)
+    val, _ := h.Redis.HGet("redins:zones:" + z.Name, label)
     if val == "" && name == z.Name {
         return r
     }
