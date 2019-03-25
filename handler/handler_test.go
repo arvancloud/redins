@@ -12,6 +12,7 @@ import (
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
     "fmt"
+    "time"
 )
 
 var lookupZones = []string {
@@ -1494,6 +1495,69 @@ func TestUpstreamCNAME(t *testing.T) {
         }
         if !hasCNAME || !hasA {
             log.Println("4")
+            t.Fail()
+        }
+    }
+}
+
+var subsZone = "zone1.com."
+
+var subsEntries = [][]string {
+    {
+        "www",
+        `{"a":{"ttl":300, "records":[{"ip":"1.1.1.1"}]}}`,
+    },
+}
+
+var subsTestCases = []test.Case{
+    {
+        Qname: "www.zone1.com", Qtype: dns.TypeA,
+    },
+}
+
+func TestSubscribeZones(t *testing.T) {
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+    handlerTestConfig.CacheTimeout = 1
+    h := NewHandler(&handlerTestConfig)
+    h.Redis.Del("*")
+    for _, cmd := range subsEntries {
+        err := h.Redis.HSet("redins:zones:"+subsZone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            log.Println("1")
+            t.Fail()
+        }
+    }
+
+
+    h.Redis.SAdd("redins:zones", subsZone)
+    time.Sleep(time.Millisecond * 10)
+    {
+        tc := subsTestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if resp.Rcode != dns.RcodeSuccess {
+            fmt.Println("1")
+            t.Fail()
+        }
+    }
+    h.Redis.SRem("redins:zones", subsZone)
+    time.Sleep(time.Millisecond * 1100)
+    {
+        tc := subsTestCases[0]
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+        if resp.Rcode != dns.RcodeNotAuth {
+            fmt.Println("2")
             t.Fail()
         }
     }
