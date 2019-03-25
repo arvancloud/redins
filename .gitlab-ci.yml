@@ -25,7 +25,7 @@ test-lab:
     script:
         - echo test
         - cd $GOPATH/src
-        - go get -u ./...
+        - go get -u *
         - cd $GOPATH/src/arvancloud/redins
         - go build
         - go test ./...
