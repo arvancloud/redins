@@ -275,7 +275,7 @@ func (h *Healthcheck) getDomainId(zone string) string {
 }
 
 func (h *Healthcheck) Start() {
-    if h.Enable == false {
+    if !h.Enable {
         return
     }
     h.dispatcher.Run()
@@ -348,7 +348,7 @@ func statusUp(item *HealthCheckItem) {
 
 func (h *Healthcheck) FilterHealthcheck(qname string, rrset *IP_RRSet) []IP_RR {
     var newIps []IP_RR
-    if h.Enable == false {
+    if !h.Enable {
         newIps = append(newIps, rrset.Data...)
         return newIps
     }
@@ -433,7 +433,7 @@ func (h *Healthcheck) Transfer() {
                         host = subdomain + "." + domain
                     }
                     for _, rrset := range []*IP_RRSet{&record.A, &record.AAAA} {
-                        if rrset.HealthCheckConfig.Enable == false {
+                        if !rrset.HealthCheckConfig.Enable {
                             continue
                         }
                         for i := range rrset.Data {

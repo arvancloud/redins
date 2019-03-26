@@ -818,7 +818,7 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
 func ChooseIp(ips []IP_RR, weighted bool) int {
     sum := 0
 
-    if weighted == false {
+    if !weighted {
         return rand.Intn(len(ips))
     }
 

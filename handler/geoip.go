@@ -40,7 +40,7 @@ func NewGeoIp(config *GeoIpConfig) *GeoIp {
 }
 
 func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
-    if g.Enable == false || g.CountryDB == nil {
+    if !g.Enable || g.CountryDB == nil {
         return ips
     }
     _, _, sourceCountry, err := g.GetGeoLocation(sourceIp)
@@ -85,7 +85,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
 }
 
 func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
-    if g.Enable == false || g.ASNDB == nil {
+    if !g.Enable || g.ASNDB == nil {
         return ips
     }
     sourceASN, err := g.GetASN(sourceIp)
@@ -130,7 +130,7 @@ func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]inte
 }
 
 func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []IP_RR, logData map[string]interface{}) []IP_RR {
-    if g.Enable == false || g.CountryDB == nil {
+    if !g.Enable || g.CountryDB == nil {
         return ips
     }
     minDistance := 1000.0
@@ -180,7 +180,7 @@ func (g *GeoIp) getDistance(slat, slong, dlat, dlong float64) (float64, error) {
 }
 
 func (g *GeoIp) GetGeoLocation(ip net.IP) (latitude float64, longitude float64, country string, err error) {
-    if g.Enable == false || g.CountryDB == nil {
+    if !g.Enable || g.CountryDB == nil {
         return
     }
     var record struct {
