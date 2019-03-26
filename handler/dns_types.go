@@ -28,22 +28,22 @@ type Record struct {
 }
 
 type ZoneKey struct {
-    Algorithm uint8 `json:"algorithm,omitempty"`
     PublicKey string `json:"public_key,omitmpty"`
     PrivateKey string `json:"private_key,omitempty"`
+    Algorithm uint8 `json:"algorithm,omitempty"`
 }
 
 type ZoneConfig struct {
+    DomainId        string     `json:"domain_id,omitempty"`
     SOA             *SOA_RRSet `json:"soa,omitempty"`
     DnsSec          bool       `json:"dnssec,omitempty"`
     CnameFlattening bool       `json:"cname_flattening,omitempty"`
-    DomainId        string     `json:"domain_id,omitempty"`
 }
 
 type Zone struct {
     Name      string
-    Locations map[string]struct{}
     Config ZoneConfig
+    Locations map[string]struct{}
     DnsKey *dns.DNSKEY
     DnsKeySig dns.RR
     PrivateKey crypto.PrivateKey
@@ -52,24 +52,24 @@ type Zone struct {
 }
 
 type IP_RRSet struct {
+    FilterConfig      IpFilterConfig      `json:"filter,omitempty"`
+    HealthCheckConfig IpHealthCheckConfig `json:"health_check,omitempty"`
     Ttl               uint32              `json:"ttl,omitempty"`
     Data              []IP_RR             `json:"records,omitempty"`
-    HealthCheckConfig IpHealthCheckConfig `json:"health_check,omitempty"`
-    FilterConfig      IpFilterConfig      `json:"filter,omitempty"`
 }
 
 type IP_RR struct {
+    Weight      int      `json:"weight,omitempty"`
     Ip          net.IP   `json:"ip"`
     Country     []string `json:"country,omitempty"`
     ASN         []uint   `json:"asn,omitempty"`
-    Weight      int      `json:"weight,omitempty"`
 }
 
 type _IP_RR struct {
-    Ip          net.IP      `json:"ip"`
     Country     interface{} `json:"country,omitempty"`
     ASN         interface{} `json:"asn,omitempty"`
     Weight      int         `json:"weight,omitempty"`
+    Ip          net.IP      `json:"ip"`
 }
 
 func (iprr *IP_RR) UnmarshalJSON(data []byte) error {
@@ -118,13 +118,13 @@ func (iprr *IP_RR) UnmarshalJSON(data []byte) error {
 }
 
 type IpHealthCheckConfig struct {
-    Enable    bool          `json:"enable,omitempty"`
     Protocol  string        `json:"protocol,omitempty"`
     Uri       string        `json:"uri,omitempty"`
     Port      int           `json:"port,omitempty"`
     Timeout   int           `json:"timeout,omitempty"`
     UpCount   int           `json:"up_count,omitempty"`
     DownCount int           `json:"down_count,omitempty"`
+    Enable    bool          `json:"enable,omitempty"`
 }
 
 type IpFilterConfig struct {
@@ -134,8 +134,8 @@ type IpFilterConfig struct {
 }
 
 type CNAME_RRSet struct {
-    Ttl  uint32 `json:"ttl,omitempty"`
     Host string `json:"host"`
+    Ttl  uint32 `json:"ttl,omitempty"`
 }
 
 type TXT_RRSet struct {
@@ -172,10 +172,10 @@ type SRV_RRSet struct {
 }
 
 type SRV_RR struct {
+    Target   string `json:"target"`
     Priority uint16 `json:"priority"`
     Weight   uint16 `json:"weight"`
     Port     uint16 `json:"port"`
-    Target   string `json:"target"`
 }
 
 type CAA_RRSet struct {
@@ -190,15 +190,15 @@ type CAA_RR struct {
 }
 
 type PTR_RRSet struct {
-    Ttl    uint32 `json:"ttl,omitempty"`
     Domain string `json:domain`
+    Ttl    uint32 `json:"ttl,omitempty"`
 }
 
 type SOA_RRSet struct {
-    Ttl     uint32   `json:"ttl,omitempty"`
-    Data    *dns.SOA `json:"-"`
     Ns      string   `json:"ns"`
     MBox    string   `json:"MBox"`
+    Data    *dns.SOA `json:"-"`
+    Ttl     uint32   `json:"ttl,omitempty"`
     Refresh uint32   `json:"refresh"`
     Retry   uint32   `json:"retry"`
     Expire  uint32   `json:"expire"`
