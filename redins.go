@@ -2,174 +2,213 @@ package main
 
 import (
     "log"
-    "sync"
-    "strings"
     "os"
-    "net"
+    "time"
+    "io/ioutil"
+    "encoding/json"
+    "os/signal"
+    "syscall"
 
     "github.com/miekg/dns"
-    "github.com/go-ini/ini"
     "github.com/coredns/coredns/request"
-    "github.com/hawell/redins/handler"
-    "github.com/hawell/redins/eventlog"
-    "github.com/hawell/redins/geoip"
-    "github.com/hawell/redins/server"
-    "github.com/hawell/redins/healthcheck"
+    "github.com/hawell/logger"
+    "github.com/hawell/uperdis"
+    "arvancloud/redins/handler"
 )
 
 var (
-    s *dns.Server
+    s []dns.Server
     h *handler.DnsRequestHandler
-    l *eventlog.EventLogger
-    g *geoip.GeoIp
-    k *healthcheck.Healthcheck
-
+    l *handler.RateLimiter
 )
-
-func GetSourceIp(request *request.Request) net.IP {
-    opt := request.Req.IsEdns0()
-    if len(opt.Option) != 0 {
-        return net.ParseIP(strings.Split(opt.Option[0].String(), "/")[0])
-    }
-    return net.ParseIP(request.IP())
-}
-
-func LogRequest(request *request.Request) {
-    type RequestLogData struct {
-        SourceIP     string
-        Record       string
-        ClientSubnet string
-    }
-
-    data := RequestLogData{
-        SourceIP: request.IP(),
-        Record:   request.Name(),
-    }
-
-    opt := request.Req.IsEdns0()
-    if len(opt.Option) != 0 {
-        data.ClientSubnet = opt.Option[0].String()
-    }
-    l.Log(data, "request")
-}
 
 func handleRequest(w dns.ResponseWriter, r *dns.Msg) {
     // log.Printf("[DEBUG] handle request")
     state := request.Request{W: w, Req: r}
 
-    qname := state.Name()
-    qtype := state.QType()
-
-    // log.Printf("[DEBUG] name : %s", state.Name())
-    // log.Printf("[DEBUG] type : %s", state.Type())
-
-    LogRequest(&state)
-
-    record, res := h.FetchRecord(qname)
-
-    if res != dns.RcodeSuccess {
-        errorResponse(state, res)
-        return
-    }
-
-    var answers []dns.RR
-
-    if qtype == dns.TypeA {
-        ips := []handler.IP_Record{}
-        ips = append(ips, record.A...)
-        ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
-        answers = h.A(qname, ips)
-    } else if qtype == dns.TypeAAAA {
-        ips := []handler.IP_Record{}
-        ips = append(ips, record.A...)
-        ips = k.FilterHealthcheck(qname, record, ips)
-        ips = Filter(&state, record.ZoneCfg.IpFilterMode, ips)
-        answers = h.AAAA(qname, ips)
+    if l.CanHandle(state.IP()) {
+        h.HandleRequest(&state)
     } else {
-        switch qtype {
-        case dns.TypeCNAME:
-            answers = h.CNAME(qname, record)
-        case dns.TypeTXT:
-            answers = h.TXT(qname, record)
-        case dns.TypeNS:
-            answers = h.NS(qname, record)
-        case dns.TypeMX:
-            answers = h.MX(qname, record)
-        case dns.TypeSRV:
-            answers = h.SRV(qname, record)
-        case dns.TypeSOA:
-            answers = h.SOA(qname, record)
-        default:
-            errorResponse(state, dns.RcodeNotImplemented)
-            return
-        }
+        msg := new(dns.Msg)
+        msg.SetRcode(r, dns.RcodeRefused)
+        state.W.WriteMsg(msg)
     }
-    m := new(dns.Msg)
-    m.SetReply(r)
-    m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
-
-    m.Answer = append(m.Answer, answers...)
-
-    state.SizeAndDo(m)
-    m, _ = state.Scrub(m)
-    w.WriteMsg(m)
 }
 
-func Filter(request *request.Request, filterMode string, ips []handler.IP_Record) []handler.IP_Record {
-    switch  filterMode {
-    case "multi":
-        return ips
-    case "rr":
-        return handler.GetWeightedIp(ips)
-    case "geo_country":
-        return g.GetSameCountry(GetSourceIp(request), ips)
-    case "geo_location":
-        return g.GetMinimumDistance(GetSourceIp(request), ips)
-    default:
-        log.Printf("[ERROR] invalid filter mode : %s", filterMode)
-        return ips
+type RedinsConfig struct {
+    Server    []handler.ServerConfig    `json:"server,omitempty"`
+    ErrorLog  logger.LogConfig        `json:"error_log,omitempty"`
+    Handler   handler.HandlerConfig     `json:"handler,omitempty"`
+    RateLimit handler.RateLimiterConfig `json:"ratelimit,omitempty"`
+}
+
+func LoadConfig(path string) *RedinsConfig {
+    config := &RedinsConfig {
+        Server: []handler.ServerConfig {
+            {
+                Ip:       "127.0.0.1",
+                Port:     1053,
+                Protocol: "udp",
+            },
+        },
+        Handler: handler.HandlerConfig {
+            Upstream: []handler.UpstreamConfig {
+                {
+                    Ip:       "1.1.1.1",
+                    Port:     53,
+                    Protocol: "udp",
+                    Timeout:  400,
+                },
+            },
+            GeoIp: handler.GeoIpConfig {
+                Enable: false,
+                CountryDB: "geoCity.mmdb",
+                ASNDB: "geoIsp.mmdb",
+            },
+            HealthCheck: handler.HealthcheckConfig {
+                Enable: false,
+                MaxRequests: 10,
+                MaxPendingRequests: 100,
+                UpdateInterval: 600,
+                CheckInterval: 600,
+                RedisStatusServer: uperdis.RedisConfig {
+                    Ip: "127.0.0.1",
+                    Port: 6379,
+                    DB: 0,
+                    Password: "",
+                    Prefix: "redins_",
+                    Suffix: "_redins",
+                    ConnectTimeout: 0,
+                    ReadTimeout: 0,
+                    ActiveConnections: 10,
+                },
+                Log: logger.LogConfig {
+                    Enable: true,
+                    Target: "file",
+                    Level: "info",
+                    Path: "/tmp/healthcheck.log",
+                    Format: "json",
+                    TimeFormat: time.RFC3339,
+                    Sentry: logger.SentryConfig {
+                        Enable: false,
+                    },
+                    Syslog: logger.SyslogConfig {
+                        Enable: false,
+                    },
+                },
+            },
+            MaxTtl: 3600,
+            CacheTimeout: 60,
+            ZoneReload: 600,
+            LogSourceLocation: false,
+            UpstreamFallback: false,
+            Redis: uperdis.RedisConfig {
+                Ip: "127.0.0.1",
+                Port: 6379,
+                DB: 0,
+                Password: "",
+                Prefix: "redins_",
+                Suffix: "_redins",
+                ConnectTimeout: 0,
+                ReadTimeout: 0,
+                ActiveConnections: 10,
+            },
+            Log: logger.LogConfig {
+                Enable: true,
+                Target: "file",
+                Level: "info",
+                Path: "/tmp/redins.log",
+                Format: "json",
+                TimeFormat: time.RFC3339,
+                Sentry: logger.SentryConfig {
+                    Enable: false,
+                },
+                Syslog: logger.SyslogConfig {
+                    Enable: false,
+                },
+            },
+        },
+        ErrorLog: logger.LogConfig {
+            Enable: true,
+            Target: "stdout",
+            Level: "info",
+            Format: "text",
+            TimeFormat: time.RFC3339,
+            Sentry: logger.SentryConfig {
+                Enable: false,
+            },
+            Syslog: logger.SyslogConfig {
+                Enable: false,
+            },
+        },
+        RateLimit: handler.RateLimiterConfig {
+            Enable: false,
+            Rate: 60,
+            Burst: 10,
+            BlackList: []string{},
+            WhiteList: []string{},
+        },
     }
-    return ips
+    raw, err := ioutil.ReadFile(path)
+    if err != nil {
+        log.Printf("[ERROR] cannot load file %s : %s", path, err)
+        log.Printf("[INFO] loading default config")
+        return config
+    }
+    err = json.Unmarshal(raw, config)
+    if err != nil {
+        log.Printf("[ERROR] cannot load json file")
+        log.Printf("[INFO] loading default config")
+        return config
+    }
+    return config
 }
 
-func errorResponse(state request.Request, rcode int) {
-    m := new(dns.Msg)
-    m.SetRcode(state.Req, rcode)
-    m.Authoritative, m.RecursionAvailable, m.Compress = true, false, true
-
-    // m.Ns, _ = redis.SOA(state.Name(), zone, nil)
-
-    state.SizeAndDo(m)
-    state.W.WriteMsg(m)
-}
-
-func main() {
-    configFile := "redins.ini"
+func Start() {
+    configFile := "config.json"
     if len(os.Args) > 1 {
         configFile = os.Args[1]
     }
-    cfg, err := ini.LooseLoad(configFile)
-    if err != nil {
-        log.Printf("[ERROR] loading config failed : %s", err)
-        return
-    }
+    cfg := LoadConfig(configFile)
 
-    s = server.NewServer(server.LoadConfig(cfg, "server"))
+    logger.Default = logger.NewLogger(&cfg.ErrorLog)
 
-    h = handler.NewHandler(handler.LoadConfig(cfg, "handler"))
+    s = handler.NewServer(cfg.Server)
 
-    l = eventlog.NewLogger(eventlog.LoadConfig(cfg, "log"))
+    h = handler.NewHandler(&cfg.Handler)
 
-    g = geoip.NewGeoIp(geoip.LoadConfig(cfg, "geoip"))
-
-    k = healthcheck.NewHealthcheck(healthcheck.LoadConfig(cfg, "healthcheck"))
+    l = handler.NewRateLimiter(&cfg.RateLimit)
 
     dns.HandleFunc(".", handleRequest)
 
-    var wg sync.WaitGroup
-    wg.Add(2)
-    go s.ListenAndServe()
-    go k.Start()
-    wg.Wait()
+    for i := range s {
+        go s[i].ListenAndServe()
+        time.Sleep(1 * time.Second)
+    }
+}
+
+func Stop() {
+    for i := range s {
+        s[i].Shutdown()
+    }
+    h.ShutDown()
+}
+
+func main() {
+
+    Start()
+
+    c := make(chan os.Signal, 1)
+    signal.Notify(c, syscall.SIGINT, syscall.SIGHUP)
+
+    for sig := range c {
+        switch sig {
+        case syscall.SIGINT:
+            Stop()
+            return
+        case syscall.SIGHUP:
+            Stop()
+            Start()
+        }
+    }
 }
