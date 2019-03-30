@@ -5,12 +5,11 @@ import (
     "sort"
     "fmt"
     "log"
-    "github.com/coredns/coredns/plugin/test"
     "github.com/miekg/dns"
-    "github.com/coredns/coredns/plugin/pkg/dnstest"
-    "github.com/coredns/coredns/request"
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
+    "arvancloud/redins/test"
+    "github.com/coredns/coredns/request"
 )
 
 var dnssecZone = string("dnssec_test.com.")
@@ -290,7 +289,7 @@ func TestDNSSEC(t *testing.T) {
     var dnskey dns.RR
     {
         r := dnskeyQuery.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
         resp := w.Msg
@@ -314,7 +313,7 @@ func TestDNSSEC(t *testing.T) {
         sort.Sort(test.RRSet(tc.Ns))
 
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
         resp := w.Msg

@@ -886,15 +886,6 @@ func (h *DnsRequestHandler) FindCAA(record *Record) *Record {
     zone := record.Zone
     currentRecord := record
     for currentRecord != nil && strings.HasSuffix(currentRecord.Name, zone.Name) {
-        for {
-            if currentRecord == nil {
-                return nil
-            }
-            if currentRecord.CNAME == nil {
-                break
-            }
-            currentRecord, _ = h.FetchRecord(currentRecord.CNAME.Host, map[string]interface{}{})
-        }
         if len(currentRecord.CAA.Data) != 0 {
             return currentRecord
         }

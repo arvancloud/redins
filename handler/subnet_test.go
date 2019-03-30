@@ -2,12 +2,11 @@ package handler
 
 import (
     "testing"
-    "github.com/coredns/coredns/plugin/test"
     "github.com/miekg/dns"
-    "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
     "net"
     "log"
+    "arvancloud/redins/test"
 )
 
 func TestSubnet(t *testing.T) {
@@ -34,7 +33,7 @@ func TestSubnet(t *testing.T) {
         log.Printf("no edns\n")
         t.Fail()
     }
-    w := dnstest.NewRecorder(&test.ResponseWriter{})
+    w := test.NewRecorder(&test.ResponseWriter{})
     state := request.Request{W: w, Req: r}
 
     subnet := GetSourceSubnet(&state)

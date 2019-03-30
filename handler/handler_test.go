@@ -6,17 +6,16 @@ import (
     "log"
 
     "github.com/miekg/dns"
-    "github.com/coredns/coredns/plugin/pkg/dnstest"
-    "github.com/coredns/coredns/plugin/test"
     "github.com/coredns/coredns/request"
     "github.com/hawell/logger"
     "github.com/hawell/uperdis"
     "fmt"
     "time"
+    "arvancloud/redins/test"
 )
 
 var lookupZones = []string {
-    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.ddd.",/* "example.caa.",*/ "0.0.127.in-addr.arpa.", "20.127.10.in-addr.arpa.",
+    "example.com.", "example.net.", "example.aaa.", "example.bbb.", "example.ccc.", "example.ddd.", "example.caa.", "0.0.127.in-addr.arpa.", "20.127.10.in-addr.arpa.",
 }
 
 var lookupConfig = []string {
@@ -26,7 +25,7 @@ var lookupConfig = []string {
     `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.bbb.","ns":"ns1.example.bbb.","refresh":44,"retry":55,"expire":66}}`,
     `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ccc.","ns":"ns1.example.ccc.","refresh":44,"retry":55,"expire":66}}`,
     `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.ddd.","ns":"ns1.example.ddd.","refresh":44,"retry":55,"expire":66},"cname_flattening":true}`,
-    /*`{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66}}`,*/
+    `{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.example.caa.","ns":"ns1.example.caa.","refresh":44,"retry":55,"expire":66}}`,
     "",
     "",
 }
@@ -140,7 +139,6 @@ var lookupEntries = [][][]string {
             `{"cname":{"ttl":300, "host":"d.example.ddd."}}`,
         },
     },
-    /*
     {
         {"@",
             `{"caa":{"ttl":300, "records":[{"tag":"issue", "value":"godaddy.com;", "flag":0}]}}`,
@@ -155,10 +153,18 @@ var lookupEntries = [][][]string {
             `{"cname":{"ttl":300, "host":"d.example.caa."}}`,
         },
         {"d",
-            `{"cname":{"ttl":300, "host":"x.y.z.example.caa."}}`,
+            `{"cname":{"ttl":300, "host":"example.caa."}}`,
+        },
+        {"x.y.z",
+            `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]}}`,
+        },
+        {"y.z",
+            `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]}}`,
+        },
+        {"z",
+            `{"a":{"ttl":300, "records":[{"ip":"1.2.3.4"}]}}`,
         },
     },
-    */
     {
         {"1",
             `{"ptr":{"ttl":300, "domain":"localhost"}}`,
@@ -494,7 +500,6 @@ var lookupTestCases = [][]test.Case{
         },
     },
     // CAA Test
-    /*
     {
         {
             Qname: "example.caa.", Qtype: dns.TypeCAA,
@@ -503,13 +508,23 @@ var lookupTestCases = [][]test.Case{
             },
         },
         {
-            Qname: "a.b.c.d.example.caa", Qtype: dns.TypeCAA,
+            Qname: "a.b.c.d.example.caa.", Qtype: dns.TypeCAA,
             Answer: []dns.RR{
-                test.CAA("a.b.c.d.example.caa 300 IN CAA 0 issue \"godaddy.com;\""),
+                test.CNAME("a.b.c.d.example.caa. 300 IN CNAME b.c.d.example.caa."),
+                test.CNAME("b.c.d.example.caa. 300 IN CNAME c.d.example.caa."),
+                test.CNAME("c.d.example.caa. 300 IN CNAME d.example.caa."),
+                test.CNAME("d.example.caa. 300 IN CNAME example.caa."),
+                test.CAA("example.caa. 300 IN CAA 0 issue \"godaddy.com;\""),
+            },
+        },
+        {
+            Qname: "x.y.z.example.caa.", Qtype: dns.TypeCAA,
+            Answer: []dns.RR{
+                test.CAA("x.y.z.example.caa.	300	IN	CAA	0 issue \"godaddy.com;\""),
             },
         },
     },
-    */
+    // PTR Test
     {
         {
             Qname: "1.0.0.127.in-addr.arpa.", Qtype:dns.TypePTR,
@@ -579,7 +594,7 @@ func TestLookup(t *testing.T) {
         for j, tc := range lookupTestCases[i] {
 
             r := tc.Msg()
-            w := dnstest.NewRecorder(&test.ResponseWriter{})
+            w := test.NewRecorder(&test.ResponseWriter{})
             state := request.Request{W: w, Req: r}
             h.HandleRequest(&state)
 
@@ -746,7 +761,7 @@ func TestANAME(t *testing.T) {
     for _, tc := range anameTestCases {
 
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -787,7 +802,7 @@ func TestWeightedANAME(t *testing.T) {
     ip3 := 0
     for i := 0; i < 1000; i++ {
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -815,7 +830,7 @@ func TestWeightedANAME(t *testing.T) {
     ip63 := 0
     for i := 0; i < 1000; i++ {
         r := tc2.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1085,7 +1100,7 @@ func TestGeoFilter(t *testing.T) {
         }
         r := tc.Msg()
         r.Extra = append(r.Extra, opt)
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1177,7 +1192,7 @@ func TestMultiFilter(t *testing.T) {
     for i := 0; i < 10; i++ {
         tc := filterMultiTestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1192,7 +1207,7 @@ func TestMultiFilter(t *testing.T) {
     for i := 0; i < 10000; i++ {
         tc := filterMultiTestCases[1]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1227,7 +1242,7 @@ func TestMultiFilter(t *testing.T) {
     for i := 0; i < 10000; i++ {
         tc := filterMultiTestCases[2]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1333,7 +1348,7 @@ func TestSingleFilter(t *testing.T) {
     for i := 0; i < 10; i++ {
         tc := filterSingleTestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1348,7 +1363,7 @@ func TestSingleFilter(t *testing.T) {
     for i := 0; i < 10000; i++ {
         tc := filterSingleTestCases[1]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1383,7 +1398,7 @@ func TestSingleFilter(t *testing.T) {
     for i := 0; i < 10000; i++ {
         tc := filterSingleTestCases[2]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1452,7 +1467,7 @@ func TestUpstreamCNAME(t *testing.T) {
     {
         tc := upstreamCNAMETestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1473,7 +1488,7 @@ func TestUpstreamCNAME(t *testing.T) {
     {
         tc := upstreamCNAMETestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1536,7 +1551,7 @@ func TestSubscribeZones(t *testing.T) {
     {
         tc := subsTestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
@@ -1547,11 +1562,11 @@ func TestSubscribeZones(t *testing.T) {
         }
     }
     h.Redis.SRem("redins:zones", subsZone)
-    time.Sleep(time.Millisecond * 1100)
+    time.Sleep(time.Millisecond * 1500)
     {
         tc := subsTestCases[0]
         r := tc.Msg()
-        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        w := test.NewRecorder(&test.ResponseWriter{})
         state := request.Request{W: w, Req: r}
         h.HandleRequest(&state)
 
