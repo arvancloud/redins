@@ -656,6 +656,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 
     location := h.findLocation(qname, z)
     if len(location) == 0 { // empty, no results
+        logger.Default.Errorf("location not exists : %s", qname)
         return &Record{Name:qname, Zone: z}, dns.RcodeNameError
     }
     logger.Default.Debugf("location : %s", location)
@@ -695,9 +696,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
             Retry: 7200,
             Expire: 3600,
             MBox: "hostmaster." + z.Name,
+            Serial: uint32(time.Now().Unix()),
+            Ttl: 300,
         },
     }
-    z.Config.SOA.Ttl = 300
     val, err := h.Redis.Get("redins:zones:" + zone + ":config")
     if err != nil {
         logger.Default.Errorf("cannot load zone %s config : %s", zone, err)
@@ -717,7 +719,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         Retry: z.Config.SOA.Retry,
         Expire: z.Config.SOA.Expire,
         Minttl: z.Config.SOA.MinTtl,
-        Serial: uint32(time.Now().Unix()),
+        Serial: z.Config.SOA.Serial,
     }
 
     z = func()*Zone{

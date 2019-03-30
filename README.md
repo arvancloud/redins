@@ -380,7 +380,7 @@ redis-cli>HKEYS redins:zones:example.com.
 * redins:zones:XXXX.XXX.:config is a string containing zone specific configurations
 ~~~
 redis-cli>GET redins:zones:example.com.:config
-"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}"
+"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":23232}}"
 ~~~
 
 * redins:zones:XXXX.XXX.:pub and redins:zones:XXXX.XXX.:priv contains keypair for dnssec 
@@ -619,7 +619,8 @@ redis-cli>HGETALL example.com.
         "ns" : "ns1.example.com.",
         "refresh" : 44,
         "retry" : 55,
-        "expire" : 66
+        "expire" : 66,
+        "serial" : 25245235
     },
     "cname_flattening": true,
     "dnssec": true,
@@ -665,7 +666,7 @@ redis-cli> hgetall example.net.
 11) "subdel"
 12) "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.subdel.example.net.\"},{\"host\":\"ns2.subdel.example.net.\"}]}"
 13) "@config"
-14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
+14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":32343},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
 redis-cli> 
 ~~~
 
