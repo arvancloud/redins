@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/arvancloud/redins)](https://goreportcard.com/report/arvancloud/redins)
+
 # table of contents
 
 - [Configuration](#configuration)
@@ -25,6 +27,7 @@
         - [SRV](#srv)
         - [CAA](#caa)
         - [PTR](#ptr)
+        - [TLSA](#tlsa)
         - [SOA](#soa)
     - [example](#zone-example)
     
@@ -380,7 +383,7 @@ redis-cli>HKEYS redins:zones:example.com.
 * redins:zones:XXXX.XXX.:config is a string containing zone specific configurations
 ~~~
 redis-cli>GET redins:zones:example.com.:config
-"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66}}"
+"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.com.\",\"ns\":\"ns1.example.com.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":23232}}"
 ~~~
 
 * redins:zones:XXXX.XXX.:pub and redins:zones:XXXX.XXX.:priv contains keypair for dnssec 
@@ -608,10 +611,27 @@ redis-cli>HGETALL example.com.
 }
 ~~~
 
+#### TLSA
+
+~~~json
+{
+  "tlsa":{
+    "ttl": 300,
+    "records":[
+      {
+        "usage": 1,
+        "selector": 1,
+        "matching_type": 1,
+        "certificate": "1CFC98A706BCF3683015"
+      }
+    ]
+  }
+}
+~~~
+
 #### config
 
 ~~~json
-"@config":
 {
     "soa":{
         "ttl" : 100,
@@ -619,7 +639,8 @@ redis-cli>HGETALL example.com.
         "ns" : "ns1.example.com.",
         "refresh" : 44,
         "retry" : 55,
-        "expire" : 66
+        "expire" : 66,
+        "serial" : 25245235
     },
     "cname_flattening": true,
     "dnssec": true,
@@ -651,7 +672,10 @@ $ORIGIN example.net.
 above zone data should be stored at redis as follow:
 
 ~~~
-redis-cli> hgetall example.net.
+redis-cli> smembers redins:zones
+ 1) "example.net."
+ 
+redis-cli> hgetall redins:zones:example.net.
  1) "_ssh._tcp.host1"
  2) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
  3) "*"
@@ -664,8 +688,9 @@ redis-cli> hgetall example.net.
 10) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
 11) "subdel"
 12) "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.subdel.example.net.\"},{\"host\":\"ns2.subdel.example.net.\"}]}"
-13) "@config"
-14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
-redis-cli> 
+
+redis-cli> get redins:zones:example.net.:config
+"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":32343},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
+
 ~~~
 

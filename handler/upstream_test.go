@@ -5,11 +5,10 @@ import (
     "log"
 
     "github.com/miekg/dns"
-    "github.com/coredns/coredns/plugin/test"
-    "github.com/coredns/coredns/plugin/pkg/dnstest"
     "github.com/coredns/coredns/request"
     "github.com/hawell/uperdis"
     "github.com/hawell/logger"
+    "arvancloud/redins/test"
 )
 
 var upstreamTestConfig = HandlerConfig {
@@ -73,7 +72,7 @@ func TestFallback(t *testing.T) {
     h := NewHandler(&upstreamTestConfig)
 
     r := tc.Msg()
-    w := dnstest.NewRecorder(&test.ResponseWriter{})
+    w := test.NewRecorder(&test.ResponseWriter{})
     state := request.Request{W: w, Req: r}
     h.HandleRequest(&state)
 

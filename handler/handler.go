@@ -137,6 +137,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     if record != nil {
         logData["DomainId"] = record.Zone.Config.DomainId
         if qtype != dns.TypeCNAME {
+            // TODO: check for cname loop
             for {
                 if localRes != dns.RcodeSuccess {
                     break
@@ -225,6 +226,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypePTR:
             answers = AppendRR(answers, h.PTR(qname, record), qname, record, secured)
+        case dns.TypeTLSA:
+            answers = AppendRR(answers, h.TLSA(qname, record), qname, record, secured)
         case dns.TypeSOA:
             answers = AppendSOA(answers, record.Zone, secured)
         case dns.TypeDNSKEY:
@@ -526,6 +529,20 @@ func (h *DnsRequestHandler) PTR(name string, record *Record) (answers []dns.RR) 
     return
 }
 
+func (h *DnsRequestHandler) TLSA(name string, record *Record) (answers []dns.RR) {
+    for _, tlsa := range record.TLSA.Data {
+        r := new(dns.TLSA)
+        r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeTLSA,
+            Class:dns.ClassNONE, Ttl: h.getTtl(record.TLSA.Ttl)}
+        r.Usage = tlsa.Usage
+        r.Selector = tlsa.Selector
+        r.MatchingType = tlsa.MatchingType
+        r.Certificate = tlsa.Certificate
+        answers = append(answers, r)
+    }
+    return
+}
+
 func (h *DnsRequestHandler) getTtl(ttl uint32) uint32 {
     maxTtl := uint32(h.Config.MaxTtl)
     if ttl == 0 {
@@ -656,6 +673,7 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 
     location := h.findLocation(qname, z)
     if len(location) == 0 { // empty, no results
+        logger.Default.Errorf("location not exists : %s", qname)
         return &Record{Name:qname, Zone: z}, dns.RcodeNameError
     }
     logger.Default.Debugf("location : %s", location)
@@ -695,9 +713,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
             Retry: 7200,
             Expire: 3600,
             MBox: "hostmaster." + z.Name,
+            Serial: uint32(time.Now().Unix()),
+            Ttl: 300,
         },
     }
-    z.Config.SOA.Ttl = 300
     val, err := h.Redis.Get("redins:zones:" + zone + ":config")
     if err != nil {
         logger.Default.Errorf("cannot load zone %s config : %s", zone, err)
@@ -717,7 +736,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         Retry: z.Config.SOA.Retry,
         Expire: z.Config.SOA.Expire,
         Minttl: z.Config.SOA.MinTtl,
-        Serial: uint32(time.Now().Unix()),
+        Serial: z.Config.SOA.Serial,
     }
 
     z = func()*Zone{
@@ -818,7 +837,7 @@ func (h *DnsRequestHandler) SetLocation(location string, z *Zone, val *Record) {
 func ChooseIp(ips []IP_RR, weighted bool) int {
     sum := 0
 
-    if weighted == false {
+    if !weighted {
         return rand.Intn(len(ips))
     }
 
@@ -884,15 +903,6 @@ func (h *DnsRequestHandler) FindCAA(record *Record) *Record {
     zone := record.Zone
     currentRecord := record
     for currentRecord != nil && strings.HasSuffix(currentRecord.Name, zone.Name) {
-        for {
-            if currentRecord == nil {
-                return nil
-            }
-            if currentRecord.CNAME == nil {
-                break
-            }
-            currentRecord, _ = h.FetchRecord(currentRecord.CNAME.Host, map[string]interface{}{})
-        }
         if len(currentRecord.CAA.Data) != 0 {
             return currentRecord
         }
