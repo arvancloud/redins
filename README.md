@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/arvancloud/redins)](https://goreportcard.com/report/arvancloud/redins)
+
 # table of contents
 
 - [Configuration](#configuration)
