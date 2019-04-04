@@ -143,7 +143,7 @@ func (g *GeoIp) GetMinimumDistance(sourceIp net.IP, ips []IP_RR, logData map[str
 	}
 	for _, ip := range ips {
 		destinationIp := ip.Ip
-		dlat, dlong, _, err := g.GetGeoLocation(destinationIp)
+		dlat, dlong, _, _ := g.GetGeoLocation(destinationIp)
 		d, err := g.getDistance(slat, slong, dlat, dlong)
 		if err != nil {
 			d = 1000.0

@@ -30,7 +30,7 @@ type HealthCheckItem struct {
 	UpCount   int       `json:"up_count,omitempty"`
 	DownCount int       `json:"down_count,omitempty"`
 	Enable    bool      `json:"enable,omitempty"`
-	DomainId  string    `json:"domain_uuid, omitempty"`
+	DomainId  string    `json:"domain_uuid,omitempty"`
 	Host      string    `json:"-"`
 	Ip        string    `json:"-"`
 	Error     error     `json:"-"`
@@ -56,7 +56,7 @@ func HandleHealthCheck(h *Healthcheck) workerpool.JobHandler {
 	return func(worker *workerpool.Worker, job workerpool.Job) {
 		item := job.(*HealthCheckItem)
 		logger.Default.Debugf("item %v received", item)
-		var err error = nil
+		var err error
 		switch item.Protocol {
 		case "http", "https":
 			timeout := time.Duration(item.Timeout) * time.Millisecond

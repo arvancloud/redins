@@ -466,7 +466,6 @@ func TestExpire(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 	status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
-	status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
 	if status != 0 {
 		fmt.Println("2")
 		t.Fail()
