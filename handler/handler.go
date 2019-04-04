@@ -329,7 +329,6 @@ func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, lo
 		}
 		return append(ips[index:], ips[:index]...)
 	}
-	return ips
 }
 
 func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime time.Time, responseCode int) {

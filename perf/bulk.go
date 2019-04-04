@@ -16,7 +16,7 @@ func main() {
 
 	fq, err := os.Open("query.txt")
 	if err != nil {
-		fmt.Errorf("cannot open query.txt")
+		fmt.Println("cannot open query.txt")
 		return
 	}
 	defer fq.Close()
