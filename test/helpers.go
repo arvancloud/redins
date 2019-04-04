@@ -102,6 +102,9 @@ func DS(rr string) *dns.DS { r, _ := dns.NewRR(rr); return r.(*dns.DS) }
 // CAA returns a CAA record from rr. It panics on errors.
 func CAA(rr string) *dns.CAA { r, _ := dns.NewRR(rr); return r.(*dns.CAA) }
 
+// TLSA returns a TLSA record from rr. It panics on errors.
+func TLSA(rr string) *dns.TLSA { r, _ := dns.NewRR(rr); return r.(*dns.TLSA) }
+
 // OPT returns an OPT record with UDP buffer size set to bufsize and the DO bit set to do.
 func OPT(bufsize int, do bool) *dns.OPT {
 	o := new(dns.OPT)
@@ -256,6 +259,20 @@ func Section(tc Case, sec sect, rr []dns.RR) error {
 			}
 			if x.Flag != tt.Flag {
 				return fmt.Errorf("CAA Flag should be %d, but is %d", tt.Flag, x.Flag)
+			}
+		case *dns.TLSA:
+			tt := section[i].(*dns.TLSA)
+			if x.Usage != tt.Usage {
+				return fmt.Errorf("TLSA Usage should be %d, but is %d", tt.Usage, x.Usage)
+			}
+			if x.Selector != tt.Selector {
+				return fmt.Errorf("TLSA Selector should be %d, but is %d", tt.Selector, x.Selector)
+			}
+			if x.MatchingType != tt.MatchingType {
+				return fmt.Errorf("TLSA Matching Type should be %d, but is %d", tt.MatchingType, x.MatchingType)
+			}
+			if x.Certificate != tt.Certificate {
+				return fmt.Errorf("TLSA Certificate should be %s, but is %s", tt.Certificate, x.Certificate)
 			}
 		}
 	}

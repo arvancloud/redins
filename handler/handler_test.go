@@ -53,6 +53,16 @@ var lookupEntries = [][][]string {
         {"_sip._tcp",
             `{"srv":{"ttl":300, "records":[{"target":"sip.example.com.","port":555,"priority":10,"weight":100}]}}`,
         },
+        {"_443._tcp.www",
+            `{"tlsa":{"ttl":300, "records":[{"usage":0, "selector":0, "matching_type":1, "certificate":"d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971"}]}}`,
+        },
+        {"_990._tcp",
+            `{
+            "tlsa":{"ttl":300, "records":[
+                {"usage":1, "selector":1, "matching_type":1, "certificate":"1CFC98A706BCF3683015"},
+                {"usage":1, "selector":1, "matching_type":1, "certificate":"62D5414CD1CC657E3D30"}
+            ]}}`,
+        },
         {"sip",
             `{"a":{"ttl":300, "records":[{"ip":"7.7.7.7"}]},
             "aaaa":{"ttl":300, "records":[{"ip":"::1"}]}}`,
@@ -236,6 +246,20 @@ var lookupTestCases = [][]test.Case{
             Qname: "_sip._tcp.example.com.", Qtype: dns.TypeSRV,
             Answer: []dns.RR{
                 test.SRV("_sip._tcp.example.com. 300 IN SRV 10 100 555 sip.example.com."),
+            },
+        },
+        // TLSA Test
+        {
+            Qname: "_443._tcp.www.example.com.", Qtype: dns.TypeTLSA,
+            Answer: []dns.RR{
+                test.TLSA("_443._tcp.www.example.com. 300 IN TLSA 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971"),
+            },
+        },
+        {
+            Qname: "_990._tcp.example.com.", Qtype: dns.TypeTLSA,
+            Answer: []dns.RR{
+                test.TLSA("_990._tcp.example.com. 300 IN TLSA 1 1 1 1CFC98A706BCF3683015"),
+                test.TLSA("_990._tcp.example.com. 300 IN TLSA 1 1 1 62D5414CD1CC657E3D30"),
             },
         },
         // NXDOMAIN Test

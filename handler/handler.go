@@ -137,6 +137,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     if record != nil {
         logData["DomainId"] = record.Zone.Config.DomainId
         if qtype != dns.TypeCNAME {
+            // TODO: check for cname loop
             for {
                 if localRes != dns.RcodeSuccess {
                     break
@@ -225,6 +226,8 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
             }
         case dns.TypePTR:
             answers = AppendRR(answers, h.PTR(qname, record), qname, record, secured)
+        case dns.TypeTLSA:
+            answers = AppendRR(answers, h.TLSA(qname, record), qname, record, secured)
         case dns.TypeSOA:
             answers = AppendSOA(answers, record.Zone, secured)
         case dns.TypeDNSKEY:
@@ -523,6 +526,20 @@ func (h *DnsRequestHandler) PTR(name string, record *Record) (answers []dns.RR) 
         Class: dns.ClassINET, Ttl: h.getTtl(record.PTR.Ttl)}
     r.Ptr = dns.Fqdn(record.PTR.Domain)
     answers = append(answers, r)
+    return
+}
+
+func (h *DnsRequestHandler) TLSA(name string, record *Record) (answers []dns.RR) {
+    for _, tlsa := range record.TLSA.Data {
+        r := new(dns.TLSA)
+        r.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeTLSA,
+            Class:dns.ClassNONE, Ttl: h.getTtl(record.TLSA.Ttl)}
+        r.Usage = tlsa.Usage
+        r.Selector = tlsa.Selector
+        r.MatchingType = tlsa.MatchingType
+        r.Certificate = tlsa.Certificate
+        answers = append(answers, r)
+    }
     return
 }
 

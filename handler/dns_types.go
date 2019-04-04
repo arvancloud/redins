@@ -18,6 +18,7 @@ type RRSets struct {
     SRV          SRV_RRSet     `json:"srv,omitempty"`
     CAA          CAA_RRSet     `json:"caa,omitempty"`
     PTR          *PTR_RRSet    `json:"ptr,omitempty"`
+    TLSA         TLSA_RRSet    `json:"tlsa,omitempty"`
     ANAME        *ANAME_Record `json:"aname,omitempty"`
 }
 
@@ -192,6 +193,18 @@ type CAA_RR struct {
 type PTR_RRSet struct {
     Domain string `json:"domain"`
     Ttl    uint32 `json:"ttl,omitempty"`
+}
+
+type TLSA_RRSet struct {
+    Ttl uint32 `json:"ttl,omitempty"`
+    Data []TLSA_RR `json:"records,omitempty"`
+}
+
+type TLSA_RR struct {
+    Usage uint8 `json:"usage"`
+    Selector uint8 `json:"selector"`
+    MatchingType uint8 `json:"matching_type"`
+    Certificate string `json:"certificate"`
 }
 
 type SOA_RRSet struct {

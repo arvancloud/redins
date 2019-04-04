@@ -25,6 +25,7 @@
         - [SRV](#srv)
         - [CAA](#caa)
         - [PTR](#ptr)
+        - [TLSA](#tlsa)
         - [SOA](#soa)
     - [example](#zone-example)
     
@@ -608,10 +609,27 @@ redis-cli>HGETALL example.com.
 }
 ~~~
 
+#### TLSA
+
+~~~json
+{
+  "tlsa":{
+    "ttl": 300,
+    "records":[
+      {
+        "usage": 1,
+        "selector": 1,
+        "matching_type": 1,
+        "certificate": "1CFC98A706BCF3683015"
+      }
+    ]
+  }
+}
+~~~
+
 #### config
 
 ~~~json
-"@config":
 {
     "soa":{
         "ttl" : 100,
@@ -652,7 +670,10 @@ $ORIGIN example.net.
 above zone data should be stored at redis as follow:
 
 ~~~
-redis-cli> hgetall example.net.
+redis-cli> smembers redins:zones
+ 1) "example.net."
+ 
+redis-cli> hgetall redins:zones:example.net.
  1) "_ssh._tcp.host1"
  2) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
  3) "*"
@@ -665,8 +686,9 @@ redis-cli> hgetall example.net.
 10) "{\"srv\":{\"ttl\":300, \"records\":[{\"target\":\"tcp.example.com.\",\"port\":123,\"priority\":10,\"weight\":100}]}}"
 11) "subdel"
 12) "{\"ns\":{\"ttl\":300, \"records\":[{\"host\":\"ns1.subdel.example.net.\"},{\"host\":\"ns2.subdel.example.net.\"}]}"
-13) "@config"
-14) "{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":32343},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
-redis-cli> 
+
+redis-cli> get redins:zones:example.net.:config
+"{\"soa\":{\"ttl\":300, \"minttl\":100, \"mbox\":\"hostmaster.example.net.\",\"ns\":\"ns1.example.net.\",\"refresh\":44,\"retry\":55,\"expire\":66, \"serial\":32343},\"ns\":[{\"ttl\":300, \"host\":\"ns1.example.net.\"},{\"ttl\":300, \"host\":\"ns2.example.net.\"}]}"
+
 ~~~
 
