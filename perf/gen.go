@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"math/rand"
 	"os"
-	"bufio"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -67,7 +67,7 @@ func main() {
 	defer fq.Close()
 	wq := bufio.NewWriter(fq)
 
-	for i := 0; i<*zonesPtr; i++ {
+	for i := 0; i < *zonesPtr; i++ {
 		zoneName := RandomString(15) + suffix
 		fz, err := os.Create(zoneName)
 		if err != nil {
@@ -87,13 +87,13 @@ func main() {
 			"900    ; ncache\n" +
 			")\n" +
 			"@ NS ns1." + zoneName + "\n" +
-			"ns1 A 1.2.3.4\n\n");
+			"ns1 A 1.2.3.4\n\n")
 
-		for j := 0; j<*entriesPtr; j++ {
+		for j := 0; j < *entriesPtr; j++ {
 			location := RandomString(15)
 			ip := fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
 
-			con.Do("HSET", "redins:zones:" + zoneName, location, `{"a":{"ttl":300, "records":[{"ip":"` + ip + `"}]}}`)
+			con.Do("HSET", "redins:zones:"+zoneName, location, `{"a":{"ttl":300, "records":[{"ip":"`+ip+`"}]}}`)
 
 			wq.WriteString(location + "." + zoneName + " " + ip + "\n")
 
