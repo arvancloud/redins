@@ -59,7 +59,7 @@ func main() {
 
 	con.Do("EVAL", "return redis.call('del', unpack(redis.call('keys', ARGV[1])))", 0, "*")
 
-	fq, err := os.Create("query.txt")
+	fq, err := os.Create("../query.txt")
 	if err != nil {
 		fmt.Println("cannot open file query.txt")
 		return
@@ -69,7 +69,7 @@ func main() {
 
 	for i := 0; i < *zonesPtr; i++ {
 		zoneName := RandomString(15) + suffix
-		fz, err := os.Create(zoneName)
+		fz, err := os.Create("../" + zoneName)
 		if err != nil {
 			fmt.Println("cannot open file " + zoneName)
 			return

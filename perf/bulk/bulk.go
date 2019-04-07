@@ -14,7 +14,7 @@ func main() {
 		Timeout: time.Millisecond * 100,
 	}
 
-	fq, err := os.Open("query.txt")
+	fq, err := os.Open("../query.txt")
 	if err != nil {
 		fmt.Println("cannot open query.txt")
 		return
