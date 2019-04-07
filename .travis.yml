@@ -14,7 +14,7 @@ branches:
   - master
 
 before_install:
-  - apt get install redis-server
+  - apt-get install redis-server
   - echo "127.0.0.1 redis" >> /etc/hosts
   - mkdir -p $GOPATH/src/arvancloud/
   - ln -sf `pwd` $GOPATH/src/arvancloud/redins
