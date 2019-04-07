@@ -443,8 +443,8 @@ func TestExpire(t *testing.T) {
 			Port:           6379,
 			DB:             0,
 			Password:       "",
-			Prefix:         "healthcheck_",
-			Suffix:         "_healthcheck",
+			Prefix:         "healthcheck1_",
+			Suffix:         "_healthcheck1",
 			ConnectTimeout: 0,
 			ReadTimeout:    0,
 		},
@@ -487,7 +487,7 @@ func TestExpire(t *testing.T) {
 	log.Println(a)
 	h.redisConfigServer.HSet("redins:zones:healthcheck.exp.", expireItem[0], a)
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 5)
 	status = h.getStatus("w0.healthcheck.exp.", net.ParseIP("1.2.3.4"))
 	if status != 0 {
 		fmt.Println("2")
