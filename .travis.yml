@@ -13,7 +13,7 @@ branches:
   only:
   - master
 
-before_script:
+before_install:
   - mkdir -p $GOPATH/src/arvancloud/
   - ln -sf `pwd` $GOPATH/src/arvancloud/redins
   - cd $GOPATH/src/arvancloud/redins
