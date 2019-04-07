@@ -1,0 +1,21 @@
+dist: xenial
+
+language: go
+go:
+  - "1.12.x"
+
+go_import_path: github.com/arvancloud/redins
+
+git:
+  depth: 1
+
+branches:
+  only:
+  - master
+
+before_install:
+  - sudo systemctl restart redis-server
+  - echo "127.0.0.1 redis" |  sudo tee -a /etc/hosts > /dev/null
+  - mkdir -p $GOPATH/src/arvancloud/
+  - ln -sf `pwd` $GOPATH/src/arvancloud/redins
+  - cd $GOPATH/src/arvancloud/redins
