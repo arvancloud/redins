@@ -1,0 +1,18 @@
+dist: xenial
+
+language: go
+go:
+  - "1.12.x"
+
+go_import_path: github.com/arvancloud/redins
+
+git:
+  depth: 1
+
+branches:
+  only:
+  - master
+
+script:
+  - go get -t
+  - go test -v ./...
