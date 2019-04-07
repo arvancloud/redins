@@ -1,3 +1,4 @@
+[![Build Status](https://img.shields.io/travis/arvancloud/redins.svg)](https://travis-ci.org/arvancloud/redins)
 [![Go Report Card](https://goreportcard.com/badge/github.com/arvancloud/redins)](https://goreportcard.com/report/arvancloud/redins)
 
 # table of contents
