@@ -14,7 +14,7 @@ branches:
   - master
 
 before_install:
-  - sudo apt-get install redis-server
+  - sudo systemctl restart redis-server
   - echo "127.0.0.1 redis" |  sudo tee -a /etc/hosts > /dev/null
   - mkdir -p $GOPATH/src/arvancloud/
   - ln -sf `pwd` $GOPATH/src/arvancloud/redins
