@@ -182,7 +182,7 @@ func NewHealthcheck(config *HealthcheckConfig, redisConfigServer *uperdis.Redis)
 
 		h.redisConfigServer = redisConfigServer
 		h.redisStatusServer = uperdis.NewRedis(&config.RedisStatusServer)
-		h.cachedItems = cache.New(time.Second*time.Duration(config.CheckInterval), time.Duration(config.CheckInterval)*time.Second*10)
+		h.cachedItems = cache.New(h.checkInterval, h.checkInterval*10)
 		h.dispatcher = workerpool.NewDispatcher(config.MaxPendingRequests, config.MaxRequests)
 		for i := 0; i < config.MaxRequests; i++ {
 			h.dispatcher.AddWorker(HandleHealthCheck(h))
@@ -292,7 +292,7 @@ func (h *Healthcheck) Start() {
 			return
 		case <-time.After(h.checkInterval):
 			for i := range itemKeys {
-				itemKey := strings.TrimLeft(itemKeys[i], "redins:healthcheck:")
+				itemKey := strings.TrimPrefix(itemKeys[i], "redins:healthcheck:")
 				item := h.loadItem(itemKey)
 				if item != nil {
 					if time.Since(item.LastCheck) > h.checkInterval {

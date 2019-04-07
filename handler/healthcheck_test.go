@@ -340,12 +340,14 @@ func TestTransfer(t *testing.T) {
 	}
 }
 
+/*
 func TestPing(t *testing.T) {
 	log.Println("TestPing")
 	if err := pingCheck("4.2.2.4", time.Second); err != nil {
 		t.Fail()
 	}
 }
+*/
 
 var healthcheckConfig = HealthcheckConfig{
 	Enable: true,
@@ -377,17 +379,17 @@ var hcEntries = [][]string{
 	{"www",
 		`{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"172.217.17.238"}]}}`,
 	},
-	/*
-	   {"y",
-	       `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"4.2.2.4"}]}}`,
-	   },
-	   {"ddd",
-	       `{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"/uri2","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"3.3.3.3"}]}}`,
-	   },
-	*/
-	{"z",
-		`{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"192.168.200.2"}]}}`,
+	{"ddd",
+		`{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"http","uri":"/uri2","port":80, "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"3.3.3.3"}]}}`,
 	},
+	/*
+		{"y",
+			`{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"4.2.2.4"}]}}`,
+		},
+		{"z",
+			`{"a":{"ttl":300, "health_check":{"enable":true,"protocol":"ping", "up_count": 3, "down_count": -3, "timeout":1000}, "records":[{"ip":"192.168.200.2"}]}}`,
+		},
+	*/
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -407,33 +409,54 @@ func TestHealthCheck(t *testing.T) {
 	go hc.Start()
 	time.Sleep(10 * time.Second)
 	h1 := hc.getStatus("www.google.com.", net.ParseIP("172.217.17.238"))
+	h2 := hc.getStatus("ddd.google.com.", net.ParseIP("3.3.3.3"))
 	/*
-	   h2 := hc.getStatus("y.google.com.", net.ParseIP("4.2.2.4"))
-	   h3 := hc.getStatus("ddd.google.com.", net.ParseIP("3.3.3.3"))
+		h3 := hc.getStatus("y.google.com.", net.ParseIP("4.2.2.4"))
+		h4 := hc.getStatus("z.google.com.", net.ParseIP("192.168.200.2"))
 	*/
-	h4 := hc.getStatus("z.google.com.", net.ParseIP("192.168.200.2"))
-	log.Println(h1, " " /*h2, " ", h3,*/, " ", h4)
+	log.Println(h1, " ", h2, " " /*, h3,, " ", h4*/)
 	if h1 != 3 {
 		t.Fail()
 	}
+	if h2 != -3 {
+		t.Fail()
+	}
 	/*
-	   if h2 != 3 {
+	   if h3 != 3 {
 	       t.Fail()
 	   }
-	   if h3 != -3 {
+	   if h4 != -3 {
 	       t.Fail()
 	   }
 	*/
-	if h4 != -3 {
-		t.Fail()
-	}
 }
 
 func TestExpire(t *testing.T) {
-	log.Printf("TestTransfer")
+	var config = HealthcheckConfig{
+		Enable:             true,
+		MaxRequests:        10,
+		MaxPendingRequests: 100,
+		UpdateInterval:     1,
+		CheckInterval:      600,
+		RedisStatusServer: uperdis.RedisConfig{
+			Ip:             "redis",
+			Port:           6379,
+			DB:             0,
+			Password:       "",
+			Prefix:         "healthcheck_",
+			Suffix:         "_healthcheck",
+			ConnectTimeout: 0,
+			ReadTimeout:    0,
+		},
+		Log: logger.LogConfig{
+			Enable: true,
+			Path:   "/tmp/healthcheck.log",
+		},
+	}
+
+	log.Printf("TestExpire")
 	logger.Default = logger.NewLogger(&logger.LogConfig{})
 	configRedis := uperdis.NewRedis(&configRedisConf)
-	config.UpdateInterval = 1
 	h := NewHealthcheck(&config, configRedis)
 
 	h.redisConfigServer.Del("*")
@@ -447,14 +470,14 @@ func TestExpire(t *testing.T) {
 
 	a := fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[2])
 	log.Println(a)
-	h.redisConfigServer.SAdd("redins:zones", "healthcheck.com.")
-	h.redisConfigServer.HSet("redins:zones:healthcheck.com.", expireItem[0], a)
-	key := fmt.Sprintf("%s.healthcheck.com.:%s", expireItem[0], expireItem[1])
+	h.redisConfigServer.SAdd("redins:zones", "healthcheck.exp.")
+	h.redisConfigServer.HSet("redins:zones:healthcheck.exp.", expireItem[0], a)
+	key := fmt.Sprintf("%s.healthcheck.exp.:%s", expireItem[0], expireItem[1])
 	h.redisStatusServer.Set("redins:healthcheck:"+key, expireItem[2])
 
 	go h.Start()
 	time.Sleep(time.Second * 2)
-	status := h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
+	status := h.getStatus("w0.healthcheck.exp.", net.ParseIP("1.2.3.4"))
 	if status != 3 {
 		fmt.Println("1")
 		t.Fail()
@@ -462,10 +485,10 @@ func TestExpire(t *testing.T) {
 
 	a = fmt.Sprintf("{\"a\":{\"ttl\":300, \"records\":[{\"ip\":\"%s\"}],\"health_check\":%s}}", expireItem[1], expireItem[3])
 	log.Println(a)
-	h.redisConfigServer.HSet("redins:zones:healthcheck.com.", expireItem[0], a)
+	h.redisConfigServer.HSet("redins:zones:healthcheck.exp.", expireItem[0], a)
 
-	time.Sleep(time.Second * 3)
-	status = h.getStatus("w0.healthcheck.com.", net.ParseIP("1.2.3.4"))
+	time.Sleep(time.Second * 5)
+	status = h.getStatus("w0.healthcheck.exp.", net.ParseIP("1.2.3.4"))
 	if status != 0 {
 		fmt.Println("2")
 		t.Fail()

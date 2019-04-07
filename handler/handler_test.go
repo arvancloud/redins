@@ -1573,7 +1573,38 @@ var subsTestCases = []test.Case{
 func TestSubscribeZones(t *testing.T) {
 	logger.Default = logger.NewLogger(&logger.LogConfig{})
 
-	handlerTestConfig.CacheTimeout = 1
+	var handlerTestConfig = HandlerConfig{
+		MaxTtl:       300,
+		CacheTimeout: 1,
+		ZoneReload:   600,
+		Redis: uperdis.RedisConfig{
+			Ip:             "redis",
+			Port:           6379,
+			DB:             0,
+			Password:       "",
+			Prefix:         "test_",
+			Suffix:         "_test",
+			ConnectTimeout: 0,
+			ReadTimeout:    0,
+		},
+		Log: logger.LogConfig{
+			Enable: false,
+		},
+		Upstream: []UpstreamConfig{
+			{
+				Ip:       "1.1.1.1",
+				Port:     53,
+				Protocol: "udp",
+				Timeout:  1000,
+			},
+		},
+		GeoIp: GeoIpConfig{
+			Enable:    true,
+			CountryDB: "../geoCity.mmdb",
+			ASNDB:     "../geoIsp.mmdb",
+		},
+	}
+
 	h := NewHandler(&handlerTestConfig)
 	h.Redis.Del("*")
 	for _, cmd := range subsEntries {
@@ -1587,32 +1618,29 @@ func TestSubscribeZones(t *testing.T) {
 
 	h.Redis.SAdd("redins:zones", subsZone)
 	time.Sleep(time.Millisecond * 10)
-	{
-		tc := subsTestCases[0]
-		r := tc.Msg()
-		w := test.NewRecorder(&test.ResponseWriter{})
-		state := request.Request{W: w, Req: r}
-		h.HandleRequest(&state)
+	tc := subsTestCases[0]
+	r := tc.Msg()
+	w := test.NewRecorder(&test.ResponseWriter{})
+	state := request.Request{W: w, Req: r}
+	h.HandleRequest(&state)
 
-		resp := w.Msg
-		if resp.Rcode != dns.RcodeSuccess {
-			fmt.Println("1")
-			t.Fail()
-		}
+	resp := w.Msg
+	if resp.Rcode != dns.RcodeSuccess {
+		fmt.Println("1")
+		t.Fail()
 	}
+
 	h.Redis.SRem("redins:zones", subsZone)
 	time.Sleep(time.Millisecond * 1500)
-	{
-		tc := subsTestCases[0]
-		r := tc.Msg()
-		w := test.NewRecorder(&test.ResponseWriter{})
-		state := request.Request{W: w, Req: r}
-		h.HandleRequest(&state)
+	tc = subsTestCases[0]
+	r = tc.Msg()
+	w = test.NewRecorder(&test.ResponseWriter{})
+	state = request.Request{W: w, Req: r}
+	h.HandleRequest(&state)
 
-		resp := w.Msg
-		if resp.Rcode != dns.RcodeNotAuth {
-			fmt.Println("2")
-			t.Fail()
-		}
+	resp = w.Msg
+	if resp.Rcode != dns.RcodeNotAuth {
+		fmt.Println("2 : ", resp.Rcode)
+		t.Fail()
 	}
 }
