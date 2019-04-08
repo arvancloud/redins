@@ -19,3 +19,6 @@ before_install:
   - mkdir -p $GOPATH/src/arvancloud/
   - ln -sf `pwd` $GOPATH/src/arvancloud/redins
   - cd $GOPATH/src/arvancloud/redins
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
