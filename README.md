@@ -1,4 +1,5 @@
 [![Build Status](https://img.shields.io/travis/arvancloud/redins.svg)](https://travis-ci.org/arvancloud/redins)
+[![Code Coverage](https://img.shields.io/codecov/c/github/arvancloud/redins.svg)](https://codecov.io/github/coredns/coredns?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/arvancloud/redins)](https://goreportcard.com/report/arvancloud/redins)
 
 # table of contents
