@@ -128,7 +128,13 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     if record != nil {
         logData["DomainId"] = record.Zone.Config.DomainId
         if qtype != dns.TypeCNAME {
+            count := 0
             for {
+                if count >= 10 {
+                    answers = []dns.RR{}
+                    localRes = dns.RcodeServerFailure
+                    break
+                }
                 if localRes != dns.RcodeSuccess {
                     break
                 }
@@ -143,6 +149,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
                     qname = record.CNAME.Host
                 }
                 record, localRes = h.FetchRecord(record.CNAME.Host, logData)
+                count++
             }
         }
     }

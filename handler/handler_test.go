@@ -1554,3 +1554,52 @@ func TestCNameOutsideZone(t *testing.T) {
         }
     }
 }
+
+var cnameLoopZone = "loop.cnm."
+
+var cnameLoopEntries = [][]string {
+    {"w1",
+        `{"cname":{"ttl":300, "host":"w2.loop.cnm."}}`,
+    },
+    {"w2",
+        `{"cname":{"ttl":300, "host":"w1.loop.cnm."}}`,
+    },
+}
+
+var cnameLoopTests = []test.Case{
+    {
+        Qname: "w1.loop.cnm.", Qtype: dns.TypeA,
+        Rcode: dns.RcodeServerFailure,
+    },
+}
+
+
+func TestCNameLoop(t *testing.T) {
+    logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+    h := NewHandler(&handlerTestConfig)
+    h.Redis.Del(cnameLoopZone)
+    for _, cmd := range cnameLoopEntries {
+        err := h.Redis.HSet(cnameLoopZone, cmd[0], cmd[1])
+        if err != nil {
+            log.Printf("[ERROR] cannot connect to redis: %s", err)
+            t.Fail()
+        }
+    }
+
+    h.LoadZones()
+    for j, tc := range cnameLoopTests {
+
+        r := tc.Msg()
+        w := dnstest.NewRecorder(&test.ResponseWriter{})
+        state := request.Request{W: w, Req: r}
+        h.HandleRequest(&state)
+
+        resp := w.Msg
+
+        fmt.Println(j, tc.Qname, tc.Answer, resp.Answer)
+        if err := test.SortAndCheck(resp, tc); err != nil {
+            t.Fail()
+        }
+    }
+}
