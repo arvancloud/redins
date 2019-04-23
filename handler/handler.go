@@ -136,8 +136,13 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 	if record != nil {
 		logData["DomainId"] = record.Zone.Config.DomainId
 		if qtype != dns.TypeCNAME {
-			// TODO: check for cname loop
+			count := 0
 			for {
+				if count >= 10 {
+					answers = []dns.RR{}
+					localRes = dns.RcodeServerFailure
+					break
+				}
 				if localRes != dns.RcodeSuccess {
 					break
 				}
@@ -146,9 +151,13 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 				}
 				if !record.Zone.Config.CnameFlattening {
 					answers = AppendRR(answers, h.CNAME(qname, record), qname, record, secured)
+					if h.Matches(record.CNAME.Host) != originalRecord.Zone.Name {
+						break
+					}
 					qname = record.CNAME.Host
 				}
 				record, localRes = h.FetchRecord(record.CNAME.Host, logData)
+				count++
 			}
 		}
 	}
