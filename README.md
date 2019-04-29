@@ -245,6 +245,11 @@ log configuration
     "enable": false,
     "protocol": "udp",
     "address": "localhost:514"
+  },
+  "kafka": {
+    "enable": false,
+    "brokers": ["127.0.0.1:9092"],
+    "topic": "redins"
   }
 }
 ~~~
@@ -257,6 +262,7 @@ log configuration
 * path : log output file path
 * sentry : sentry hook configurations
 * syslog : syslog hook configurations
+* kafka : kafka hook configurations
 
 ### rate limit 
 rate limit connfiguration
