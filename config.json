@@ -32,7 +32,12 @@
       "target": "file",
       "level": "info",
       "path": "/tmp/redins.log",
-      "time_format": "2006-01-02 15:04:05"
+      "time_format": "2006-01-02 15:04:05",
+      "kafka": {
+          "enable": true,
+          "topic": "redins",
+          "brokers": ["127.0.0.1:9092"]
+      }
     },
     "upstream": [{
       "ip": "1.1.1.1",
@@ -51,7 +56,7 @@
       "asn_db": "geoIsp.mmdb"
     },
     "healthcheck": {
-      "enable": true,
+      "enable": false,
       "max_requests": 5,
       "max_pending_requests": 100,
       "update_interval": 600,
