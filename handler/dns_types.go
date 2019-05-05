@@ -191,7 +191,7 @@ type CAA_RR struct {
 
 type PTR_RRSet struct {
     Ttl    uint32 `json:"ttl,omitempty"`
-    Domain string `json:domain`
+    Domain string `json:"domain"`
 }
 
 type SOA_RRSet struct {
@@ -203,6 +203,7 @@ type SOA_RRSet struct {
     Retry   uint32   `json:"retry"`
     Expire  uint32   `json:"expire"`
     MinTtl  uint32   `json:"minttl"`
+    Serial  uint32   `json:"serial"`
 }
 
 type ANAME_Record struct {

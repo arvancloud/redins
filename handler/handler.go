@@ -685,9 +685,10 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
             Retry: 7200,
             Expire: 3600,
             MBox: "hostmaster." + z.Name,
+            Serial: uint32(time.Now().Unix()),
+            Ttl: 300,
         },
     }
-    z.Config.SOA.Ttl = 300
     val, _ := h.Redis.HGet(zone, "@config")
     if len(val) > 0 {
         err := json.Unmarshal([]byte(val), &z.Config)
@@ -736,7 +737,7 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
         Retry: z.Config.SOA.Retry,
         Expire: z.Config.SOA.Expire,
         Minttl: z.Config.SOA.MinTtl,
-        Serial: uint32(time.Now().Unix()),
+        Serial: z.Config.SOA.Serial,
     }
     return z
 }
