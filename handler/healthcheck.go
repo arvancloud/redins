@@ -30,7 +30,7 @@ type HealthCheckItem struct {
 	UpCount   int       `json:"up_count,omitempty"`
 	DownCount int       `json:"down_count,omitempty"`
 	Enable    bool      `json:"enable,omitempty"`
-	DomainId  string    `json:"domain_uuid,omitempty"`
+	DomainId  string    `json:"domain_uuid, omitempty"`
 	Host      string    `json:"-"`
 	Ip        string    `json:"-"`
 	Error     error     `json:"-"`

@@ -1656,6 +1656,89 @@ func TestCNameLoop(t *testing.T) {
 	}
 }
 
+var findZoneZones = []string{"zone.zon.", "sub1.zone.zon."}
+
+var findZoneEntries = [][][]string{
+	{
+		{"sub3.sub2",
+			`{"a":{"ttl":300, "records":[{"ip":"1.1.1.1"}]}}`,
+		},
+		{"sub1",
+			`{"a":{"ttl":300, "records":[{"ip":"2.2.2.2"}]}}`,
+		},
+		{"sub10",
+			`{"a":{"ttl":300, "records":[{"ip":"5.5.5.5"}]}}`,
+		},
+	},
+	{
+		{"@",
+			`{"a":{"ttl":300, "records":[{"ip":"3.3.3.3"}]}}`,
+		},
+		{"sub2",
+			`{"a":{"ttl":300, "records":[{"ip":"4.4.4.4"}]}}`,
+		},
+	},
+}
+
+var findZoneTests = []test.Case{
+	{
+		Qname: "sub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub1.zone.zon. 300 IN A 3.3.3.3"),
+		},
+	},
+	{
+		Qname: "sub10.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub10.zone.zon. 300 IN A 5.5.5.5"),
+		},
+	},
+	{
+		Qname: "sub3.sub2.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub3.sub2.zone.zon. 300 IN A 1.1.1.1"),
+		},
+	},
+	{
+		Qname: "sub2.sub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub2.sub1.zone.zon. 300 IN A 4.4.4.4"),
+		},
+	},
+}
+
+func TestFindZone(t *testing.T) {
+	logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+	h := NewHandler(&handlerTestConfig)
+	h.Redis.Del("*")
+	for i, zone := range findZoneZones {
+		h.Redis.SAdd("redins:zones", zone)
+		for _, cmd := range findZoneEntries[i] {
+			err := h.Redis.HSet("redins:zones:"+zone, cmd[0], cmd[1])
+			if err != nil {
+				log.Printf("[ERROR] cannot connect to redis: %s", err)
+				t.Fail()
+			}
+		}
+		h.Redis.Set("redins:zones:"+zone+":config", lookupConfig[i])
+		h.LoadZones()
+	}
+	for _, tc := range findZoneTests {
+		r := tc.Msg()
+		w := test.NewRecorder(&test.ResponseWriter{})
+		state := request.Request{W: w, Req: r}
+		h.HandleRequest(&state)
+
+		resp := w.Msg
+
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			fmt.Println(tc.Qname, tc.Answer, resp.Answer)
+			t.Fail()
+		}
+	}
+}
+
 var subsZone = "zone1.com."
 
 var subsEntries = [][]string{

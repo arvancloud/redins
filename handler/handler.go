@@ -109,18 +109,18 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 	requestStartTime := time.Now()
 
 	logData := map[string]interface{}{
-		"SourceIP": state.IP(),
-		"Record":   state.Name(),
-		"Type":     state.Type(),
+		"source_ip": state.IP(),
+		"record":    state.Name(),
+		"type":      state.Type(),
 	}
-	logData["ClientSubnet"] = GetSourceSubnet(state)
+	logData["client_subnet"] = GetSourceSubnet(state)
 
 	if h.Config.LogSourceLocation {
 		sourceIP := GetSourceIp(state)
 		_, _, sourceCountry, _ := h.geoip.GetGeoLocation(sourceIP)
-		logData["SourceCountry"] = sourceCountry
+		logData["source_country"] = sourceCountry
 		sourceASN, _ := h.geoip.GetASN(sourceIP)
-		logData["SourceASN"] = sourceASN
+		logData["source_asn"] = sourceASN
 	}
 
 	auth := true
@@ -134,7 +134,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 	originalRecord := record
 	secured := state.Do() && record != nil && record.Zone.Config.DnsSec
 	if record != nil {
-		logData["DomainId"] = record.Zone.Config.DomainId
+		logData["domain_id"] = record.Zone.Config.DomainId
 		if qtype != dns.TypeCNAME {
 			count := 0
 			for {
@@ -320,8 +320,8 @@ func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, lo
 		default:
 			index = 0
 		}
-		logData["DestinationIp"] = ips[index].Ip.String()
-		logData["DestinationCountry"] = ips[index].Country
+		logData["destination_ip"] = ips[index].Ip.String()
+		logData["destination_country"] = ips[index].Country
 		return []IP_RR{ips[index]}
 
 	case "multi":
@@ -341,9 +341,9 @@ func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, lo
 }
 
 func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime time.Time, responseCode int) {
-	data["ProcessTime"] = time.Since(startTime).Nanoseconds() / 1000000
-	data["ResponseCode"] = responseCode
-	h.Logger.Log(data, "ar_dns_request")
+	data["process_time"] = time.Since(startTime).Nanoseconds() / 1000000
+	data["response_code"] = responseCode
+	h.Logger.Log(data, "dns request")
 }
 
 func GetSourceIp(request *request.Request) net.IP {
@@ -372,14 +372,13 @@ func GetSourceSubnet(request *request.Request) string {
 	return ""
 }
 
-func reverseZone(zone string) string {
+func reverseZone(zone string) (string, string) {
 	x := strings.Split(zone, ".")
 	var y string
 	for i := len(x) - 1; i > 0; i-- {
 		y += x[i] + "."
 	}
-	y += x[0]
-	return y
+	return y, y + x[0]
 }
 
 func (h *DnsRequestHandler) LoadZones() {
@@ -390,7 +389,8 @@ func (h *DnsRequestHandler) LoadZones() {
 	}
 	newZones := iradix.New()
 	for _, zone := range zones {
-		newZones, _, _ = newZones.Insert([]byte(reverseZone(zone)), zone)
+		_, rzone := reverseZone(zone)
+		newZones, _, _ = newZones.Insert([]byte(rzone), zone)
 	}
 	h.Zones = newZones
 }
@@ -399,10 +399,10 @@ func (h *DnsRequestHandler) FetchRecord(qname string, logData map[string]interfa
 	cachedRecord, found := h.RecordCache.Get(qname)
 	if found {
 		logger.Default.Debug("cached")
-		logData["Cache"] = "HIT"
+		logData["cache"] = "HIT"
 		return cachedRecord.(*Record), dns.RcodeSuccess
 	} else {
-		logData["Cache"] = "MISS"
+		logData["cache"] = "MISS"
 		record, res := h.GetRecord(qname)
 		if res == dns.RcodeSuccess {
 			h.RecordCache.Set(qname, record, time.Duration(h.Config.CacheTimeout)*time.Second)
@@ -654,9 +654,11 @@ func split255(s string) []string {
 }
 
 func (h *DnsRequestHandler) Matches(qname string) string {
-	rzname := reverseZone(qname)
-	_, zname, ok := h.Zones.Root().LongestPrefix([]byte(rzname))
-	if ok {
+	sub, exact := reverseZone(qname)
+	if _, ok := h.Zones.Root().Get([]byte(exact)); ok {
+		return qname
+	}
+	if _, zname, ok := h.Zones.Root().LongestPrefix([]byte(sub)); ok {
 		return zname.(string)
 	}
 	return ""

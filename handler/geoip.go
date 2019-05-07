@@ -48,7 +48,7 @@ func (g *GeoIp) GetSameCountry(sourceIp net.IP, ips []IP_RR, logData map[string]
 		logger.Default.Error("getSameCountry failed")
 		return ips
 	}
-	logData["SourceCountry"] = sourceCountry
+	logData["source_country"] = sourceCountry
 
 	var result []IP_RR
 	if sourceCountry != "" {
@@ -93,7 +93,7 @@ func (g *GeoIp) GetSameASN(sourceIp net.IP, ips []IP_RR, logData map[string]inte
 		logger.Default.Error("getSameASN failed")
 		return ips
 	}
-	logData["SourceASN"] = sourceASN
+	logData["source_asn"] = sourceASN
 
 	var result []IP_RR
 	if sourceASN != 0 {
