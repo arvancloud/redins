@@ -363,14 +363,13 @@ func GetSourceSubnet(request *request.Request) string {
     return ""
 }
 
-func reverseZone(zone string) string {
+func reverseZone(zone string) (string, string) {
     x := strings.Split(zone, ".")
     var y string
     for i := len(x)-1; i > 0; i-- {
         y += x[i] + "."
     }
-    y += x[0]
-    return y
+    return y, y + x[0]
 }
 
 func (h *DnsRequestHandler) LoadZones() {
@@ -378,7 +377,8 @@ func (h *DnsRequestHandler) LoadZones() {
     zones, _ := h.Redis.GetKeys("*")
     newZones := iradix.New()
     for _, zone := range zones {
-        newZones, _, _ = newZones.Insert([]byte(reverseZone(zone)), zone)
+        _, rzone := reverseZone(zone)
+        newZones, _, _ = newZones.Insert([]byte(rzone), zone)
     }
     h.Zones = newZones
 }
@@ -628,9 +628,11 @@ func split255(s string) []string {
 }
 
 func (h *DnsRequestHandler) Matches(qname string) string {
-    rzname := reverseZone(qname)
-    _, zname, ok := h.Zones.Root().LongestPrefix([]byte(rzname))
-    if ok {
+    sub, exact := reverseZone(qname)
+    if _, ok := h.Zones.Root().Get([]byte(exact)); ok {
+        return qname
+    }
+    if _, zname, ok := h.Zones.Root().LongestPrefix([]byte(sub)); ok {
         return zname.(string)
     }
     return ""
