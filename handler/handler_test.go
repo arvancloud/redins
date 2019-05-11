@@ -1669,6 +1669,9 @@ var findZoneEntries = [][][]string{
 		{"sub10",
 			`{"a":{"ttl":300, "records":[{"ip":"5.5.5.5"}]}}`,
 		},
+		{"ub1",
+			`{"a":{"ttl":300, "records":[{"ip":"6.6.6.6"}]}}`,
+		},
 	},
 	{
 		{"@",
@@ -1703,6 +1706,12 @@ var findZoneTests = []test.Case{
 		Qname: "sub2.sub1.zone.zon.", Qtype: dns.TypeA,
 		Answer: []dns.RR{
 			test.A("sub2.sub1.zone.zon. 300 IN A 4.4.4.4"),
+		},
+	},
+	{
+		Qname: "ub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("ub1.zone.zon. 300 IN A 6.6.6.6"),
 		},
 	},
 }
