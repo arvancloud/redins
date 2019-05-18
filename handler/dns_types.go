@@ -29,9 +29,11 @@ type Record struct {
 }
 
 type ZoneKey struct {
-	PublicKey  string `json:"public_key,omitmpty"`
-	PrivateKey string `json:"private_key,omitempty"`
-	Algorithm  uint8  `json:"algorithm,omitempty"`
+	DnsKey        *dns.DNSKEY
+	DnsKeySig     dns.RR
+	PrivateKey    crypto.PrivateKey
+	KeyInception  uint32
+	KeyExpiration uint32
 }
 
 type ZoneConfig struct {
@@ -45,11 +47,8 @@ type Zone struct {
 	Name          string
 	Config        ZoneConfig
 	Locations     map[string]struct{}
-	DnsKey        *dns.DNSKEY
-	DnsKeySig     dns.RR
-	PrivateKey    crypto.PrivateKey
-	KeyInception  uint32
-	KeyExpiration uint32
+	ZSK           *ZoneKey
+	KSK           *ZoneKey
 }
 
 type IP_RRSet struct {

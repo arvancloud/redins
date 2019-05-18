@@ -240,7 +240,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 			answers = AppendSOA(answers, record.Zone, secured)
 		case dns.TypeDNSKEY:
 			if secured {
-				answers = []dns.RR{record.Zone.DnsKey, record.Zone.DnsKeySig}
+				answers = []dns.RR{record.Zone.ZSK.DnsKey, record.Zone.ZSK.DnsKeySig, record.Zone.KSK.DnsKey, record.Zone.KSK.DnsKeySig}
 			}
 		default:
 			answers = []dns.RR{}
@@ -691,6 +691,37 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 	return record, dns.RcodeSuccess
 }
 
+func (h *DnsRequestHandler) loadKey(pub string, priv string) *ZoneKey {
+	pubStr, _ := h.Redis.Get(pub)
+	if pubStr == "" {
+		logger.Default.Errorf("key is not set : %s", pub)
+		return nil
+	}
+	privStr, _ := h.Redis.Get(priv)
+	if privStr == "" {
+		logger.Default.Errorf("key is not set : %s", priv)
+		return nil
+	}
+	privStr = strings.Replace(privStr, "\\n", "\n", -1)
+	zoneKey := new(ZoneKey)
+	if rr, err := dns.NewRR(pubStr); err == nil {
+		zoneKey.DnsKey = rr.(*dns.DNSKEY)
+	} else {
+		logger.Default.Errorf("cannot parse zone key : %s", err)
+		return nil
+	}
+	if pk, err := zoneKey.DnsKey.NewPrivateKey(privStr); err == nil {
+		zoneKey.PrivateKey = pk
+	} else {
+		logger.Default.Errorf("cannot create private key : %s", err)
+		return nil
+	}
+	now := time.Now()
+	zoneKey.KeyInception = uint32(now.Add(-3 * time.Hour).Unix())
+	zoneKey.KeyExpiration = uint32(now.Add(8 * 24 * time.Hour).Unix())
+	return zoneKey
+}
+
 func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
 	cachedZone, found := h.ZoneCache.Get(zone)
 	if found {
@@ -746,33 +777,27 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
 
 	z = func() *Zone {
 		if z.Config.DnsSec {
-			pubStr, _ := h.Redis.Get("redins:zones:" + z.Name + ":pub")
-			privStr, _ := h.Redis.Get("redins:zones:" + z.Name + ":priv")
-			privStr = strings.Replace(privStr, "\\n", "\n", -1)
-			if pubStr == "" || privStr == "" {
-				logger.Default.Errorf("key is not set for zone %s", z.Name)
+			z.ZSK = h.loadKey("redins:zones:" + z.Name + ":zsk:pub", "redins:zones:" + z.Name + ":zsk:priv")
+			if z.ZSK == nil {
 				z.Config.DnsSec = false
 				return z
 			}
-			if rr, err := dns.NewRR(pubStr); err == nil {
-				z.DnsKey = rr.(*dns.DNSKEY)
+			z.ZSK.DnsKey.Flags = 256
+			z.KSK = h.loadKey("redins:zones:" + z.Name + ":ksk:pub", "redins:zones:" + z.Name + ":ksk:priv")
+			if z.KSK == nil {
+				z.Config.DnsSec = false
+				return z
+			}
+			z.KSK.DnsKey.Flags = 257
+			if rrsig, err := Sign([]dns.RR{z.ZSK.DnsKey}, z.Name, z.KSK, 300); err == nil {
+				z.ZSK.DnsKeySig = rrsig
 			} else {
-				logger.Default.Errorf("cannot parse zone key : %s", err)
+				logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)
 				z.Config.DnsSec = false
 				return z
 			}
-			if pk, err := z.DnsKey.NewPrivateKey(privStr); err == nil {
-				z.PrivateKey = pk
-			} else {
-				logger.Default.Errorf("cannot create private key : %s", err)
-				z.Config.DnsSec = false
-				return z
-			}
-			now := time.Now()
-			z.KeyInception = uint32(now.Add(-3 * time.Hour).Unix())
-			z.KeyExpiration = uint32(now.Add(8 * 24 * time.Hour).Unix())
-			if rrsig, err := Sign([]dns.RR{z.DnsKey}, z.Name, z, 300); err == nil {
-				z.DnsKeySig = rrsig
+			if rrsig, err := Sign([]dns.RR{z.KSK.DnsKey}, z.Name, z.KSK, 300); err == nil {
+				z.KSK.DnsKeySig = rrsig
 			} else {
 				logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)
 				z.Config.DnsSec = false
@@ -876,7 +901,7 @@ func AppendRR(answers []dns.RR, rrs []dns.RR, qname string, record *Record, secu
 	}
 	answers = append(answers, rrs...)
 	if secured {
-		if rrsig, err := Sign(rrs, qname, record.Zone, rrs[0].Header().Ttl); err == nil {
+		if rrsig, err := Sign(rrs, qname, record.Zone.ZSK, rrs[0].Header().Ttl); err == nil {
 			answers = append(answers, rrsig)
 		}
 	}
@@ -886,7 +911,7 @@ func AppendRR(answers []dns.RR, rrs []dns.RR, qname string, record *Record, secu
 func AppendSOA(target []dns.RR, zone *Zone, secured bool) []dns.RR {
 	target = append(target, zone.Config.SOA.Data)
 	if secured {
-		if rrsig, err := Sign([]dns.RR{zone.Config.SOA.Data}, zone.Name, zone, zone.Config.SOA.Ttl); err == nil {
+		if rrsig, err := Sign([]dns.RR{zone.Config.SOA.Data}, zone.Name, zone.ZSK, zone.Config.SOA.Ttl); err == nil {
 			target = append(target, rrsig)
 		}
 	}
