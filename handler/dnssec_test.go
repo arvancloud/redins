@@ -107,9 +107,8 @@ var dnssecTestCases = []test.Case{
 		Qname: "dnssec_test.com.", Qtype: dns.TypeDNSKEY,
 		Answer: []dns.RR{
 			test.DNSKEY("dnssec_test.com.	3600	IN	DNSKEY	256 3 5 AwEAAaKsF5vxBfKuqeUa4+ugW37ftFZOyo+k7r2aeJzZdIbYk//P/dpCHK4uYG8Z1dr/qeo12ECNVcf76j+XAdJD841ELiRVaZteH8TqfPQ+jdHz10e8Sfkh7OZ4oBwSCXWj+Q=="),
-			test.RRSIG("dnssec_test.com.	300	IN	RRSIG	DNSKEY 5 2 3600 20190526115612 20190518085612 37456 dnssec_test.com. qLv3DD1f+87u7lHJn1ybrYQygmqOe7eiiJwm6ZNjO037TTQfWF/379OzSmIZaasZABxkjR5hB+pCcgi9DGnHk7eESfEjewOovr8DXtvMOT2PVuCS7Tzoa07FEIvm5pdz"),
 			test.DNSKEY("dnssec_test.com.	3600	IN	DNSKEY	257 3 5 AwEAAeVrjiD9xhyA+UJnnei/tnoQQpLrEwFzb/blH6c80yR7APmwXrGUhbETczAFdnazO3wKXC+SIDaq4W+bcMbtf/nGY9i3dzwC25BDc5/3q05eAOLkHUlnZI/Cp2i4iUD2kw=="),
-			test.RRSIG("dnssec_test.com.	300	IN	RRSIG	DNSKEY 5 2 3600 20190526115612 20190518085612 37456 dnssec_test.com. Alrb7t7WhtHbEw92NhZTqO7CnYpyy58kPGumMYpvVcA3H+OKPJkfX9ijthrtV4mEp5zqDcrqM67z1W5pj0HT1sYQdTn70Z1HnOYVja8BUWYYXOTPD8ndCDmF2tHixipT"),
+			test.RRSIG("dnssec_test.com.	300	IN	RRSIG	DNSKEY 5 2 3600 20190527081109 20190519051109 37456 dnssec_test.com. oVwtVEf9eOkcuSJlsH0OSBUvLOxgKM1pIAe7v717oRyCoyC+FIG5uGsdrZWhgklh/fpEmRdJQ+nHXKWT/son8zvxAoskuIIp49wwgvcS400IoHiyjIY0BHNTFPvsPdy0"),
 		},
 	},
 	{
@@ -356,11 +355,7 @@ func TestDNSSEC(t *testing.T) {
 		state := request.Request{W: w, Req: r}
 		h.HandleRequest(&state)
 		resp := w.Msg
-		if i == 7 {
-			fmt.Println("here")
-		}
-		for zz, rrs := range [][]dns.RR{tc0.Answer, tc0.Ns, resp.Answer, resp.Ns} {
-			fmt.Println(zz)
+		for _, rrs := range [][]dns.RR{tc0.Answer, tc0.Ns, resp.Answer, resp.Ns} {
 			s := 0
 			e := 1
 			for {
@@ -368,7 +363,7 @@ func TestDNSSEC(t *testing.T) {
 					break
 				}
 				if rrsig, ok := rrs[e].(*dns.RRSIG); ok {
-					fmt.Printf("s = %d, e = %d\n", s, e)
+					//fmt.Printf("s = %d, e = %d\n", s, e)
 					if tc.Qtype == dns.TypeDNSKEY {
 						if rrsig.Verify(ksk.(*dns.DNSKEY), rrs[s:e]) != nil {
 							fmt.Println("fail")
@@ -387,10 +382,11 @@ func TestDNSSEC(t *testing.T) {
 				}
 			}
 		}
-		fmt.Println("dddd")
-		if test.SortAndCheck(resp, tc) != nil {
+		//fmt.Println("dddd")
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			fmt.Println(err, resp.Answer, tc.Answer)
 			t.Fail()
 		}
-		fmt.Println("xxxx")
+		//fmt.Println("xxxx")
 	}
 }

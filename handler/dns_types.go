@@ -30,7 +30,6 @@ type Record struct {
 
 type ZoneKey struct {
 	DnsKey        *dns.DNSKEY
-	DnsKeySig     dns.RR
 	PrivateKey    crypto.PrivateKey
 	KeyInception  uint32
 	KeyExpiration uint32
@@ -49,6 +48,7 @@ type Zone struct {
 	Locations     map[string]struct{}
 	ZSK           *ZoneKey
 	KSK           *ZoneKey
+	DnsKeySig     dns.RR
 }
 
 type IP_RRSet struct {
