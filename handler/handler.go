@@ -126,7 +126,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
     originalRecord := record
     secured := state.Do() && record != nil && record.Zone.Config.DnsSec
     if record != nil {
-        logData["domain_id"] = record.Zone.Config.DomainId
+        logData["domain_uuid"] = record.Zone.Config.DomainId
         if qtype != dns.TypeCNAME {
             count := 0
             for {

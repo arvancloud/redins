@@ -302,7 +302,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
     data := map[string]interface{} {
         "ip":          item.Ip,
         "port":        item.Port,
-        "domain_name": item.Host,
+        "host":        item.Host,
         "domain_uuid": item.DomainId,
         "uri":         item.Uri,
         "status":      item.Status,
