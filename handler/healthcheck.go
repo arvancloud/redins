@@ -306,6 +306,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
         "domain_uuid": item.DomainId,
         "uri":         item.Uri,
         "status":      item.Status,
+        "log_type":    "healthcheck",
     }
     if item.Error == nil {
         data["error"] = ""
@@ -313,7 +314,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
         data["error"] = item.Error.Error()
     }
 
-    h.logger.Log(data,"ar_dns_healthcheck")
+    h.logger.Log(data,"dns healthcheck")
 }
 
 func statusDown(item *HealthCheckItem) {
