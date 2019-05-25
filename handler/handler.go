@@ -791,14 +791,19 @@ func (h *DnsRequestHandler) LoadZone(zone string) *Zone {
 				z.Config.DnsSec = false
 				return z
 			}
-			z.ZSK.DnsKey.Flags = 256
 			z.KSK = h.loadKey("redins:zones:" + z.Name + ":ksk:pub", "redins:zones:" + z.Name + ":ksk:priv")
 			if z.KSK == nil {
 				z.Config.DnsSec = false
 				return z
 			}
+
+			z.ZSK.DnsKey.Flags = 256
 			z.KSK.DnsKey.Flags = 257
-			if rrsig, err := sign([]dns.RR{z.ZSK.DnsKey, z.KSK.DnsKey}, z.Name, z.KSK, 300); err == nil {
+			if z.ZSK.DnsKey.Hdr.Ttl != z.KSK.DnsKey.Hdr.Ttl {
+				z.ZSK.DnsKey.Hdr.Ttl = z.KSK.DnsKey.Hdr.Ttl
+			}
+
+			if rrsig, err := sign([]dns.RR{z.ZSK.DnsKey, z.KSK.DnsKey}, z.Name, z.KSK, z.KSK.DnsKey.Hdr.Ttl); err == nil {
 				z.DnsKeySig = rrsig
 			} else {
 				logger.Default.Errorf("cannot create RRSIG for DNSKEY : %s", err)

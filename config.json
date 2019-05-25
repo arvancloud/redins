@@ -7,8 +7,14 @@
     },
     {
       "ip": "127.0.0.1",
-      "port": 2053,
-      "protocol": "udp"
+      "port": 10853,
+      "protocol": "tcp",
+      "tls": {
+          "enable": true,
+          "cert_path": "",
+          "key_path": "",
+          "ca_path": ""
+      }
     }
   ],
   "handler": {
