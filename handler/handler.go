@@ -133,7 +133,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 	record, localRes = h.FetchRecord(qname, logData)
 	originalRecord := record
 	if record != nil {
-		logData["domain_id"] = record.Zone.Config.DomainId
+		logData["domain_uuid"] = record.Zone.Config.DomainId
 		if qtype != dns.TypeCNAME {
 			count := 0
 			for {
@@ -352,6 +352,7 @@ func (h *DnsRequestHandler) Filter(request *request.Request, rrset *IP_RRSet, lo
 func (h *DnsRequestHandler) LogRequest(data map[string]interface{}, startTime time.Time, responseCode int) {
 	data["process_time"] = time.Since(startTime).Nanoseconds() / 1000000
 	data["response_code"] = responseCode
+	data["log_type"] = "request"
 	h.Logger.Log(data, "dns request")
 }
 
