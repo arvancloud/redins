@@ -108,7 +108,7 @@ var dnssecTestCases = []test.Case{
 		Answer: []dns.RR{
 			test.DNSKEY("dnssec_test.com.	3600	IN	DNSKEY	256 3 5 AwEAAaKsF5vxBfKuqeUa4+ugW37ftFZOyo+k7r2aeJzZdIbYk//P/dpCHK4uYG8Z1dr/qeo12ECNVcf76j+XAdJD841ELiRVaZteH8TqfPQ+jdHz10e8Sfkh7OZ4oBwSCXWj+Q=="),
 			test.DNSKEY("dnssec_test.com.	3600	IN	DNSKEY	257 3 5 AwEAAeVrjiD9xhyA+UJnnei/tnoQQpLrEwFzb/blH6c80yR7APmwXrGUhbETczAFdnazO3wKXC+SIDaq4W+bcMbtf/nGY9i3dzwC25BDc5/3q05eAOLkHUlnZI/Cp2i4iUD2kw=="),
-			test.RRSIG("dnssec_test.com.	300	IN	RRSIG	DNSKEY 5 2 3600 20190527081109 20190519051109 37456 dnssec_test.com. oVwtVEf9eOkcuSJlsH0OSBUvLOxgKM1pIAe7v717oRyCoyC+FIG5uGsdrZWhgklh/fpEmRdJQ+nHXKWT/son8zvxAoskuIIp49wwgvcS400IoHiyjIY0BHNTFPvsPdy0"),
+			test.RRSIG("dnssec_test.com.	3600	IN	RRSIG	DNSKEY 5 2 3600 20190527081109 20190519051109 37456 dnssec_test.com. oVwtVEf9eOkcuSJlsH0OSBUvLOxgKM1pIAe7v717oRyCoyC+FIG5uGsdrZWhgklh/fpEmRdJQ+nHXKWT/son8zvxAoskuIIp49wwgvcS400IoHiyjIY0BHNTFPvsPdy0"),
 		},
 	},
 	{
@@ -332,8 +332,8 @@ func TestDNSSEC(t *testing.T) {
 			}
 		}
 	}
-	fmt.Println("zsk is ", zsk.String())
-	fmt.Println("ksk is ", ksk.String())
+	// fmt.Println("zsk is ", zsk.String())
+	// fmt.Println("ksk is ", ksk.String())
 
 	for i, tc0 := range dnssecTestCases {
 		tc := test.Case{
