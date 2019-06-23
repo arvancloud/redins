@@ -266,7 +266,7 @@ func (h *DnsRequestHandler) HandleRequest(state *request.Request) {
 			res = upstreamRes
 		} else if originalRecord != nil && originalRecord.CNAME != nil {
 			if len(answers) == 0 {
-				answers = append(answers, h.CNAME(qname, record)...)
+				answers = append(answers, h.CNAME(qname, originalRecord)...)
 			}
 			res = dns.RcodeSuccess
 		}
