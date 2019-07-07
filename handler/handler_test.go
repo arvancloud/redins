@@ -1798,6 +1798,10 @@ func TestSubscribeZones(t *testing.T) {
 		},
 	}
 
+	rd := uperdis.NewRedis(&handlerTestConfig.Redis)
+	rd.SetConfig("notify-keyspace-events", "AK")
+	time.Sleep(time.Second)
+
 	h := NewHandler(&handlerTestConfig)
 	h.Redis.Del("*")
 	for _, cmd := range subsEntries {
