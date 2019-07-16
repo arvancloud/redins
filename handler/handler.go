@@ -688,7 +688,6 @@ func (h *DnsRequestHandler) GetRecord(qname string) (record *Record, rcode int) 
 
 	location := h.findLocation(qname, z)
 	if len(location) == 0 { // empty, no results
-		logger.Default.Errorf("location not exists : %s", qname)
 		return &Record{Name: qname, Zone: z}, dns.RcodeNameError
 	}
 	logger.Default.Debugf("location : %s", location)
