@@ -1538,18 +1538,211 @@ func TestUpstreamCNAME(t *testing.T) {
 			log.Println("3")
 			t.Fail()
 		}
-		hasCNAME := false
-		hasA := false
-		for _, rr := range resp.Answer {
-			switch rr.(type) {
-			case *dns.CNAME:
-				hasCNAME = true
-			case *dns.A:
-				hasA = true
+		cname := resp.Answer[0].(*dns.CNAME)
+		if cname.Target != "www.google.com." {
+			log.Println("4 ", cname)
+			t.Fail()
+		}
+	}
+}
+
+var cnameOutsideZones = []string{"inside.cnm.", "outside.cnm."}
+var cnameOutsideConfig = []string{
+	`{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.inside.cnm.","ns":"ns1.inside.cnm.","refresh":44,"retry":55,"expire":66}}`,
+	`{"soa":{"ttl":300, "minttl":100, "mbox":"hostmaster.outside.cnm.","ns":"ns1.outside.cnm.","refresh":44,"retry":55,"expire":66}}`,
+}
+var cnameOutsideEntries = [][][]string{
+	{
+		{"upstream",
+			`{"cname":{"ttl":300, "host":"outside.cnm."}}`,
+		},
+	},
+	{
+		{"@",
+			`{"a":{"ttl":300, "records":[{"ip":"127.0.0.6"}]}}`,
+		},
+	},
+}
+
+var cnameOutsideTests = []test.Case{
+	{
+		Qname: "upstream.inside.cnm.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.CNAME("upstream.inside.cnm. 300 IN CNAME outside.cnm."),
+		},
+	},
+}
+
+func TestCNameOutsideZone(t *testing.T) {
+	logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+	h := NewHandler(&handlerTestConfig)
+	h.Redis.Del("*")
+	for i, zone := range cnameOutsideZones {
+		h.Redis.SAdd("redins:zones", zone)
+		for _, cmd := range cnameOutsideEntries[i] {
+			err := h.Redis.HSet("redins:zones:"+zone, cmd[0], cmd[1])
+			if err != nil {
+				log.Printf("[ERROR] cannot connect to redis: %s", err)
+				t.Fail()
 			}
 		}
-		if !hasCNAME || !hasA {
-			log.Println("4")
+	}
+	h.LoadZones()
+	for j, tc := range cnameOutsideTests {
+
+		r := tc.Msg()
+		w := test.NewRecorder(&test.ResponseWriter{})
+		state := request.Request{W: w, Req: r}
+		h.HandleRequest(&state)
+
+		resp := w.Msg
+
+		fmt.Println(j, tc.Qname, tc.Answer, resp.Answer)
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			t.Fail()
+			fmt.Println(err)
+		}
+	}
+}
+
+var cnameLoopZone = "loop.cnm."
+
+var cnameLoopEntries = [][]string{
+	{"w1",
+		`{"cname":{"ttl":300, "host":"w2.loop.cnm."}}`,
+	},
+	{"w2",
+		`{"cname":{"ttl":300, "host":"w1.loop.cnm."}}`,
+	},
+}
+
+var cnameLoopTests = []test.Case{
+	{
+		Qname: "w1.loop.cnm.", Qtype: dns.TypeA,
+		Rcode: dns.RcodeServerFailure,
+	},
+}
+
+func TestCNameLoop(t *testing.T) {
+	logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+	h := NewHandler(&handlerTestConfig)
+	h.Redis.Del("*")
+	h.Redis.SAdd("redins:zones", cnameLoopZone)
+	for _, cmd := range cnameLoopEntries {
+		err := h.Redis.HSet("redins:zones:"+cnameLoopZone, cmd[0], cmd[1])
+		if err != nil {
+			log.Printf("[ERROR] cannot connect to redis: %s", err)
+			t.Fail()
+		}
+	}
+
+	h.LoadZones()
+	for j, tc := range cnameLoopTests {
+
+		r := tc.Msg()
+		w := test.NewRecorder(&test.ResponseWriter{})
+		state := request.Request{W: w, Req: r}
+		h.HandleRequest(&state)
+
+		resp := w.Msg
+
+		fmt.Println(j, tc.Qname, tc.Answer, resp.Answer)
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			t.Fail()
+			fmt.Println(err)
+		}
+	}
+}
+
+var findZoneZones = []string{"zone.zon.", "sub1.zone.zon."}
+
+var findZoneEntries = [][][]string{
+	{
+		{"sub3.sub2",
+			`{"a":{"ttl":300, "records":[{"ip":"1.1.1.1"}]}}`,
+		},
+		{"sub1",
+			`{"a":{"ttl":300, "records":[{"ip":"2.2.2.2"}]}}`,
+		},
+		{"sub10",
+			`{"a":{"ttl":300, "records":[{"ip":"5.5.5.5"}]}}`,
+		},
+		{"ub1",
+			`{"a":{"ttl":300, "records":[{"ip":"6.6.6.6"}]}}`,
+		},
+	},
+	{
+		{"@",
+			`{"a":{"ttl":300, "records":[{"ip":"3.3.3.3"}]}}`,
+		},
+		{"sub2",
+			`{"a":{"ttl":300, "records":[{"ip":"4.4.4.4"}]}}`,
+		},
+	},
+}
+
+var findZoneTests = []test.Case{
+	{
+		Qname: "sub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub1.zone.zon. 300 IN A 3.3.3.3"),
+		},
+	},
+	{
+		Qname: "sub10.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub10.zone.zon. 300 IN A 5.5.5.5"),
+		},
+	},
+	{
+		Qname: "sub3.sub2.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub3.sub2.zone.zon. 300 IN A 1.1.1.1"),
+		},
+	},
+	{
+		Qname: "sub2.sub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("sub2.sub1.zone.zon. 300 IN A 4.4.4.4"),
+		},
+	},
+	{
+		Qname: "ub1.zone.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR{
+			test.A("ub1.zone.zon. 300 IN A 6.6.6.6"),
+		},
+	},
+}
+
+func TestFindZone(t *testing.T) {
+	logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+	h := NewHandler(&handlerTestConfig)
+	h.Redis.Del("*")
+	for i, zone := range findZoneZones {
+		h.Redis.SAdd("redins:zones", zone)
+		for _, cmd := range findZoneEntries[i] {
+			err := h.Redis.HSet("redins:zones:"+zone, cmd[0], cmd[1])
+			if err != nil {
+				log.Printf("[ERROR] cannot connect to redis: %s", err)
+				t.Fail()
+			}
+		}
+		h.Redis.Set("redins:zones:"+zone+":config", lookupConfig[i])
+		h.LoadZones()
+	}
+	for _, tc := range findZoneTests {
+		r := tc.Msg()
+		w := test.NewRecorder(&test.ResponseWriter{})
+		state := request.Request{W: w, Req: r}
+		h.HandleRequest(&state)
+
+		resp := w.Msg
+
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			fmt.Println(tc.Qname, tc.Answer, resp.Answer)
 			t.Fail()
 		}
 	}
@@ -1605,6 +1798,10 @@ func TestSubscribeZones(t *testing.T) {
 		},
 	}
 
+	rd := uperdis.NewRedis(&handlerTestConfig.Redis)
+	rd.SetConfig("notify-keyspace-events", "AK")
+	time.Sleep(time.Second)
+
 	h := NewHandler(&handlerTestConfig)
 	h.Redis.Del("*")
 	for _, cmd := range subsEntries {
@@ -1642,5 +1839,60 @@ func TestSubscribeZones(t *testing.T) {
 	if resp.Rcode != dns.RcodeNotAuth {
 		fmt.Println("2 : ", resp.Rcode)
 		t.Fail()
+	}
+}
+
+var cnameNoAuthZone = "auth.zon."
+
+var cnameNoAuthEntries = [][]string{
+	{"w1",
+		`{"cname":{"ttl":300, "host":"w2.auth.zon."}}`,
+	},
+	{"w2",
+		`{"cname":{"ttl":300, "host":"noauth.zon."}}`,
+	},
+}
+
+var cnameNoAuthTests = []test.Case{
+	{
+		Qname: "w1.auth.zon.", Qtype: dns.TypeA,
+		Answer: []dns.RR {
+		    test.CNAME("w1.auth.zon.	300	IN	CNAME	w2.auth.zon."),
+		    test.CNAME("w2.auth.zon.	300	IN	CNAME	noauth.zon."),
+        },
+		Rcode: dns.RcodeSuccess,
+	},
+}
+
+func TestCNameNoAuth(t *testing.T) {
+	logger.Default = logger.NewLogger(&logger.LogConfig{})
+
+	h := NewHandler(&handlerTestConfig)
+	h.Redis.Del("*")
+	h.Redis.SAdd("redins:zones", cnameNoAuthZone)
+	h.Redis.Set("redins:zones:" + cnameNoAuthZone + ":config", "{\"cname_flattening\": false}")
+	for _, cmd := range cnameNoAuthEntries {
+		err := h.Redis.HSet("redins:zones:"+cnameNoAuthZone, cmd[0], cmd[1])
+		if err != nil {
+			log.Printf("[ERROR] cannot connect to redis: %s", err)
+			t.Fail()
+		}
+	}
+
+	h.LoadZones()
+	for j, tc := range cnameNoAuthTests {
+
+		r := tc.Msg()
+		w := test.NewRecorder(&test.ResponseWriter{})
+		state := request.Request{W: w, Req: r}
+		h.HandleRequest(&state)
+
+		resp := w.Msg
+
+		fmt.Println(j, tc.Qname, tc.Answer, resp.Answer)
+		if err := test.SortAndCheck(resp, tc); err != nil {
+			t.Fail()
+			fmt.Println(err)
+		}
 	}
 }

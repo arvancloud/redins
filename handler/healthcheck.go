@@ -30,7 +30,7 @@ type HealthCheckItem struct {
 	UpCount   int       `json:"up_count,omitempty"`
 	DownCount int       `json:"down_count,omitempty"`
 	Enable    bool      `json:"enable,omitempty"`
-	DomainId  string    `json:"domain_uuid,omitempty"`
+	DomainId  string    `json:"domain_uuid, omitempty"`
 	Host      string    `json:"-"`
 	Ip        string    `json:"-"`
 	Error     error     `json:"-"`
@@ -309,10 +309,11 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
 	data := map[string]interface{}{
 		"ip":          item.Ip,
 		"port":        item.Port,
-		"domain_name": item.Host,
+		"host":        item.Host,
 		"domain_uuid": item.DomainId,
 		"uri":         item.Uri,
 		"status":      item.Status,
+		"log_type":    "healthcheck",
 	}
 	if item.Error == nil {
 		data["error"] = ""
@@ -320,7 +321,7 @@ func (h *Healthcheck) logHealthcheck(item *HealthCheckItem) {
 		data["error"] = item.Error.Error()
 	}
 
-	h.logger.Log(data, "ar_dns_healthcheck")
+	h.logger.Log(data, "dns healthcheck")
 }
 
 func statusDown(item *HealthCheckItem) {
