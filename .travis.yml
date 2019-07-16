@@ -19,3 +19,9 @@ before_install:
   - mkdir -p $GOPATH/src/arvancloud/
   - ln -sf `pwd` $GOPATH/src/arvancloud/redins
   - cd $GOPATH/src/arvancloud/redins
+
+script:
+  - go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
